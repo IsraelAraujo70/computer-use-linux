@@ -278,6 +278,36 @@ fn hyprctl_output(args: &[&str]) -> std::io::Result<std::process::Output> {
     command.args(args).output()
 }
 
+/// Captures one window's own buffer with `grim -T`, through the
+/// ext-image-copy-capture toplevel source. The window is not raised and does
+/// not need to be on the visible workspace. Hyprland uses a client's
+/// `stableId` as its foreign-toplevel identifier.
+pub(crate) async fn capture_window_png(window_id: u64) -> Result<Vec<u8>> {
+    let output = hyprctl_output_async(&["clients", "-j"]).await?;
+    if !output.status.success() {
+        bail!("hyprctl clients -j failed");
+    }
+    let clients: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)
+        .context("hyprctl clients -j was not a JSON array")?;
+    let address = format!("0x{window_id:x}");
+    let stable_id = clients
+        .iter()
+        .find(|client| client["address"].as_str() == Some(address.as_str()))
+        .and_then(|client| client["stableId"].as_str())
+        .with_context(|| format!("Hyprland client {address} has no stableId"))?
+        .to_string();
+    let mut command = Command::new("grim");
+    command.args(["-T", &stable_id, "-t", "png", "-"]);
+    let output = command_runner::output(command, "run grim -T").await?;
+    if !output.status.success() || output.stdout.is_empty() {
+        bail!(
+            "grim -T {stable_id} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    Ok(output.stdout)
+}
+
 async fn hyprctl_output_async(args: &[&str]) -> Result<std::process::Output> {
     let mut command = Command::new("hyprctl");
     let has_signature = std::env::var("HYPRLAND_INSTANCE_SIGNATURE")

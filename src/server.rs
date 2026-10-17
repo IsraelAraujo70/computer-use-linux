@@ -7,6 +7,7 @@ use crate::atspi_tree::{
 };
 use crate::diagnostics::{doctor_report, setup_accessibility_report, DoctorReport, SetupReport};
 use crate::gnome_extension::{setup_window_targeting_report, WindowTargetingSetupReport};
+use crate::outline::{ElementQuery, TreeFormat};
 use crate::remote_desktop::{
     click as portal_click, drag as portal_drag, keysyms_for_text, press_key_chord,
     press_keycode_chord, scroll as portal_scroll, start_portal_keyboard_session,
@@ -95,6 +96,12 @@ pub struct ComputerUseLinux {
     desktop_size: Arc<Mutex<Option<(u32, u32)>>>,
     /// On-screen activity overlay (opt-out via `COMPUTER_USE_LINUX_INDICATOR=0`).
     indicator: Arc<crate::indicator::Indicator>,
+    /// Outcome of the latest raw screen capture. `doctor_report` cannot take a
+    /// screenshot itself, so readiness reuses what a real capture observed.
+    last_screenshot_ok: Arc<Mutex<Option<bool>>>,
+    /// Recent `doctor_report`, reused by snapshot-only calls so polling tools
+    /// do not rerun every probe each time.
+    recent_diagnostics: Arc<Mutex<Option<(std::time::Instant, DoctorReport)>>>,
 }
 
 fn sanitize_unsigned_integer_formats(value: &mut serde_json::Value) {
@@ -188,11 +195,7 @@ impl ComputerUseLinux {
         )
     )]
     async fn doctor(&self) -> Json<DoctorReport> {
-        Json(
-            tokio::task::spawn_blocking(doctor_report)
-                .await
-                .expect("diagnostics task panicked"),
-        )
+        Json(self.diagnostics().await)
     }
 
     #[tool(
@@ -351,7 +354,7 @@ impl ComputerUseLinux {
         name = "get_app_state",
         output_schema = rmcp::handler::server::tool::schema_for_output::<GetAppStateOutput>()
             .expect("get_app_state output schema"),
-        description = "Start an app use session if needed, then get a size-bounded screenshot and accessibility state for a Linux app. Scope the accessibility tree with app_name_or_bundle_identifier or a window_id/pid/app_id/wm_class/title target; omitting a target returns the whole desktop tree and can flood context. Screenshot results include coordinate_width, coordinate_height, scale, format, and quality when the returned image is downscaled or compressed; callers can request jpeg/quality for compression before resizing.",
+        description = "Start an app use session if needed, then get a size-bounded screenshot and accessibility state for a Linux app. The tree comes back as accessibility_outline, one line per element: `[index] role \"name\" @x,y wxh {states} actions=...`, indented by depth, with elements outside the window omitted (tree_format=json returns full node objects instead). To locate one control, find_elements is cheaper. On Hyprland a window-targeted screenshot is captured in place without raising the window. Scope the accessibility tree with app_name_or_bundle_identifier or a window_id/pid/app_id/wm_class/title target; omitting a target returns the whole desktop tree and can flood context. Screenshot results include coordinate_width, coordinate_height, scale, format, and quality when the returned image is downscaled or compressed; callers can request jpeg/quality for compression before resizing.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -372,10 +375,35 @@ impl ComputerUseLinux {
     }
 
     async fn app_state(&self, params: GetAppStateParams) -> Result<CallToolResult, ErrorData> {
+        let tree_format = params.tree_format.unwrap_or_default();
+        let (mut output, screenshot) = self.collect_app_state(params).await;
+        if tree_format == TreeFormat::Outline {
+            let viewport = output
+                .window_context
+                .as_ref()
+                .and_then(|window| window.bounds.as_ref())
+                .map(|bounds| (bounds.width, bounds.height));
+            output.accessibility_outline = Some(crate::outline::render_outline(
+                &output.accessibility_tree,
+                viewport,
+            ));
+            output.accessibility_tree.clear();
+        }
+        app_state_result(output, screenshot)
+    }
+
+    /// Captures the screenshot and accessibility snapshot for `get_app_state`
+    /// and publishes the snapshot so element indices resolve against it.
+    async fn collect_app_state(
+        &self,
+        params: GetAppStateParams,
+    ) -> (GetAppStateOutput, Option<ScreenshotCapture>) {
         let verbose = params.verbose.unwrap_or(false);
-        let mut diagnostics = tokio::task::spawn_blocking(doctor_report)
-            .await
-            .expect("diagnostics task panicked");
+        let mut diagnostics = if verbose || params.include_screenshot.unwrap_or(true) {
+            self.diagnostics().await
+        } else {
+            self.cached_diagnostics().await
+        };
         let (window_context, window_error, window_permissions_hint) =
             self.resolve_window_context(&params).await;
         let (max_nodes, max_depth) =
@@ -394,7 +422,28 @@ impl ComputerUseLinux {
         let app_filter = self
             .resolve_accessibility_app_filter(&params, window_context.as_ref())
             .await;
-        let (screenshot, screenshot_error) = if include_screenshot {
+        let toplevel = match (include_screenshot, window_context.as_ref()) {
+            (true, Some(window)) => self
+                .toplevel_capture(&WindowTarget {
+                    window_id: Some(window.window_id),
+                    ..WindowTarget::default()
+                })
+                .await
+                .map(|(_, raw)| raw),
+            _ => None,
+        };
+        let (screenshot, screenshot_error) = if let Some(raw) = toplevel {
+            diagnostics.readiness.record_screenshot_result(true);
+            let options = screenshot_options;
+            match crate::screenshot_impl::run_image_task(move || {
+                prepare_screenshot_payload(raw, options)
+            })
+            .await
+            {
+                Ok(capture) => (Some(capture), None),
+                Err(error) => (None, Some(format!("{error:#}"))),
+            }
+        } else if include_screenshot {
             let result: Result<ScreenshotCapture> = async {
                 let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
                 let raw = {
@@ -402,6 +451,7 @@ impl ComputerUseLinux {
                     capture_screenshot_raw().await
                 };
                 diagnostics.readiness.record_screenshot_result(raw.is_ok());
+                self.record_screenshot_result(raw.is_ok());
                 let raw = raw?;
                 self.cache_desktop_size(raw.width, raw.height);
                 let crop = if let Some(window) = window_context.as_ref() {
@@ -547,6 +597,7 @@ impl ComputerUseLinux {
             screenshot: screenshot.as_ref().map(ScreenshotSummary::from),
             screenshot_error,
             accessibility_tree,
+            accessibility_outline: None,
             accessibility_tree_raw_count,
             tree_scoped,
             accessibility_tree_truncated,
@@ -555,12 +606,211 @@ impl ComputerUseLinux {
             diagnostics: include_full.then_some(diagnostics),
             message,
         };
-        app_state_result(output, screenshot)
+        (output, screenshot)
+    }
+
+    #[tool(
+        name = "find_elements",
+        description = "Search a Linux app's accessibility tree and return only matching elements as outline lines `[index] role \"name\" @x,y wxh {states} actions=...`. Cheaper than get_app_state for locating a control. Scope with app_name_or_bundle_identifier or a window target. role/name/text/states must all match (case-insensitive substrings). The returned indices are valid for click, perform_action, and set_value until the next snapshot.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn find_elements(
+        &self,
+        Parameters(params): Parameters<FindElementsParams>,
+    ) -> Json<FindElementsOutput> {
+        if params.query.is_empty() {
+            return Json(FindElementsOutput {
+                matches: Vec::new(),
+                total_matches: 0,
+                searched_nodes: 0,
+                tree_truncated: false,
+                message: "Pass at least one of role, name, text, or states.".to_string(),
+            });
+        }
+        let limit = params.limit.unwrap_or(25).clamp(1, 200);
+        let (output, _) = self.collect_app_state(params.snapshot_params()).await;
+        if let Some(error) = output.window_error.as_ref() {
+            return Json(FindElementsOutput {
+                matches: Vec::new(),
+                total_matches: 0,
+                searched_nodes: 0,
+                tree_truncated: false,
+                message: format!("Window target did not resolve: {error}"),
+            });
+        }
+        let matching: Vec<String> = output
+            .accessibility_tree
+            .iter()
+            .filter(|node| params.query.matches(node))
+            .map(crate::outline::render_line)
+            .collect();
+        let total_matches = matching.len();
+        let message = match (&output.accessibility_error, total_matches) {
+            (Some(error), _) => format!("Accessibility snapshot failed: {error}"),
+            (None, 0) => format!(
+                "No element matched among {} nodes.{}",
+                output.accessibility_tree.len(),
+                if output.accessibility_tree_truncated {
+                    " The tree was truncated; scope to a window or raise max_nodes."
+                } else {
+                    ""
+                }
+            ),
+            (None, n) if n > limit => format!("Showing {limit} of {n} matches; narrow the query."),
+            (None, n) => format!("{n} match(es)."),
+        };
+        Json(FindElementsOutput {
+            matches: matching.into_iter().take(limit).collect(),
+            total_matches,
+            searched_nodes: output.accessibility_tree.len(),
+            tree_truncated: output.accessibility_tree_truncated,
+            message,
+        })
+    }
+
+    #[tool(
+        name = "wait_for",
+        description = "Poll a Linux app's accessibility tree until a condition holds or timeout_ms passes. condition=appears waits for an element matching role/name/text/states; disappears waits until none match; changed waits until the scoped tree differs from its state at the first poll and returns the differing lines prefixed + or - (the query is ignored). Each poll rereads the tree, about 1-3 s for a large browser page, so the effective timeout rounds up to whole polls. Use after an action instead of repeated screenshots.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn wait_for(&self, Parameters(params): Parameters<WaitForParams>) -> Json<WaitForOutput> {
+        let timeout_ms = params.timeout_ms.unwrap_or(5_000).clamp(100, 60_000);
+        let interval = Duration::from_millis(params.interval_ms.unwrap_or(400).clamp(100, 5_000));
+        let condition = params.condition;
+        if condition != WaitCondition::Changed && params.query.is_empty() {
+            return Json(WaitForOutput {
+                satisfied: false,
+                elapsed_ms: 0,
+                polls: 0,
+                matches: Vec::new(),
+                message: "appears/disappears need at least one of role, name, text, or states."
+                    .to_string(),
+            });
+        }
+        let started = std::time::Instant::now();
+        let mut baseline: Option<Vec<String>> = None;
+        let mut polls = 0;
+        loop {
+            polls += 1;
+            let (output, _) = self.collect_app_state(params.snapshot_params()).await;
+            if let Some(error) = output.window_error.as_ref() {
+                return Json(WaitForOutput {
+                    satisfied: false,
+                    elapsed_ms: started.elapsed().as_millis() as u64,
+                    polls,
+                    matches: Vec::new(),
+                    message: format!("Window target did not resolve: {error}"),
+                });
+            }
+            let mut matches: Vec<String> = Vec::new();
+            let satisfied = output.accessibility_error.is_none()
+                && match condition {
+                    WaitCondition::Appears | WaitCondition::Disappears => {
+                        matches = output
+                            .accessibility_tree
+                            .iter()
+                            .filter(|node| params.query.matches(node))
+                            .map(crate::outline::render_line)
+                            .take(25)
+                            .collect();
+                        (condition == WaitCondition::Appears) != matches.is_empty()
+                    }
+                    WaitCondition::Changed => {
+                        let current = crate::outline::content_lines(&output.accessibility_tree);
+                        match &baseline {
+                            None => {
+                                baseline = Some(current);
+                                false
+                            }
+                            Some(first) => {
+                                matches = crate::outline::line_diff(first, &current, 25);
+                                !matches.is_empty()
+                            }
+                        }
+                    }
+                };
+            let elapsed_ms = started.elapsed().as_millis() as u64;
+            if satisfied || elapsed_ms >= timeout_ms {
+                let message = if satisfied {
+                    format!("Condition met after {elapsed_ms} ms ({polls} polls).")
+                } else if let Some(error) = &output.accessibility_error {
+                    format!("Timed out after {elapsed_ms} ms; last snapshot failed: {error}")
+                } else {
+                    format!("Timed out after {elapsed_ms} ms ({polls} polls).")
+                };
+                return Json(WaitForOutput {
+                    satisfied,
+                    elapsed_ms,
+                    polls,
+                    matches,
+                    message,
+                });
+            }
+            sleep(interval).await;
+        }
+    }
+
+    #[tool(
+        name = "ocr",
+        description = "Read on-screen text with tesseract OCR and return lines as `@x,y wxh text`. Use it where the accessibility tree is empty (canvas, games, some Electron apps). With a window target the window is captured in place on Hyprland (not raised, any workspace) and coordinates are window-relative, ready for a window-targeted click; without one the full screen is read in screenshot coordinates. Optional region crops first; query keeps only lines containing that text (case-insensitive). Default languages: por+eng when installed.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn ocr(&self, Parameters(params): Parameters<OcrParams>) -> Json<OcrOutput> {
+        let result = self.run_ocr(&params).await;
+        Json(match result {
+            Ok((lines, coordinate_space)) => {
+                let needle = params
+                    .query
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|query| !query.is_empty())
+                    .map(str::to_lowercase);
+                let matching: Vec<String> = lines
+                    .iter()
+                    .filter(|line| {
+                        needle
+                            .as_ref()
+                            .is_none_or(|needle| line.text.to_lowercase().contains(needle))
+                    })
+                    .map(crate::ocr::OcrLine::render)
+                    .collect();
+                let limit = params.limit.unwrap_or(300).max(1);
+                OcrOutput {
+                    ok: true,
+                    total_lines: matching.len(),
+                    lines: matching.into_iter().take(limit).collect(),
+                    coordinate_space: coordinate_space.to_string(),
+                    error: None,
+                }
+            }
+            Err(error) => OcrOutput {
+                ok: false,
+                total_lines: 0,
+                lines: Vec::new(),
+                coordinate_space: String::new(),
+                error: Some(format!("{error:#}")),
+            },
+        })
     }
 
     #[tool(
         name = "screenshot",
-        description = "Capture the screen and return it as a viewable, size-bounded image. Optionally target a window (window_id/pid/wm_class/title/app_id): the window is raised to the front and the image is cropped before any resize. Returns the image plus a short caption with returned dimensions, coordinate dimensions, scale, format, quality, source, and crop bounds; callers can request jpeg/quality for compression before resizing.",
+        description = "Capture the screen and return it as a viewable, size-bounded image. Optionally target a window (window_id/pid/wm_class/title/app_id). On Hyprland a targeted window is captured in place from its own buffer: not raised, on any workspace, without disturbing the user (pass raise_window=true to force the old raise-and-crop path). Apps on a hidden workspace may pause rendering and show a stale frame unless the window has Hyprland's render_unfocused rule. Elsewhere the window is raised to the front and the image is cropped before any resize. Returns the image plus a short caption with returned dimensions, coordinate dimensions, scale, format, quality, source, and crop bounds; callers can request jpeg/quality for compression before resizing.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -580,6 +830,14 @@ impl ComputerUseLinux {
     async fn capture_screenshot(&self, params: ScreenshotParams) -> Result<CallToolResult> {
         let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
         let target = params.window_target();
+        if let Some(target) = target
+            .as_ref()
+            .filter(|_| !params.full_screen.unwrap_or(false) && params.raise_window != Some(true))
+        {
+            if let Some((window, raw)) = self.toplevel_capture(target).await {
+                return toplevel_screenshot_result(raw, &window, params.screenshot_options()).await;
+            }
+        }
         let target_window = match target.as_ref() {
             Some(target) => Some(
                 self.resolve_screenshot_window(target, params.raise_window.unwrap_or(true))
@@ -597,10 +855,10 @@ impl ComputerUseLinux {
 
         let raw_capture = {
             let _hold = self.indicator.hold_for_capture().await?;
-            capture_screenshot_raw()
-                .await
-                .context("screenshot failed")?
+            capture_screenshot_raw().await
         };
+        self.record_screenshot_result(raw_capture.is_ok());
+        let raw_capture = raw_capture.context("screenshot failed")?;
         self.cache_desktop_size(raw_capture.width, raw_capture.height);
 
         // Warn when the target window extends past the visible desktop: the
@@ -2509,6 +2767,165 @@ struct AppCandidate {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+struct OcrRegion {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct OcrParams {
+    #[serde(default)]
+    window_id: Option<u64>,
+    #[serde(default)]
+    pid: Option<u32>,
+    #[serde(default)]
+    app_id: Option<String>,
+    #[serde(default)]
+    wm_class: Option<String>,
+    /// Window title substring.
+    #[serde(default)]
+    title: Option<String>,
+    /// Rectangle to read, in the same pixel space as the result coordinates.
+    #[serde(default)]
+    region: Option<OcrRegion>,
+    /// Keep only lines containing this text (case-insensitive).
+    #[serde(default)]
+    query: Option<String>,
+    /// Tesseract language codes such as `por+eng` (default: installed por/eng).
+    #[serde(default)]
+    lang: Option<String>,
+    /// Drop words below this confidence, 0 to 100 (default 60).
+    #[serde(default)]
+    min_confidence: Option<f32>,
+    /// Maximum lines returned (default 300).
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+struct OcrOutput {
+    ok: bool,
+    /// `@x,y wxh text` per line, top to bottom by layout block.
+    lines: Vec<String>,
+    total_lines: usize,
+    /// `window` (relative to the targeted window) or `screen`.
+    coordinate_space: String,
+    error: Option<String>,
+}
+
+/// Window or app scope shared by `find_elements` and `wait_for`.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct ElementScope {
+    /// App name or AT-SPI id that limits the search.
+    #[serde(default)]
+    app_name_or_bundle_identifier: Option<String>,
+    #[serde(default)]
+    window_id: Option<u64>,
+    #[serde(default)]
+    pid: Option<u32>,
+    #[serde(default)]
+    app_id: Option<String>,
+    #[serde(default)]
+    wm_class: Option<String>,
+    /// Window title substring.
+    #[serde(default)]
+    title: Option<String>,
+    /// Maximum raw AT-SPI nodes to read (default 2000, the hard max).
+    #[serde(default)]
+    max_nodes: Option<usize>,
+}
+
+impl ElementScope {
+    fn snapshot_params(&self) -> GetAppStateParams {
+        GetAppStateParams {
+            app_name_or_bundle_identifier: self.app_name_or_bundle_identifier.clone(),
+            window_id: self.window_id,
+            pid: self.pid,
+            app_id: self.app_id.clone(),
+            wm_class: self.wm_class.clone(),
+            title: self.title.clone(),
+            max_nodes: Some(self.max_nodes.unwrap_or(2_000)),
+            include_screenshot: Some(false),
+            tree_format: Some(TreeFormat::Json),
+            ..GetAppStateParams::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+struct FindElementsParams {
+    #[serde(flatten)]
+    scope: ElementScope,
+    #[serde(flatten)]
+    query: ElementQuery,
+    /// Maximum lines returned (default 25, max 200).
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+impl FindElementsParams {
+    fn snapshot_params(&self) -> GetAppStateParams {
+        self.scope.snapshot_params()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+struct FindElementsOutput {
+    /// Outline lines of matching elements, in tree order.
+    matches: Vec<String>,
+    total_matches: usize,
+    searched_nodes: usize,
+    tree_truncated: bool,
+    message: String,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum WaitCondition {
+    /// An element matching the query exists.
+    #[default]
+    Appears,
+    /// No element matches the query.
+    Disappears,
+    /// The scoped tree differs from the first poll.
+    Changed,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+struct WaitForParams {
+    #[serde(flatten)]
+    scope: ElementScope,
+    #[serde(flatten)]
+    query: ElementQuery,
+    #[serde(default)]
+    condition: WaitCondition,
+    /// Give up after this many milliseconds (default 5000, max 60000).
+    #[serde(default)]
+    timeout_ms: Option<u64>,
+    /// Delay between polls in milliseconds (default 400).
+    #[serde(default)]
+    interval_ms: Option<u64>,
+}
+
+impl WaitForParams {
+    fn snapshot_params(&self) -> GetAppStateParams {
+        self.scope.snapshot_params()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+struct WaitForOutput {
+    satisfied: bool,
+    elapsed_ms: u64,
+    polls: u32,
+    /// Outline lines matching the query at the last poll (at most 25).
+    matches: Vec<String>,
+    message: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct GetAppStateParams {
     /// App name or AT-SPI id that limits the accessibility tree. Omit only when
     /// you need the whole desktop tree; unscoped results can flood context.
@@ -2556,6 +2973,11 @@ struct GetAppStateParams {
     /// Maximum AT-SPI traversal depth (default 32, hard max 64).
     #[serde(default)]
     max_depth: Option<u32>,
+    /// `outline` (default) returns one text line per element in
+    /// `accessibility_outline`; `json` returns full node objects in
+    /// `accessibility_tree`.
+    #[serde(default)]
+    tree_format: Option<TreeFormat>,
     /// Include a size-bounded screenshot (default true). Set false when the
     /// accessibility tree is enough.
     #[serde(default)]
@@ -2765,7 +3187,13 @@ struct GetAppStateOutput {
     /// Screenshot metadata; the image itself is the first `image` content block.
     screenshot: Option<ScreenshotSummary>,
     screenshot_error: Option<String>,
+    /// Full node objects; empty unless `tree_format` is `json`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     accessibility_tree: Vec<AccessibilityNode>,
+    /// One line per element, `[index] role "name" @x,y wxh {states} actions=...`,
+    /// indented by tree depth. The index is what element-targeted tools take.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    accessibility_outline: Option<String>,
     accessibility_tree_raw_count: usize,
     /// True when the snapshot was limited to selected app roots rather than the
     /// full desktop AT-SPI registry.
@@ -3551,6 +3979,130 @@ impl ComputerUseLinux {
                 focus.requested_window.window_id,
                 focus.focused_window.as_ref().map(|window| window.window_id)
             ))
+        }
+    }
+
+    /// Captures a Hyprland window in place, without raising it or switching
+    /// workspaces. `None` means the caller should use the portal path.
+    async fn toplevel_capture(
+        &self,
+        target: &WindowTarget,
+    ) -> Option<(WindowInfo, RawScreenshotCapture)> {
+        let windows = list_windows().await.ok()?;
+        let window = resolve_window_target(&windows, target).ok()?.clone();
+        if window.backend != crate::windowing::HYPRLAND_BACKEND {
+            return None;
+        }
+        let bytes = crate::windowing::backends::hyprland::capture_window_png(window.window_id)
+            .await
+            .ok()?;
+        let (width, height) = png_dimensions(&bytes)?;
+        self.record_screenshot_result(true);
+        Some((
+            window,
+            RawScreenshotCapture {
+                mime_type: "image/png".to_string(),
+                bytes,
+                source: "hyprland-toplevel".to_string(),
+                width,
+                height,
+            },
+        ))
+    }
+
+    async fn run_ocr(
+        &self,
+        params: &OcrParams,
+    ) -> Result<(Vec<crate::ocr::OcrLine>, &'static str)> {
+        let target = WindowTarget {
+            window_id: params.window_id,
+            pid: params.pid,
+            app_id: params.app_id.clone(),
+            wm_class: params.wm_class.clone(),
+            title: params.title.clone(),
+            ..WindowTarget::default()
+        };
+        let (raw, space) = if target.has_target() {
+            let (_, raw) = self.toplevel_capture(&target).await.context(
+                "window OCR needs in-place window capture (Hyprland with grim -T); call ocr without a window target to read the whole screen",
+            )?;
+            (raw, "window")
+        } else {
+            let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
+            let raw = {
+                let _hold = self.indicator.hold_for_capture().await?;
+                capture_screenshot_raw().await
+            };
+            self.record_screenshot_result(raw.is_ok());
+            (raw.context("screenshot failed")?, "screen")
+        };
+        let (png, dx, dy) = match &params.region {
+            Some(region) => {
+                let (x, y, width, height) = clip_capture_rect(
+                    (region.x, region.y, region.width, region.height),
+                    raw.width,
+                    raw.height,
+                )?;
+                let bytes = raw.bytes;
+                let (cropped, _, _) = crate::screenshot_impl::run_image_task(move || {
+                    crop_png(&bytes, x, y, width, height)
+                        .map_err(|error| anyhow::anyhow!("OCR region crop failed: {error}"))
+                })
+                .await?;
+                (cropped, x, y)
+            }
+            None => (raw.bytes, 0, 0),
+        };
+        let lines = crate::ocr::recognize(
+            png,
+            params.lang.as_deref(),
+            params.min_confidence.unwrap_or(60.0),
+        )
+        .await?;
+        Ok((
+            lines.into_iter().map(|line| line.offset(dx, dy)).collect(),
+            space,
+        ))
+    }
+
+    fn record_screenshot_result(&self, succeeded: bool) {
+        if let Ok(mut guard) = self.last_screenshot_ok.lock() {
+            *guard = Some(succeeded);
+        }
+    }
+
+    /// `doctor_report` with the screenshot verdict from the latest real capture.
+    async fn diagnostics(&self) -> DoctorReport {
+        let mut report = tokio::task::spawn_blocking(doctor_report)
+            .await
+            .expect("diagnostics task panicked");
+        if let Ok(mut guard) = self.recent_diagnostics.lock() {
+            *guard = Some((std::time::Instant::now(), report.clone()));
+        }
+        let observed = self.last_screenshot_ok.lock().ok().and_then(|guard| *guard);
+        if let Some(succeeded) = observed {
+            report.readiness.record_screenshot_result(succeeded);
+        }
+        report
+    }
+
+    /// Like `diagnostics`, but reuses a report up to 15 s old.
+    async fn cached_diagnostics(&self) -> DoctorReport {
+        let cached = self.recent_diagnostics.lock().ok().and_then(|guard| {
+            guard
+                .as_ref()
+                .filter(|(at, _)| at.elapsed() < Duration::from_secs(15))
+                .map(|(_, report)| report.clone())
+        });
+        match cached {
+            Some(mut report) => {
+                let observed = self.last_screenshot_ok.lock().ok().and_then(|guard| *guard);
+                if let Some(succeeded) = observed {
+                    report.readiness.record_screenshot_result(succeeded);
+                }
+                report
+            }
+            None => self.diagnostics().await,
         }
     }
 
@@ -4492,7 +5044,9 @@ fn should_keep_accessibility_node(node: &AccessibilityNode) -> bool {
 }
 
 fn is_actionable_accessibility_node(node: &AccessibilityNode) -> bool {
-    !node.actions.is_empty() || node.supports_editable_text || node.value.is_some()
+    node.actions.iter().any(crate::outline::is_specific_action)
+        || node.supports_editable_text
+        || node.value.is_some()
 }
 
 fn has_meaningful_node_copy(node: &AccessibilityNode) -> bool {
@@ -4502,7 +5056,7 @@ fn has_meaningful_node_copy(node: &AccessibilityNode) -> bool {
 }
 
 fn has_non_empty_text(value: Option<&str>) -> bool {
-    value.map(str::trim).is_some_and(|value| !value.is_empty())
+    crate::outline::clean(value).is_some()
 }
 
 fn is_sentinel_or_missing_bounds(bounds: Option<&Bounds>) -> bool {
@@ -4670,6 +5224,48 @@ fn prepare_app_state_screenshot(
         };
     }
     prepare_screenshot_payload(raw, options)
+}
+
+fn png_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
+    if bytes.len() < 24 || &bytes[..8] != b"\x89PNG\r\n\x1a\n" {
+        return None;
+    }
+    let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
+    let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
+    Some((width, height))
+}
+
+/// Image coordinates of a toplevel capture are window-relative, the same space
+/// a cropped portal capture uses, so window-targeted clicks map unchanged.
+async fn toplevel_screenshot_result(
+    raw: RawScreenshotCapture,
+    window: &WindowInfo,
+    options: ScreenshotPayloadOptions,
+) -> Result<CallToolResult> {
+    let capture =
+        crate::screenshot_impl::run_image_task(move || prepare_screenshot_payload(raw, options))
+            .await
+            .context("screenshot resize failed")?;
+    let caption = serde_json::json!({
+        "width": capture.width,
+        "height": capture.height,
+        "coordinate_width": capture.coordinate_width,
+        "coordinate_height": capture.coordinate_height,
+        "scale": capture.scale,
+        "resized": capture.resized,
+        "bytes": capture.bytes,
+        "format": capture.format,
+        "quality": capture.quality,
+        "source": capture.source,
+        "cropped_to_window": true,
+        "window_title": window.title,
+        "window_raised": false,
+        "workspace": window.workspace,
+    });
+    Ok(CallToolResult::success(vec![
+        ContentBlock::image(data_url_payload(&capture.data_url), capture.mime_type),
+        ContentBlock::text(caption.to_string()),
+    ]))
 }
 
 fn ensure_readonly_screenshot_target_is_visible(window: &WindowInfo) -> Result<()> {
@@ -7013,6 +7609,7 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
             screenshot: screenshot.map(ScreenshotSummary::from),
             screenshot_error: None,
             accessibility_tree: Vec::new(),
+            accessibility_outline: None,
             accessibility_tree_raw_count: 0,
             tree_scoped: true,
             accessibility_tree_truncated: false,

@@ -590,7 +590,14 @@ async fn perform_action_inner(
         .action()
         .await
         .context("element does not expose the AT-SPI Action interface")?;
-    let actions = action.get_actions().await.unwrap_or_default();
+    let mut actions = action.get_actions().await.unwrap_or_default();
+    for (index, entry) in actions.iter_mut().enumerate() {
+        if entry.name.is_empty() {
+            if let Ok(name) = action.get_name(index as i32).await {
+                entry.name = name;
+            }
+        }
+    }
     let action_index = if name_only {
         select_named_action_index(&actions, requested_action.unwrap_or_default())?
     } else {
@@ -951,7 +958,7 @@ async fn actions_from_proxies(
         return Vec::new();
     };
 
-    action_proxy
+    let mut actions: Vec<AccessibilityAction> = action_proxy
         .get_actions()
         .await
         .unwrap_or_default()
@@ -963,7 +970,15 @@ async fn actions_from_proxies(
             description: action.description,
             keybinding: action.keybinding,
         })
-        .collect()
+        .collect();
+    // Chromium answers GetActions with blank names but GetName(i) with the
+    // real ones ("click", "doDefault"), so fill the gaps per index.
+    for action in actions.iter_mut().filter(|action| action.name.is_empty()) {
+        if let Ok(name) = action_proxy.get_name(action.index).await {
+            action.name = name;
+        }
+    }
+    actions
 }
 
 async fn states_from_proxy(proxy: &AccessibleProxy<'_>) -> Vec<String> {
@@ -1067,7 +1082,29 @@ fn select_action_index(actions: &[atspi::Action], requested_action: Option<&str>
         ));
     }
 
-    Ok(if actions.len() > 1 { 1 } else { 0 })
+    Ok(primary_action_index(actions))
+}
+
+/// Picks the action a plain activation means: the first well-known primary
+/// verb, or index 0. Chromium lists `showContextMenu` second, so "the second
+/// action" opens a context menu there.
+fn primary_action_index(actions: &[atspi::Action]) -> i32 {
+    const PRIMARY: [&str; 7] = [
+        "click",
+        "press",
+        "activate",
+        "dodefault",
+        "jump",
+        "toggle",
+        "open",
+    ];
+    actions
+        .iter()
+        .position(|action| {
+            let name = action.name.to_ascii_lowercase();
+            PRIMARY.contains(&name.as_str())
+        })
+        .unwrap_or(0) as i32
 }
 
 fn select_named_action_index(actions: &[atspi::Action], name: &str) -> Result<i32> {
@@ -1166,7 +1203,7 @@ mod tests {
     }
 
     #[test]
-    fn select_action_index_defaults_to_secondary_when_available() {
+    fn select_action_index_defaults_to_primary_verb() {
         let actions = vec![
             atspi::Action {
                 name: "click".to_string(),
@@ -1180,7 +1217,21 @@ mod tests {
             },
         ];
 
-        assert_eq!(select_action_index(&actions, None).unwrap(), 1);
+        assert_eq!(select_action_index(&actions, None).unwrap(), 0);
+
+        let chromium = vec![
+            atspi::Action {
+                name: "showContextMenu".to_string(),
+                description: String::new(),
+                keybinding: String::new(),
+            },
+            atspi::Action {
+                name: "doDefault".to_string(),
+                description: String::new(),
+                keybinding: String::new(),
+            },
+        ];
+        assert_eq!(select_action_index(&chromium, None).unwrap(), 1);
     }
 
     #[test]
