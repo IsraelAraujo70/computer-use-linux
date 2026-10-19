@@ -67,40 +67,61 @@ pub fn render_outline(nodes: &[AccessibilityNode], viewport: Option<(u32, u32)>)
     out
 }
 
-/// Element lines without their `[index]` prefix, which shifts whenever any
-/// earlier node appears or disappears.
-pub fn content_lines(nodes: &[AccessibilityNode]) -> Vec<String> {
+/// One element as `wait_for(changed)` compares it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElementContent {
+    /// Every field except the index, parent index, and object path, which
+    /// shift whenever an earlier node appears or disappears. Untruncated, so a
+    /// change past the outline's display limits still counts.
+    key: String,
+    /// The outline line without its `[index]` prefix, as reported in diffs.
+    line: String,
+}
+
+/// The comparable content of each node, in snapshot order.
+pub fn element_contents(nodes: &[AccessibilityNode]) -> Vec<ElementContent> {
     nodes
         .iter()
         .map(|node| {
+            let mut comparable = node.clone();
+            comparable.index = 0;
+            comparable.parent_index = None;
+            comparable.object_ref.clear();
             let line = render_line(node);
-            match line.split_once("] ") {
-                Some((_, rest)) => rest.to_string(),
-                None => line,
+            ElementContent {
+                key: serde_json::to_string(&comparable).unwrap_or_default(),
+                line: match line.split_once("] ") {
+                    Some((_, rest)) => rest.to_string(),
+                    None => line,
+                },
             }
         })
         .collect()
 }
 
-/// Lines only in `after` (`+ `) then lines only in `before` (`- `), counted
-/// as multisets, at most `limit` in total.
-pub fn line_diff(before: &[String], after: &[String], limit: usize) -> Vec<String> {
+/// Elements only in `after` (`+ `) then elements only in `before` (`- `),
+/// counted as multisets, at most `limit` lines in total.
+pub fn content_diff(
+    before: &[ElementContent],
+    after: &[ElementContent],
+    limit: usize,
+) -> Vec<String> {
     use std::collections::HashMap;
     let mut counts: HashMap<&str, i32> = HashMap::new();
-    for line in before {
-        *counts.entry(line).or_default() -= 1;
+    for element in before {
+        *counts.entry(&element.key).or_default() -= 1;
     }
-    for line in after {
-        *counts.entry(line).or_default() += 1;
+    for element in after {
+        *counts.entry(&element.key).or_default() += 1;
     }
     let mut added = Vec::new();
     let mut removed = Vec::new();
-    let mut take = |lines: &[String], sign: i32, out: &mut Vec<String>, prefix: &str| {
-        for line in lines {
-            let count = counts.get_mut(line.as_str()).expect("counted above");
+    let mut take = |elements: &[ElementContent], sign: i32, out: &mut Vec<String>, prefix: &str| {
+        for element in elements {
+            let count = counts.get_mut(element.key.as_str()).expect("counted above");
             if *count * sign > 0 {
                 *count -= sign;
-                out.push(format!("{prefix}{line}"));
+                out.push(format!("{prefix}{}", element.line));
             }
         }
     };
@@ -387,21 +408,35 @@ mod tests {
     }
 
     #[test]
-    fn diff_reports_added_and_removed_lines_as_multisets() {
-        let before = vec!["button \"Send\"".to_string(), "static \"hi\"".to_string()];
-        let after = vec![
-            "button \"Send\"".to_string(),
-            "static \"hi\"".to_string(),
-            "static \"hi\"".to_string(),
-            "dialog \"Sent\"".to_string(),
-        ];
+    fn diff_reports_added_and_removed_elements_as_multisets() {
+        let before = element_contents(&[
+            node(0, None, "button", Some("Send")),
+            node(1, None, "static", Some("hi")),
+        ]);
+        // Indices shift when a node is inserted; that alone is no change.
+        let after = element_contents(&[
+            node(0, None, "button", Some("Send")),
+            node(1, None, "static", Some("hi")),
+            node(2, None, "static", Some("hi")),
+            node(3, None, "dialog", Some("Sent")),
+        ]);
 
         assert_eq!(
-            line_diff(&before, &after, 10),
+            content_diff(&before, &after, 10),
             vec!["+ static \"hi\"", "+ dialog \"Sent\""]
         );
-        assert_eq!(line_diff(&after, &before, 1), vec!["- static \"hi\""]);
-        assert!(line_diff(&before, &before, 10).is_empty());
+        assert_eq!(content_diff(&after, &before, 1), vec!["- static \"hi\""]);
+        assert!(content_diff(&before, &before, 10).is_empty());
+    }
+
+    #[test]
+    fn diff_sees_changes_past_the_display_limit() {
+        let long = "x".repeat(MAX_NAME_CHARS + 20);
+        let before = element_contents(&[node(0, None, "static", Some(&format!("{long}a")))]);
+        let after = element_contents(&[node(0, None, "static", Some(&format!("{long}b")))]);
+
+        assert_eq!(before[0].line, after[0].line);
+        assert_eq!(content_diff(&before, &after, 10).len(), 2);
     }
 
     #[test]

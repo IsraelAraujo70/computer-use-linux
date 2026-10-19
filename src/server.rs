@@ -209,11 +209,11 @@ impl ComputerUseLinux {
         )
     )]
     async fn setup_accessibility(&self) -> Json<SetupReport> {
-        Json(
-            tokio::task::spawn_blocking(setup_accessibility_report)
-                .await
-                .expect("accessibility setup task panicked"),
-        )
+        let report = tokio::task::spawn_blocking(setup_accessibility_report)
+            .await
+            .expect("accessibility setup task panicked");
+        self.forget_cached_diagnostics();
+        Json(report)
     }
 
     #[tool(
@@ -227,7 +227,9 @@ impl ComputerUseLinux {
         )
     )]
     async fn setup_window_targeting(&self) -> Json<WindowTargetingSetupReport> {
-        Json(setup_window_targeting_report().await)
+        let report = setup_window_targeting_report().await;
+        self.forget_cached_diagnostics();
+        Json(report)
     }
 
     #[tool(
@@ -698,7 +700,7 @@ impl ComputerUseLinux {
             });
         }
         let started = std::time::Instant::now();
-        let mut baseline: Option<Vec<String>> = None;
+        let mut baseline: Option<Vec<crate::outline::ElementContent>> = None;
         let mut polls = 0;
         loop {
             polls += 1;
@@ -723,17 +725,21 @@ impl ComputerUseLinux {
                             .map(crate::outline::render_line)
                             .take(25)
                             .collect();
-                        (condition == WaitCondition::Appears) != matches.is_empty()
+                        presence_condition_met(
+                            condition,
+                            !matches.is_empty(),
+                            output.accessibility_tree_truncated,
+                        )
                     }
                     WaitCondition::Changed => {
-                        let current = crate::outline::content_lines(&output.accessibility_tree);
+                        let current = crate::outline::element_contents(&output.accessibility_tree);
                         match &baseline {
                             None => {
                                 baseline = Some(current);
                                 false
                             }
                             Some(first) => {
-                                matches = crate::outline::line_diff(first, &current, 25);
+                                matches = crate::outline::content_diff(first, &current, 25);
                                 !matches.is_empty()
                             }
                         }
@@ -745,6 +751,11 @@ impl ComputerUseLinux {
                     format!("Condition met after {elapsed_ms} ms ({polls} polls).")
                 } else if let Some(error) = &output.accessibility_error {
                     format!("Timed out after {elapsed_ms} ms; last snapshot failed: {error}")
+                } else if condition != WaitCondition::Changed && output.accessibility_tree_truncated
+                {
+                    format!(
+                        "Timed out after {elapsed_ms} ms ({polls} polls). The tree was truncated, so the element may lie past the nodes read; scope to a window or raise max_nodes."
+                    )
                 } else {
                     format!("Timed out after {elapsed_ms} ms ({polls} polls).")
                 };
@@ -1325,8 +1336,7 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<ActionParams>,
     ) -> Json<ActionOutput> {
         let requested_action = requested_or_primary_action(params.action.as_deref());
-        self.perform_element_action(&params, Some(requested_action))
-            .await
+        self.perform_element_action(&params, requested_action).await
     }
 
     #[tool(
@@ -3993,11 +4003,14 @@ impl ComputerUseLinux {
         if window.backend != crate::windowing::HYPRLAND_BACKEND {
             return None;
         }
-        let bytes = crate::windowing::backends::hyprland::capture_window_png(window.window_id)
+        // Past this point a capture was attempted, so its outcome is evidence
+        // about readiness either way.
+        let captured = crate::windowing::backends::hyprland::capture_window_png(window.window_id)
             .await
-            .ok()?;
-        let (width, height) = png_dimensions(&bytes)?;
-        self.record_screenshot_result(true);
+            .ok()
+            .and_then(|bytes| png_dimensions(&bytes).map(|size| (bytes, size)));
+        self.record_screenshot_result(captured.is_some());
+        let (bytes, (width, height)) = captured?;
         Some((
             window,
             RawScreenshotCapture {
@@ -4084,6 +4097,13 @@ impl ComputerUseLinux {
             report.readiness.record_screenshot_result(succeeded);
         }
         report
+    }
+
+    /// Drops the cached report after a setup tool changed what it measures.
+    fn forget_cached_diagnostics(&self) {
+        if let Ok(mut guard) = self.recent_diagnostics.lock() {
+            *guard = None;
+        }
     }
 
     /// Like `diagnostics`, but reuses a report up to 15 s old.
@@ -4502,9 +4522,7 @@ impl ComputerUseLinux {
         // (GTK3 X11 HiDPI, GTK4 zero-origin bounds). Ordinary activation does
         // not need a guessed scale when the target exposes its native action.
         if is_plain_left_click(params.button.as_deref(), params.click_count) {
-            if let Some(action) =
-                primary_action(&node.actions).filter(|action| click_equivalent_action(action))
-            {
+            if let Some(action) = primary_click_action(&node.actions) {
                 return Ok(ClickTarget::PrimaryAction {
                     object_ref: node.object_ref.clone(),
                     action_name: Some(action.name.clone()),
@@ -4875,11 +4893,28 @@ fn click_equivalent_action(action: &AccessibilityAction) -> bool {
     )
 }
 
-fn requested_or_primary_action(action: Option<&str>) -> &str {
-    match action.map(str::trim).filter(|value| !value.is_empty()) {
-        Some(action) => action,
-        None => "0",
+/// Whether one `wait_for` poll satisfies `appears` or `disappears`. Absence
+/// needs a complete snapshot: a truncated one may stop before the element.
+fn presence_condition_met(condition: WaitCondition, matched: bool, truncated: bool) -> bool {
+    match condition {
+        WaitCondition::Appears => matched,
+        WaitCondition::Disappears => !matched && !truncated,
+        WaitCondition::Changed => false,
     }
+}
+
+/// The action `perform_action` asked for, or `None` so the AT-SPI layer picks
+/// the primary verb.
+fn requested_or_primary_action(action: Option<&str>) -> Option<&str> {
+    action.map(str::trim).filter(|value| !value.is_empty())
+}
+
+/// The action a plain left click maps to: the first click-equivalent one,
+/// wherever the toolkit lists it.
+fn primary_click_action(actions: &[AccessibilityAction]) -> Option<&AccessibilityAction> {
+    actions
+        .iter()
+        .find(|action| click_equivalent_action(action))
 }
 
 fn primary_action(actions: &[AccessibilityAction]) -> Option<&AccessibilityAction> {
@@ -9934,13 +9969,54 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
     }
 
     #[test]
-    fn perform_action_defaults_to_primary_action_index() {
-        assert_eq!(requested_or_primary_action(None), "0");
-        assert_eq!(requested_or_primary_action(Some("   ")), "0");
+    fn perform_action_leaves_an_omitted_action_to_the_primary_verb() {
+        assert_eq!(requested_or_primary_action(None), None);
+        assert_eq!(requested_or_primary_action(Some("   ")), None);
         assert_eq!(
             requested_or_primary_action(Some(" show-menu ")),
-            "show-menu"
+            Some("show-menu")
         );
+    }
+
+    #[test]
+    fn plain_click_uses_the_click_verb_wherever_it_is_listed() {
+        let action = |index: i32, name: &str| AccessibilityAction {
+            index,
+            name: name.to_string(),
+            description: String::new(),
+            keybinding: String::new(),
+        };
+        let chromium = [action(0, "showContextMenu"), action(1, "click")];
+        assert_eq!(
+            primary_click_action(&chromium).map(|action| action.index),
+            Some(1)
+        );
+        assert!(primary_click_action(&[action(0, "showContextMenu")]).is_none());
+    }
+
+    #[test]
+    fn disappears_needs_a_complete_snapshot() {
+        assert!(presence_condition_met(
+            WaitCondition::Disappears,
+            false,
+            false
+        ));
+        assert!(!presence_condition_met(
+            WaitCondition::Disappears,
+            false,
+            true
+        ));
+        assert!(!presence_condition_met(
+            WaitCondition::Disappears,
+            true,
+            false
+        ));
+        assert!(presence_condition_met(WaitCondition::Appears, true, true));
+        assert!(!presence_condition_met(
+            WaitCondition::Appears,
+            false,
+            false
+        ));
     }
 
     #[test]

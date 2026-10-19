@@ -1086,8 +1086,8 @@ fn select_action_index(actions: &[atspi::Action], requested_action: Option<&str>
 }
 
 /// Picks the action a plain activation means: the first well-known primary
-/// verb, or index 0. Chromium lists `showContextMenu` second, so "the second
-/// action" opens a context menu there.
+/// verb, or index 0. Neither "the first" nor "the second" action is safe on
+/// its own, since Chromium lists `showContextMenu` beside its primary verb.
 fn primary_action_index(actions: &[atspi::Action]) -> i32 {
     const PRIMARY: [&str; 7] = [
         "click",
