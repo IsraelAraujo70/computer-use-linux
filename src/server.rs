@@ -1,8 +1,8 @@
 use crate::atspi_tree::{
-    accessibility_chrome_context, focused_element_summary_in_app, list_accessible_apps,
+    accessibility_chrome_context, focused_element_summary_in_app, grab_focus, list_accessible_apps,
     object_ref_owner_pid, perform_action as invoke_accessibility_action, perform_named_action,
     probe_focused_element, set_element_value, snapshot_accessibility_tree, AccessibilityAction,
-    AccessibilityNode, AccessibleAppSummary, Bounds, FocusProbe, FocusedElementSummary,
+    AccessibilityNode, AccessibleAppSummary, Bounds, FocusGrab, FocusProbe, FocusedElementSummary,
     ValueSetInvocation,
 };
 use crate::diagnostics::{doctor_report, setup_accessibility_report, DoctorReport, SetupReport};
@@ -983,7 +983,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "click",
-        description = "Click an element by index, semantic selector, or desktop coordinate pixels from screenshot metadata. Plain left activation prefers a native AT-SPI click/press/toggle action, avoiding toolkit coordinate scaling. Entry activate and slider jump actions are not substituted for pointer clicks. Explicit coordinates, right clicks, and multi-clicks retain pointer semantics.",
+        description = "Click an element by index, semantic selector, or desktop coordinate pixels from screenshot metadata. Plain left activation prefers a native AT-SPI click/press/toggle action, avoiding toolkit coordinate scaling. Entry activate and slider jump actions are not substituted for pointer clicks. A plain click on a text field without a press action requests keyboard focus through AT-SPI Component.GrabFocus first and sends a pointer click only if the element does not report focus; the message names the path used. Explicit coordinates, right clicks, and multi-clicks retain pointer semantics.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -991,7 +991,22 @@ impl ComputerUseLinux {
             open_world_hint = true
         )
     )]
-    async fn click(&self, Parameters(mut params): Parameters<ClickParams>) -> Json<ActionOutput> {
+    async fn click(&self, Parameters(params): Parameters<ClickParams>) -> Json<ActionOutput> {
+        let mut path_note = None;
+        let Json(mut output) = self.click_resolved(params, &mut path_note).await;
+        if let Some(note) = path_note {
+            output.message = format!("{note} {}", output.message);
+        }
+        Json(output)
+    }
+
+    /// Body of `click`. When an AT-SPI focus attempt falls back to a pointer
+    /// click, the reason is left in `path_note` for the final message.
+    async fn click_resolved(
+        &self,
+        mut params: ClickParams,
+        path_note: &mut Option<String>,
+    ) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let mut portal_target_point = None;
@@ -1145,8 +1160,44 @@ impl ComputerUseLinux {
                 }),
             };
         }
-        let ClickTarget::Coordinates(x, y) = target else {
-            unreachable!("click target must resolve to coordinates or an AT-SPI action");
+        let (x, y) = match target {
+            ClickTarget::Coordinates(x, y) => (x, y),
+            ClickTarget::Focus {
+                object_ref,
+                fallback,
+            } => {
+                self.indicator.action("click").await;
+                let grab = grab_focus(&object_ref, FOCUS_CONFIRM_TIMEOUT)
+                    .await
+                    .map_err(|error| format!("{error:#}"));
+                match focus_click_path(grab, fallback) {
+                    FocusClickPath::Focused(message) => {
+                        return Json(ActionOutput {
+                            ok: true,
+                            implemented: true,
+                            action: "click".to_string(),
+                            message,
+                            received,
+                        });
+                    }
+                    FocusClickPath::Pointer { at, note } => {
+                        *path_note = Some(note);
+                        at
+                    }
+                    FocusClickPath::Failed(message) => {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "click".to_string(),
+                            message,
+                            received,
+                        });
+                    }
+                }
+            }
+            ClickTarget::PrimaryAction { .. } => {
+                unreachable!("primary AT-SPI actions return before pointer input")
+            }
         };
         self.indicator
             .pointer("click", (x, y), self.indicator_space())
@@ -1323,7 +1374,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "perform_action",
-        description = "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided.",
+        description = "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided. action=\"focus\" (or \"grabFocus\") requests keyboard focus through AT-SPI Component.GrabFocus and succeeds only when the element then reports the focused state.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -4167,15 +4218,18 @@ impl ComputerUseLinux {
 
     /// Probe only the receiving app; the caller chooses its own time budget.
     async fn input_focus_probe(&self, focus: Option<&WindowFocusResult>) -> Option<FocusProbe> {
-        let pid = match focus {
-            Some(focus) => focus
-                .focused_window
-                .as_ref()
-                .and_then(|window| window.pid)
-                .or(focus.requested_window.pid),
-            None => focused_window().await.ok().flatten()?.pid,
-        }?;
-        probe_focused_element(Some(pid)).await.ok()
+        let current;
+        let window = match focus {
+            Some(focus) => focus_probe_window(focus),
+            None => {
+                current = focused_window().await.ok().flatten()?;
+                &current
+            }
+        };
+        let pid = window.pid?;
+        probe_focused_element(Some(pid), window.title.as_deref())
+            .await
+            .ok()
     }
 
     /// COORDINATE SPACES: window bounds (list_windows / extension frame rects)
@@ -4281,12 +4335,9 @@ impl ComputerUseLinux {
         expects_editable: bool,
     ) -> Option<String> {
         let focus = focus?;
-        let pid = focus
-            .focused_window
-            .as_ref()
-            .and_then(|window| window.pid)
-            .or(focus.requested_window.pid);
-        match timeout(Duration::from_millis(1500), probe_focused_element(pid)).await {
+        let window = focus_probe_window(focus);
+        let probe = probe_focused_element(window.pid, window.title.as_deref());
+        match timeout(Duration::from_millis(1500), probe).await {
             Ok(Ok(probe)) => Some(focus_probe_feedback(
                 &probe,
                 expects_editable,
@@ -4529,6 +4580,14 @@ impl ComputerUseLinux {
                     action_index: action.index,
                 });
             }
+            // Clicking a text field is a request for keyboard focus. Entries
+            // often expose only `activate`, which submits instead of focusing.
+            if is_text_input_node(&node) {
+                return Ok(ClickTarget::Focus {
+                    fallback: node.bounds.as_ref().and_then(bounds_center),
+                    object_ref: node.object_ref,
+                });
+            }
         }
 
         if let Some((x, y)) = node.bounds.as_ref().and_then(bounds_center) {
@@ -4633,6 +4692,20 @@ impl ComputerUseLinux {
         };
 
         self.indicator.action("perform_action").await;
+        if requested_action.is_some_and(is_focus_request) {
+            let (ok, message) = match grab_focus(&object_ref, FOCUS_CONFIRM_TIMEOUT).await {
+                Ok(grab) if grab.focused => (true, focus_confirmed_message(grab)),
+                Ok(grab) => (false, focus_unconfirmed_reason(Ok(grab))),
+                Err(error) => (false, focus_unconfirmed_reason(Err(format!("{error:#}")))),
+            };
+            return Json(ActionOutput {
+                ok,
+                implemented: true,
+                action: "perform_action".to_string(),
+                message,
+                received,
+            });
+        }
         match invoke_accessibility_action(&object_ref, requested_action).await {
             Ok(invocation) => Json(ActionOutput {
                 ok: invocation.ok,
@@ -4679,6 +4752,12 @@ enum ClickTarget {
         object_ref: String,
         action_name: Option<String>,
         action_index: i32,
+    },
+    /// A text field without a press action: ask AT-SPI for focus first and
+    /// click its centre with the pointer only if focus does not move there.
+    Focus {
+        object_ref: String,
+        fallback: Option<(i32, i32)>,
     },
 }
 
@@ -4884,6 +4963,86 @@ fn is_plain_left_click(button: Option<&str>, click_count: Option<u32>) -> bool {
     let button = button.unwrap_or("left");
     let click_count = click_count.unwrap_or(1);
     matches!(button.to_ascii_lowercase().as_str(), "left" | "primary") && click_count == 1
+}
+
+/// The window whose app answers a focus probe: the window that actually has
+/// focus when it carries a pid, otherwise the requested one.
+fn focus_probe_window(focus: &WindowFocusResult) -> &crate::windowing::WindowInfo {
+    focus
+        .focused_window
+        .as_ref()
+        .filter(|window| window.pid.is_some())
+        .unwrap_or(&focus.requested_window)
+}
+
+/// How long `grab_focus` waits for the element to report `focused`.
+const FOCUS_CONFIRM_TIMEOUT: Duration = Duration::from_millis(500);
+
+/// `perform_action` names served by AT-SPI `Component.GrabFocus` instead of
+/// the element's Action interface, which has no focus verb.
+fn is_focus_request(action: &str) -> bool {
+    matches!(
+        action.to_ascii_lowercase().as_str(),
+        "focus" | "grabfocus" | "grab_focus"
+    )
+}
+
+/// The path a focus-first click takes after the AT-SPI focus request.
+#[derive(Debug, PartialEq, Eq)]
+enum FocusClickPath {
+    /// Focus moved; no pointer input is needed.
+    Focused(String),
+    /// Focus did not move; click `at` with the pointer and explain why.
+    Pointer { at: (i32, i32), note: String },
+    /// Focus did not move and there are no bounds to click.
+    Failed(String),
+}
+
+fn focus_click_path(
+    grab: std::result::Result<FocusGrab, String>,
+    fallback: Option<(i32, i32)>,
+) -> FocusClickPath {
+    if let Ok(grab) = grab.as_ref() {
+        if grab.focused {
+            return FocusClickPath::Focused(focus_confirmed_message(*grab));
+        }
+    }
+    let reason = focus_unconfirmed_reason(grab);
+    match fallback {
+        Some(at) => FocusClickPath::Pointer {
+            at,
+            note: format!("{reason}; fell back to a pointer click at the element centre."),
+        },
+        None => FocusClickPath::Failed(format!(
+            "{reason}, and the element has no cached bounds for a pointer click."
+        )),
+    }
+}
+
+fn focus_confirmed_message(grab: FocusGrab) -> String {
+    if grab.was_focused {
+        "The element already reported keyboard focus; AT-SPI Component.GrabFocus kept it there. No pointer input was sent.".to_string()
+    } else {
+        "Focused the element through AT-SPI Component.GrabFocus and confirmed its focused state. No pointer input was sent.".to_string()
+    }
+}
+
+fn focus_unconfirmed_reason(grab: std::result::Result<FocusGrab, String>) -> String {
+    match grab {
+        Ok(grab) => format!(
+            "AT-SPI Component.GrabFocus returned {} but the element did not report focus within {} ms",
+            grab.accepted,
+            FOCUS_CONFIRM_TIMEOUT.as_millis()
+        ),
+        Err(error) => format!("AT-SPI focus request failed ({})", first_line(&error)),
+    }
+}
+
+/// Text fields a plain click should focus rather than press.
+fn is_text_input_node(node: &AccessibilityNode) -> bool {
+    node.supports_editable_text
+        || node.states.iter().any(|state| state == "editable")
+        || matches!(node.role.as_str(), "entry" | "text" | "password text")
 }
 
 fn click_equivalent_action(action: &AccessibilityAction) -> bool {
@@ -6247,7 +6406,7 @@ async fn kde_clipboard_paste_shortcut(
     };
     let focused_element = timeout(
         Duration::from_millis(1_500),
-        focused_element_summary_in_app(pid),
+        focused_element_summary_in_app(pid, window.and_then(|window| window.title.as_deref())),
     )
     .await
     .ok()
@@ -8636,9 +8795,170 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
                 assert_eq!(action_name.as_deref(), Some("Click"));
                 assert_eq!(action_index, 0);
             }
-            ClickTarget::Coordinates(_, _) => {
-                panic!("expected AT-SPI primary-action fallback")
+            other => panic!("expected AT-SPI primary-action fallback, got {other:?}"),
+        }
+    }
+
+    fn text_field(
+        role: &str,
+        states: &[&str],
+        actions: Vec<AccessibilityAction>,
+    ) -> AccessibilityNode {
+        AccessibilityNode {
+            role: role.to_string(),
+            states: states.iter().map(|state| state.to_string()).collect(),
+            ..node_with_actions(
+                7,
+                Some(Bounds {
+                    x: 100,
+                    y: 200,
+                    width: 400,
+                    height: 60,
+                }),
+                actions,
+            )
+        }
+    }
+
+    fn named_action(name: &str) -> AccessibilityAction {
+        AccessibilityAction {
+            index: 0,
+            name: name.to_string(),
+            description: String::new(),
+            keybinding: String::new(),
+        }
+    }
+
+    #[test]
+    fn plain_click_on_a_text_field_without_press_focuses_before_the_pointer() {
+        // LinkedIn's post editor: an `entry` whose only action is `activate`.
+        for node in [
+            text_field("entry", &[], vec![named_action("activate")]),
+            text_field("section", &["editable"], Vec::new()),
+            AccessibilityNode {
+                supports_editable_text: true,
+                ..text_field("paragraph", &[], Vec::new())
+            },
+        ] {
+            let backend = ComputerUseLinux::default();
+            backend.cache_nodes(&[node]);
+
+            match backend
+                .resolve_click_target(&ClickParams {
+                    element_index: Some(7),
+                    ..Default::default()
+                })
+                .unwrap()
+            {
+                ClickTarget::Focus {
+                    object_ref,
+                    fallback,
+                } => {
+                    assert_eq!(object_ref, ":1.7/org/a11y/atspi/accessible/7");
+                    assert_eq!(fallback, Some((300, 230)));
+                }
+                other => panic!("expected focus-first click, got {other:?}"),
             }
+        }
+    }
+
+    #[test]
+    fn text_field_focus_click_keeps_press_actions_and_pointer_gestures() {
+        let backend = ComputerUseLinux::default();
+        backend.cache_nodes(&[text_field("entry", &[], vec![named_action("press")])]);
+        assert!(matches!(
+            backend
+                .resolve_click_target(&ClickParams {
+                    element_index: Some(7),
+                    ..Default::default()
+                })
+                .unwrap(),
+            ClickTarget::PrimaryAction { .. }
+        ));
+
+        backend.cache_nodes(&[text_field("entry", &[], vec![named_action("activate")])]);
+        for params in [
+            ClickParams {
+                button: Some("right".into()),
+                element_index: Some(7),
+                ..Default::default()
+            },
+            ClickParams {
+                click_count: Some(2),
+                element_index: Some(7),
+                ..Default::default()
+            },
+        ] {
+            assert!(matches!(
+                backend.resolve_click_target(&params).unwrap(),
+                ClickTarget::Coordinates(300, 230)
+            ));
+        }
+
+        // A plain button without actions still clicks its centre.
+        backend.cache_nodes(&[node_with_actions(
+            7,
+            Some(Bounds {
+                x: 100,
+                y: 200,
+                width: 400,
+                height: 60,
+            }),
+            Vec::new(),
+        )]);
+        assert!(matches!(
+            backend
+                .resolve_click_target(&ClickParams {
+                    element_index: Some(7),
+                    ..Default::default()
+                })
+                .unwrap(),
+            ClickTarget::Coordinates(300, 230)
+        ));
+    }
+
+    #[test]
+    fn focus_click_uses_the_pointer_only_when_focus_is_unconfirmed() {
+        let grab = |accepted, was_focused, focused| FocusGrab {
+            accepted,
+            was_focused,
+            focused,
+        };
+
+        assert!(matches!(
+            focus_click_path(Ok(grab(true, false, true)), Some((300, 230))),
+            FocusClickPath::Focused(message) if message.contains("confirmed its focused state")
+        ));
+        assert!(matches!(
+            focus_click_path(Ok(grab(true, true, true)), None),
+            FocusClickPath::Focused(message) if message.contains("already reported keyboard focus")
+        ));
+        // Chromium can accept GrabFocus without moving focus.
+        match focus_click_path(Ok(grab(true, false, false)), Some((300, 230))) {
+            FocusClickPath::Pointer { at, note } => {
+                assert_eq!(at, (300, 230));
+                assert!(note.contains("returned true but the element did not report focus"));
+                assert!(note.contains("fell back to a pointer click"));
+            }
+            other => panic!("expected pointer fallback, got {other:?}"),
+        }
+        assert!(matches!(
+            focus_click_path(Err("no Component interface".into()), Some((300, 230))),
+            FocusClickPath::Pointer { at: (300, 230), note } if note.contains("no Component interface")
+        ));
+        assert!(matches!(
+            focus_click_path(Ok(grab(false, false, false)), None),
+            FocusClickPath::Failed(message) if message.contains("no cached bounds")
+        ));
+    }
+
+    #[test]
+    fn perform_action_focus_names_use_grab_focus() {
+        for name in ["focus", "grabFocus", "GRAB_FOCUS"] {
+            assert!(is_focus_request(name), "{name}");
+        }
+        for name in ["activate", "click", "focused"] {
+            assert!(!is_focus_request(name), "{name}");
         }
     }
 
@@ -8754,15 +9074,24 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
             );
             target.role = role.into();
             backend.cache_nodes(&[target]);
-            assert!(matches!(
-                backend
-                    .resolve_click_target(&ClickParams {
-                        element_index: Some(7),
-                        ..Default::default()
-                    })
-                    .unwrap(),
-                ClickTarget::Coordinates(60, 40)
-            ));
+            // Entries take the AT-SPI focus path with the same pointer fallback.
+            let target = backend
+                .resolve_click_target(&ClickParams {
+                    element_index: Some(7),
+                    ..Default::default()
+                })
+                .unwrap();
+            if role == "entry" {
+                assert!(matches!(
+                    target,
+                    ClickTarget::Focus {
+                        fallback: Some((60, 40)),
+                        ..
+                    }
+                ));
+            } else {
+                assert!(matches!(target, ClickTarget::Coordinates(60, 40)));
+            }
             let mut node = backend.last_snapshot.lock().unwrap().nodes[0].clone();
             for bounds in [
                 None,
@@ -8781,12 +9110,18 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
             ] {
                 node.bounds = bounds;
                 backend.cache_nodes(&[node.clone()]);
-                assert!(backend
-                    .resolve_click_target(&ClickParams {
-                        element_index: Some(7),
-                        ..Default::default()
-                    })
-                    .is_err());
+                let target = backend.resolve_click_target(&ClickParams {
+                    element_index: Some(7),
+                    ..Default::default()
+                });
+                if role == "entry" {
+                    assert!(matches!(
+                        target,
+                        Ok(ClickTarget::Focus { fallback: None, .. })
+                    ));
+                } else {
+                    assert!(target.is_err());
+                }
             }
         }
     }
@@ -8827,9 +9162,7 @@ printf '%s %s\n' "${0##*/}" "$*" >> "$CUL_POINTER_TEST_LOG"
                 assert_eq!(action_name.as_deref(), Some("Click"));
                 assert_eq!(action_index, 0);
             }
-            ClickTarget::Coordinates(_, _) => {
-                panic!("expected AT-SPI primary-action fallback")
-            }
+            other => panic!("expected AT-SPI primary-action fallback, got {other:?}"),
         }
     }
 

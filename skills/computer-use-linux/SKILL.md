@@ -170,6 +170,13 @@ with an arbitrary action name. Explicit `x`/`y`, right clicks, and double/multip
 clicks retain pointer semantics.
 Use `perform_action` explicitly for entry `activate` or slider `jump`; `click`
 never substitutes those actions, including when bounds are unavailable.
+A plain element `click` on a text field without one of those press actions
+(an entry, an editable node, or EditableText) requests keyboard focus through
+AT-SPI `Component.GrabFocus` and confirms the element's `focused` state. It
+sends a pointer click at the element centre only when focus does not move, and
+the result message names the path used. `perform_action` with `action: "focus"`
+requests the same focus without a pointer fallback and fails unless focus is
+confirmed.
 
 ### Screenshot-relative coordinates
 

@@ -413,6 +413,7 @@ pub struct FocusedElementSummary {
 
 const FOCUS_PROBE_MAX_NODES: usize = 400;
 const FOCUS_PROBE_MAX_DEPTH: u32 = 16;
+const FOCUS_PROBE_MAX_TOP_LEVELS: usize = 16;
 
 /// Find the element with the `focused` state inside the target app (by pid) or
 /// across all apps. Best-effort and bounded: returns Ok(None) when no focused
@@ -437,8 +438,13 @@ pub(crate) enum FocusProbe {
 /// Focused element in the app owning `target_pid`, or across all apps when no
 /// pid is given. With a pid, only that app's tree is searched: falling back to
 /// every other app would report some unrelated widget as the focus.
-pub(crate) async fn probe_focused_element(target_pid: Option<u32>) -> Result<FocusProbe> {
-    focused_element_probe(target_pid, target_pid.is_some()).await
+/// `window_title` is the compositor title of the focused window; it selects
+/// the matching top-level frame (see [`focus_search_roots`]).
+pub(crate) async fn probe_focused_element(
+    target_pid: Option<u32>,
+    window_title: Option<&str>,
+) -> Result<FocusProbe> {
+    focused_element_probe(target_pid, window_title, target_pid.is_some()).await
 }
 
 /// The focused element in the app that owns `target_pid`, for callers that
@@ -446,15 +452,19 @@ pub(crate) async fn probe_focused_element(target_pid: Option<u32>) -> Result<Foc
 /// `None`; see [`probe_focused_element`] for the distinctions.
 pub(crate) async fn focused_element_summary_in_app(
     target_pid: u32,
+    window_title: Option<&str>,
 ) -> Result<Option<FocusedElementSummary>> {
-    Ok(match focused_element_probe(Some(target_pid), true).await? {
-        FocusProbe::Found(summary) => Some(summary),
-        _ => None,
-    })
+    Ok(
+        match focused_element_probe(Some(target_pid), window_title, true).await? {
+            FocusProbe::Found(summary) => Some(summary),
+            _ => None,
+        },
+    )
 }
 
 async fn focused_element_probe(
     target_pid: Option<u32>,
+    window_title: Option<&str>,
     require_scoped: bool,
 ) -> Result<FocusProbe> {
     let conn = connect().await?;
@@ -473,11 +483,13 @@ async fn focused_element_probe(
     let mut shell_only = true;
     let mut observed_nodes = 0;
 
+    let top_levels =
+        read_top_levels(&conn, &selected_roots.roots, &mut remaining_traversal_reads).await;
+    let (start, start_depth) = focus_search_roots(selected_roots.roots, top_levels, window_title);
     traversal.enqueue(
-        selected_roots
-            .roots
+        start
             .into_iter()
-            .map(|object_ref| (object_ref, 0_u32, false)),
+            .map(|object_ref| (object_ref, start_depth, false)),
     );
 
     while let Some((object_ref, depth, in_menu)) = traversal.pop() {
@@ -545,6 +557,161 @@ async fn focused_element_probe(
     } else {
         FocusProbe::NoneFocused
     })
+}
+
+/// A top-level window of an app root, as read for the focus search.
+#[derive(Debug)]
+struct TopLevel<T> {
+    window: T,
+    name: Option<String>,
+    active: bool,
+}
+
+/// Top-level windows of each app root with their name and `active` state.
+/// Read failures leave a window out; an empty result keeps the app roots.
+async fn read_top_levels(
+    conn: &AccessibilityConnection,
+    roots: &[ObjectRefOwned],
+    remaining_reads: &mut usize,
+) -> Vec<TopLevel<ObjectRefOwned>> {
+    let mut top_levels = Vec::new();
+    for root in roots {
+        let Ok(proxy) = open_accessible(conn, root).await else {
+            continue;
+        };
+        let Ok(batch) = children_up_to(&proxy, FOCUS_PROBE_MAX_TOP_LEVELS, remaining_reads).await
+        else {
+            continue;
+        };
+        for window in batch.items {
+            let Ok(window_proxy) = open_accessible(conn, &window).await else {
+                continue;
+            };
+            let Ok(state) = window_proxy.get_state().await else {
+                continue;
+            };
+            let name = optional_string(window_proxy.name().await.ok());
+            top_levels.push(TopLevel {
+                window,
+                name,
+                active: state.contains(atspi::State::Active),
+            });
+        }
+    }
+    top_levels
+}
+
+/// Where the focused-element search starts. Toolkits keep `focused` on the
+/// last focused widget of every top-level window: Chromium's unnamed omnibox
+/// popup frames report an "Ask anything" combo box as focused while the
+/// keyboard is in the page, and a breadth-first search reaches them first.
+/// Search only the top-levels named like the compositor's focused window,
+/// else the `active` ones (Chromium on Wayland does not always set it), else
+/// the named ones (the popup frames are unnamed; a title can lag a page
+/// change), all at depth 1. With none of those, keep the app roots at depth 0.
+fn focus_search_roots<T>(
+    roots: Vec<T>,
+    top_levels: Vec<TopLevel<T>>,
+    window_title: Option<&str>,
+) -> (Vec<T>, u32) {
+    let window_title = window_title
+        .map(str::trim)
+        .filter(|title| !title.is_empty());
+    let (titled, rest): (Vec<_>, Vec<_>) = top_levels.into_iter().partition(|top_level| {
+        window_title.is_some_and(|title| top_level.name.as_deref().map(str::trim) == Some(title))
+    });
+    if !titled.is_empty() {
+        return (
+            titled
+                .into_iter()
+                .map(|top_level| top_level.window)
+                .collect(),
+            1,
+        );
+    }
+    let (active, rest): (Vec<_>, Vec<_>) = rest.into_iter().partition(|top_level| top_level.active);
+    if !active.is_empty() {
+        return (
+            active
+                .into_iter()
+                .map(|top_level| top_level.window)
+                .collect(),
+            1,
+        );
+    }
+    let named: Vec<T> = rest
+        .into_iter()
+        .filter(|top_level| {
+            top_level
+                .name
+                .as_deref()
+                .is_some_and(|name| !name.trim().is_empty())
+        })
+        .map(|top_level| top_level.window)
+        .collect();
+    if named.is_empty() {
+        (roots, 0)
+    } else {
+        (named, 1)
+    }
+}
+
+/// Outcome of asking an element to take keyboard focus.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FocusGrab {
+    /// The toolkit's `GrabFocus` reply. Not proof that focus moved.
+    pub accepted: bool,
+    /// The element already reported `focused` before the request.
+    pub was_focused: bool,
+    /// The element reported `focused` after the request.
+    pub focused: bool,
+}
+
+/// Ask an element to take keyboard focus through AT-SPI `Component.GrabFocus`,
+/// then re-read its `focused` state until it appears or `confirm_within`
+/// passes. Only [`FocusGrab::focused`] confirms the move.
+pub(crate) async fn grab_focus(object_ref_id: &str, confirm_within: Duration) -> Result<FocusGrab> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref)
+        .await
+        .with_context(|| format!("failed to open AT-SPI object {object_ref_id}"))?;
+    let is_focused = || async {
+        proxy
+            .get_state()
+            .await
+            .map(|state| state.contains(atspi::State::Focused))
+            .context("failed to read the element's AT-SPI state")
+    };
+    let was_focused = is_focused().await?;
+    let component = proxy
+        .proxies()
+        .await?
+        .component()
+        .await
+        .context("element does not expose the AT-SPI Component interface")?;
+    let accepted = component
+        .grab_focus()
+        .await
+        .context("AT-SPI Component.GrabFocus failed")?;
+    let deadline = tokio::time::Instant::now() + confirm_within;
+    loop {
+        if is_focused().await? {
+            return Ok(FocusGrab {
+                accepted,
+                was_focused,
+                focused: true,
+            });
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return Ok(FocusGrab {
+                accepted,
+                was_focused,
+                focused: false,
+            });
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 /// Window and native menu chrome can exist without Electron renderer content.
@@ -1158,6 +1325,74 @@ fn object_ref_id(object_ref: &ObjectRefOwned) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn top_level(window: &'static str, name: Option<&str>, active: bool) -> TopLevel<&'static str> {
+        TopLevel {
+            window,
+            name: name.map(str::to_string),
+            active,
+        }
+    }
+
+    /// Chromium: one named page frame plus two unnamed omnibox popup frames
+    /// that keep a stale focused combo box.
+    fn chromium_top_levels(page_active: bool) -> Vec<TopLevel<&'static str>> {
+        vec![
+            top_level("page", Some("cu focus test - editor"), page_active),
+            top_level("omnibox popup", None, false),
+            top_level("popup 2", None, false),
+        ]
+    }
+
+    #[test]
+    fn focus_search_starts_at_the_frame_named_like_the_focused_window() {
+        // Observed on Wayland: the compositor-focused page frame lacks `active`.
+        for page_active in [false, true] {
+            assert_eq!(
+                focus_search_roots(
+                    vec!["chromium"],
+                    chromium_top_levels(page_active),
+                    Some("cu focus test - editor"),
+                ),
+                (vec!["page"], 1)
+            );
+        }
+    }
+
+    #[test]
+    fn focus_search_falls_back_to_active_then_named_top_levels_then_app_roots() {
+        let unnamed_active = vec![
+            top_level("page", Some("cu focus test"), false),
+            top_level("dialog", None, true),
+        ];
+        assert_eq!(
+            focus_search_roots(vec!["app"], unnamed_active, Some("other title")),
+            (vec!["dialog"], 1)
+        );
+        // A title read before the page renamed itself still skips the popups.
+        for page_active in [false, true] {
+            assert_eq!(
+                focus_search_roots(
+                    vec!["chromium"],
+                    chromium_top_levels(page_active),
+                    Some("stale title")
+                ),
+                (vec!["page"], 1)
+            );
+        }
+        let unnamed = vec![
+            top_level("a", None, false),
+            top_level("b", Some(" "), false),
+        ];
+        assert_eq!(
+            focus_search_roots(vec!["app"], unnamed, None),
+            (vec!["app"], 0)
+        );
+        assert_eq!(
+            focus_search_roots(vec!["chromium"], Vec::new(), Some("anything")),
+            (vec!["chromium"], 0)
+        );
+    }
 
     #[test]
     fn split_object_ref_id_separates_bus_name_and_path() {
