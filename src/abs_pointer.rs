@@ -56,11 +56,34 @@ impl AbsPointerGeometry {
             emitted: self.clamp_coordinates(x, y),
         }
     }
+
+    /// The kernel input core drops an ABS event whose value equals the axis's
+    /// current value. Re-emitting the device's last point therefore produces
+    /// no motion, and if another device (ydotool, a streaming client, a real
+    /// mouse) moved the cursor since, the press lands at that stale position.
+    /// When `target` repeats `last`, return an adjacent in-range point to emit
+    /// first so the target frame carries a change. A single repeated axis
+    /// needs nothing: libinput keeps its stored value for the missing axis.
+    fn priming_point(self, last: (i32, i32), target: (i32, i32)) -> Option<(i32, i32)> {
+        if last != target {
+            return None;
+        }
+        let step = |value: i32, max: i32| if value < max { value + 1 } else { value - 1 };
+        if self.max_x > 0 {
+            Some((step(target.0, self.max_x), target.1))
+        } else if self.max_y > 0 {
+            Some((target.0, step(target.1, self.max_y)))
+        } else {
+            None
+        }
+    }
 }
 
 pub struct AbsPointer {
     device: VirtualDevice,
     geometry: AbsPointerGeometry,
+    /// Last point written to the device; the kernel's current ABS values.
+    last_emitted: (i32, i32),
 }
 
 impl AbsPointer {
@@ -94,21 +117,37 @@ impl AbsPointer {
         // Give udev/libinput time to enumerate the new device.
         sleep(Duration::from_millis(500));
 
-        Ok(Self { device, geometry })
+        Ok(Self {
+            device,
+            geometry,
+            // Both axes were created with value 0.
+            last_emitted: (0, 0),
+        })
     }
 
     /// Move the pointer to capture-pixel coordinates `(x, y)` and report
     /// both the requested point and the values emitted after edge clamping.
     pub fn move_to(&mut self, x: i32, y: i32) -> Result<PointerLanding> {
         let landing = self.geometry.landing_for(x, y);
-        let (emitted_x, emitted_y) = landing.emitted;
+        if let Some(priming) = self
+            .geometry
+            .priming_point(self.last_emitted, landing.emitted)
+        {
+            self.emit_point(priming)?;
+        }
+        self.emit_point(landing.emitted)?;
+        Ok(landing)
+    }
+
+    fn emit_point(&mut self, (x, y): (i32, i32)) -> Result<()> {
         self.device
             .emit(&[
-                InputEvent::new_now(EventType::ABSOLUTE.0, AbsoluteAxisCode::ABS_X.0, emitted_x),
-                InputEvent::new_now(EventType::ABSOLUTE.0, AbsoluteAxisCode::ABS_Y.0, emitted_y),
+                InputEvent::new_now(EventType::ABSOLUTE.0, AbsoluteAxisCode::ABS_X.0, x),
+                InputEvent::new_now(EventType::ABSOLUTE.0, AbsoluteAxisCode::ABS_Y.0, y),
             ])
             .context("failed to emit absolute motion")?;
-        Ok(landing)
+        self.last_emitted = (x, y);
+        Ok(())
     }
 
     /// Move to `(x, y)` then press+release `button` `count` times.
@@ -212,6 +251,65 @@ mod tests {
             assert_eq!(landing.requested, requested);
             assert_eq!(landing.emitted, emitted);
         }
+    }
+
+    #[test]
+    fn repeated_target_is_primed_through_an_adjacent_in_range_point() {
+        let geometry = AbsPointerGeometry::from_dimensions(1920, 1080);
+
+        assert_eq!(
+            geometry.priming_point((712, 298), (712, 298)),
+            Some((713, 298))
+        );
+        assert_eq!(
+            geometry.priming_point((1919, 1079), (1919, 1079)),
+            Some((1918, 1079))
+        );
+        // A fresh device starts at (0, 0), so its first move there also repeats.
+        assert_eq!(geometry.priming_point((0, 0), (0, 0)), Some((1, 0)));
+        assert_eq!(
+            AbsPointerGeometry::from_dimensions(1, 1080).priming_point((0, 5), (0, 5)),
+            Some((0, 6))
+        );
+    }
+
+    #[test]
+    fn changed_targets_are_not_primed() {
+        let geometry = AbsPointerGeometry::from_dimensions(1920, 1080);
+
+        assert_eq!(geometry.priming_point((712, 298), (713, 298)), None);
+        assert_eq!(geometry.priming_point((712, 298), (712, 299)), None);
+        assert_eq!(geometry.priming_point((0, 0), (640, 480)), None);
+    }
+
+    /// Live check against the running Hyprland session: a second device moves
+    /// the cursor away, then the same point is requested again.
+    #[test]
+    #[ignore = "needs a single 1920x1080 scale-1 Hyprland layout and writable /dev/uinput; moves the pointer"]
+    fn repeated_move_lands_after_another_device_moved_the_cursor() {
+        fn cursorpos() -> (i32, i32) {
+            let output = std::process::Command::new("hyprctl")
+                .arg("cursorpos")
+                .output()
+                .expect("hyprctl cursorpos");
+            let text = String::from_utf8(output.stdout).unwrap();
+            let (x, y) = text.trim().split_once(", ").expect("x, y");
+            (x.parse().unwrap(), y.parse().unwrap())
+        }
+        let settle = || std::thread::sleep(std::time::Duration::from_millis(250));
+        let (width, height) = (1920, 1080);
+        let mut pointer = super::AbsPointer::create(width, height).unwrap();
+        let mut other = super::AbsPointer::create(width, height).unwrap();
+
+        let _ = pointer.move_to(712, 298).unwrap();
+        settle();
+        assert_eq!(cursorpos(), (712, 298));
+        let _ = other.move_to(1424, 596).unwrap();
+        settle();
+        assert_eq!(cursorpos(), (1424, 596));
+        let _ = pointer.move_to(712, 298).unwrap();
+        settle();
+        assert_eq!(cursorpos(), (712, 298));
     }
 
     #[test]
