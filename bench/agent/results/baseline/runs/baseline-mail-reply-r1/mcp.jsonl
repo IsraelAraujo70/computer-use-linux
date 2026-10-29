@@ -1,0 +1,12 @@
+{"t": 1793290210.0509086, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793290210.0563312, "method": "tools/list", "tool": null, "args": null, "ms": 5.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793290220.3241086, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 727.1, "bytes": 518130, "images": 1, "is_error": false}
+{"t": 1793290224.411151, "method": "tools/call", "tool": "click", "args": {"element_index": 118}, "ms": 25.3, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793290226.6852791, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 443.8, "bytes": 19805, "images": 0, "is_error": false}
+{"t": 1793290228.305773, "method": "tools/call", "tool": "click", "args": {"element_index": 92}, "ms": 24.6, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793290228.3890336, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 81.5, "bytes": 1291, "images": 0, "is_error": false}
+{"t": 1793290230.6459062, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 586.3, "bytes": 21471, "images": 0, "is_error": false}
+{"t": 1793290232.7537224, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388610, "text": "Recebido, obrigado."}, "ms": 509.6, "bytes": 1179, "images": 0, "is_error": false}
+{"t": 1793290235.1206005, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 467.9, "bytes": 18002, "images": 0, "is_error": false}
+{"t": 1793290237.5591109, "method": "tools/call", "tool": "click", "args": {"element_index": 100}, "ms": 24.4, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793290240.655708, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 828.8, "bytes": 37578, "images": 0, "is_error": false}

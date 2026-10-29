@@ -1,0 +1,20 @@
+{"t": 1793290695.855016, "method": "initialize", "tool": null, "args": null, "ms": 27.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793290695.8601036, "method": "tools/list", "tool": null, "args": null, "ms": 4.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793290704.6293154, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1177.6, "bytes": 365891, "images": 1, "is_error": false}
+{"t": 1793290707.12811, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1003"}, "ms": 222.8, "bytes": 873, "images": 0, "is_error": false}
+{"t": 1793290707.337093, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1016"}, "ms": 207.3, "bytes": 873, "images": 0, "is_error": false}
+{"t": 1793290707.5606945, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1028"}, "ms": 221.9, "bytes": 1097, "images": 0, "is_error": false}
+{"t": 1793290712.1148558, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2}, "ms": 170.5, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793290712.9940283, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 877.3, "bytes": 58801, "images": 0, "is_error": false}
+{"t": 1793290715.7856803, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 3, "x": 1000, "y": 900}, "ms": 271.0, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793290716.7469516, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 959.6, "bytes": 370617, "images": 1, "is_error": false}
+{"t": 1793290719.5691414, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1028"}, "ms": 210.3, "bytes": 874, "images": 0, "is_error": false}
+{"t": 1793290719.8415363, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 3, "x": 1000, "y": 500}, "ms": 270.6, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793290720.6250985, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 782.0, "bytes": 58856, "images": 0, "is_error": false}
+{"t": 1793290724.6580377, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 926.2, "bytes": 352426, "images": 1, "is_error": false}
+{"t": 1793290727.6792352, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Arquivar selecionadas"}, "ms": 26.0, "bytes": 940, "images": 0, "is_error": false}
+{"t": 1793290728.629334, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 948.3, "bytes": 340535, "images": 1, "is_error": false}
+{"t": 1793290730.6110327, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Arquivar"}, "ms": 2.3, "bytes": 1300, "images": 0, "is_error": false}
+{"t": 1793290731.4196515, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 807.7, "bytes": 59963, "images": 0, "is_error": false}
+{"t": 1793290733.6032708, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 25.3, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793290734.319461, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 713.8, "bytes": 54554, "images": 0, "is_error": false}

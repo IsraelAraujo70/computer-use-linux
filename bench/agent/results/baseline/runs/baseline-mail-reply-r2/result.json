@@ -1,0 +1,51 @@
+{
+ "run_id": "baseline-mail-reply-r2",
+ "variant": "baseline",
+ "task": "mail-reply",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 38.81,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 4861.9,
+ "mcp_bytes_total": 1924485,
+ "screenshots": 6,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "set_value",
+  "list_windows",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 710180,
+  "cached": 670080,
+  "output": 520
+ },
+ "final": "Respondi ao e-mail de Marina Costa e enviei a mensagem solicitada.",
+ "state": {
+  "sent": [
+   {
+    "in_reply_to": "m7",
+    "to": "marina.costa@example.com",
+    "body": "Recebido, obrigado."
+   }
+  ],
+  "archived": []
+ }
+}

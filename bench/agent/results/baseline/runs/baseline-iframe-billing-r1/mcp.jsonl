@@ -1,0 +1,53 @@
+{"t": 1793290498.0437098, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793290498.04815, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793290512.2374623, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 731.9, "bytes": 186694, "images": 1, "is_error": false}
+{"t": 1793290515.2195704, "method": "tools/call", "tool": "set_value", "args": {"element_index": 117, "value": "30130-010"}, "ms": 24.7, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793290515.244177, "method": "tools/call", "tool": "set_value", "args": {"element_index": 119, "value": "Avenida Afonso Pena"}, "ms": 23.1, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793290515.2681491, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "1500"}, "ms": 22.8, "bytes": 641, "images": 0, "is_error": false}
+{"t": 1793290515.2922435, "method": "tools/call", "tool": "set_value", "args": {"element_index": 123, "value": "Belo Horizonte"}, "ms": 23.0, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793290515.5033956, "method": "tools/call", "tool": "click", "args": {"element_index": 154}, "ms": 209.8, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793290519.1940029, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 81.1, "bytes": 1279, "images": 0, "is_error": false}
+{"t": 1793290522.5010424, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 210.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793290522.927775, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010", "window_id": 8388610}, "ms": 424.8, "bytes": 1160, "images": 0, "is_error": false}
+{"t": 1793290523.1290383, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 535}, "ms": 199.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290523.6167266, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena", "window_id": 8388610}, "ms": 485.9, "bytes": 1180, "images": 0, "is_error": false}
+{"t": 1793290523.8243656, "method": "tools/call", "tool": "click", "args": {"x": 420, "y": 624}, "ms": 205.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290524.223259, "method": "tools/call", "tool": "type_text", "args": {"text": "1500", "window_id": 8388610}, "ms": 397.3, "bytes": 1150, "images": 0, "is_error": false}
+{"t": 1793290524.42706, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 624}, "ms": 202.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290524.8950365, "method": "tools/call", "tool": "type_text", "args": {"text": "Belo Horizonte", "window_id": 8388610}, "ms": 466.0, "bytes": 1170, "images": 0, "is_error": false}
+{"t": 1793290525.098249, "method": "tools/call", "tool": "click", "args": {"x": 1030, "y": 625}, "ms": 201.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793290525.3712387, "method": "tools/call", "tool": "press_key", "args": {"key": "m", "window_id": 8388610}, "ms": 271.0, "bytes": 782, "images": 0, "is_error": false}
+{"t": 1793290525.6570094, "method": "tools/call", "tool": "press_key", "args": {"key": "Return", "window_id": 8388610}, "ms": 284.2, "bytes": 792, "images": 0, "is_error": false}
+{"t": 1793290526.4459212, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 787.4, "bytes": 181467, "images": 1, "is_error": false}
+{"t": 1793290529.5856144, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 201.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290530.008749, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010", "window_id": 8388610}, "ms": 421.7, "bytes": 1160, "images": 0, "is_error": false}
+{"t": 1793290530.208061, "method": "tools/call", "tool": "click", "args": {"x": 1030, "y": 625}, "ms": 197.8, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793290530.481619, "method": "tools/call", "tool": "press_key", "args": {"key": "m", "window_id": 8388610}, "ms": 272.0, "bytes": 782, "images": 0, "is_error": false}
+{"t": 1793290530.752456, "method": "tools/call", "tool": "press_key", "args": {"key": "m", "window_id": 8388610}, "ms": 269.1, "bytes": 782, "images": 0, "is_error": false}
+{"t": 1793290531.0155637, "method": "tools/call", "tool": "press_key", "args": {"key": "m", "window_id": 8388610}, "ms": 261.2, "bytes": 782, "images": 0, "is_error": false}
+{"t": 1793290531.2835853, "method": "tools/call", "tool": "press_key", "args": {"key": "Return", "window_id": 8388610}, "ms": 266.3, "bytes": 792, "images": 0, "is_error": false}
+{"t": 1793290532.081352, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 796.0, "bytes": 185745, "images": 1, "is_error": false}
+{"t": 1793290534.6373622, "method": "tools/call", "tool": "click", "args": {"x": 1030, "y": 625}, "ms": 202.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793290534.913144, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 274.1, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290535.183895, "method": "tools/call", "tool": "press_key", "args": {"key": "Return", "window_id": 8388610}, "ms": 269.3, "bytes": 792, "images": 0, "is_error": false}
+{"t": 1793290535.3877537, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 686}, "ms": 202.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290536.1922963, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 802.7, "bytes": 189227, "images": 1, "is_error": false}
+{"t": 1793290538.8020992, "method": "tools/call", "tool": "click", "args": {"x": 1030, "y": 625}, "ms": 207.7, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793290539.0797536, "method": "tools/call", "tool": "press_key", "args": {"key": "Home", "window_id": 8388610}, "ms": 276.0, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290539.3580954, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 276.6, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290539.6361654, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 276.3, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290539.9196637, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 281.8, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290540.1996086, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 278.3, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290540.4727283, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 271.3, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290540.7519085, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 277.4, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290541.022705, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 269.0, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290541.2967331, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 272.4, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290541.5659924, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 267.5, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290541.8353512, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 267.9, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290542.1154437, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 278.2, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290542.3934145, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 276.0, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290542.6691008, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "window_id": 8388610}, "ms": 274.0, "bytes": 788, "images": 0, "is_error": false}
+{"t": 1793290542.9328156, "method": "tools/call", "tool": "press_key", "args": {"key": "Return", "window_id": 8388610}, "ms": 262.0, "bytes": 792, "images": 0, "is_error": false}
+{"t": 1793290543.719023, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 784.7, "bytes": 188531, "images": 1, "is_error": false}
+{"t": 1793290546.4830909, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 686}, "ms": 202.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290547.3164032, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 831.9, "bytes": 188483, "images": 1, "is_error": false}

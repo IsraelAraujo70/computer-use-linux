@@ -1,0 +1,25 @@
+{"t": 1793290807.7068627, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793290807.712943, "method": "tools/list", "tool": null, "args": null, "ms": 5.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793290815.9810479, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 856.2, "bytes": 547769, "images": 1, "is_error": false}
+{"t": 1793290818.0301945, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 221.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793290818.3882546, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 356.3, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793290818.8400621, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 450.4, "bytes": 54057, "images": 0, "is_error": false}
+{"t": 1793290820.7018094, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.3, "bytes": 1291, "images": 0, "is_error": false}
+{"t": 1793290820.8898668, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 186.5, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793290821.487348, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 595.8, "bytes": 54057, "images": 0, "is_error": false}
+{"t": 1793290823.590964, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 210.7, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793290823.7936265, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 200.7, "bytes": 1032, "images": 0, "is_error": false}
+{"t": 1793290823.9987824, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 203.6, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793290824.5139265, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 513.5, "bytes": 54972, "images": 0, "is_error": false}
+{"t": 1793290826.8320968, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 207.8, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793290829.9160516, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 149.2, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793290830.4268475, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 508.9, "bytes": 54844, "images": 0, "is_error": false}
+{"t": 1793290832.1366632, "method": "tools/call", "tool": "click", "args": {"element_index": 262}, "ms": 206.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793290832.861971, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 723.5, "bytes": 54826, "images": 0, "is_error": false}
+{"t": 1793290835.5087247, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 1, "x": 1000, "y": 600}, "ms": 149.5, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793290836.0705726, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 560.0, "bytes": 54956, "images": 0, "is_error": false}
+{"t": 1793290839.7955625, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 208.1, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793290840.3250074, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 527.9, "bytes": 54996, "images": 0, "is_error": false}
+{"t": 1793290842.5394816, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 202.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793290842.5644283, "method": "tools/call", "tool": "click", "args": {"element_index": 126}, "ms": 23.4, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793290843.0486224, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 482.8, "bytes": 54888, "images": 0, "is_error": false}

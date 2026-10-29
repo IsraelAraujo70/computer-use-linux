@@ -17,6 +17,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import strip_images  # noqa: E402
 import tasks  # noqa: E402
 
 CHROME = sorted(Path.home().glob(".cache/ms-playwright/chromium-*/chrome-linux64/chrome"))[-1]
@@ -232,6 +233,7 @@ def main() -> None:
         "state": state,
     }
     (run_dir / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1))
+    strip_images.strip(run_dir / "agent.jsonl")
 
 
 if __name__ == "__main__":

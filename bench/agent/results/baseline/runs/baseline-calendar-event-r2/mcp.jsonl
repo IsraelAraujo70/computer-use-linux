@@ -1,0 +1,30 @@
+{"t": 1793290850.9076731, "method": "initialize", "tool": null, "args": null, "ms": 24.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793290850.911912, "method": "tools/list", "tool": null, "args": null, "ms": 3.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793290858.7193818, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 793.9, "bytes": 212547, "images": 1, "is_error": false}
+{"t": 1793290861.6212895, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 24.8, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793290861.836241, "method": "tools/call", "tool": "click", "args": {"x": 1050, "y": 670}, "ms": 209.9, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793290862.4812412, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 643.6, "bytes": 185531, "images": 1, "is_error": false}
+{"t": 1793290865.128362, "method": "tools/call", "tool": "click", "args": {"x": 1050, "y": 560}, "ms": 201.2, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793290865.8456988, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 715.7, "bytes": 185187, "images": 1, "is_error": false}
+{"t": 1793290867.929188, "method": "tools/call", "tool": "click", "args": {"element_index": 73}, "ms": 24.6, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793290868.7212348, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 790.4, "bytes": 215230, "images": 1, "is_error": false}
+{"t": 1793290872.1048207, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista"}, "ms": 335.5, "bytes": 856, "images": 0, "is_error": false}
+{"t": 1793290872.1307592, "method": "tools/call", "tool": "click", "args": {"element_index": 137}, "ms": 24.1, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793290872.9174497, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 784.7, "bytes": 236107, "images": 1, "is_error": false}
+{"t": 1793290877.5665262, "method": "tools/call", "tool": "click", "args": {"element_index": 206}, "ms": 24.2, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793290877.5694413, "method": "tools/call", "tool": "click", "args": {"name": "18 de novembro de 2026", "role": "button"}, "ms": 1.2, "bytes": 1096, "images": 0, "is_error": false}
+{"t": 1793290877.7864127, "method": "tools/call", "tool": "click", "args": {"x": 750, "y": 700}, "ms": 214.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290878.5941978, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 806.1, "bytes": 213685, "images": 1, "is_error": false}
+{"t": 1793290881.1565108, "method": "tools/call", "tool": "click", "args": {"element_index": 137}, "ms": 24.4, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793290881.9306026, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 772.3, "bytes": 235434, "images": 1, "is_error": false}
+{"t": 1793290884.1550095, "method": "tools/call", "tool": "click", "args": {"element_index": 237}, "ms": 25.1, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793290884.3645635, "method": "tools/call", "tool": "click", "args": {"x": 750, "y": 700}, "ms": 207.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290884.560055, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 193.9, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793290884.8742037, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 312.7, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793290885.0812578, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 700}, "ms": 205.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290885.2805421, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 197.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793290885.5894141, "method": "tools/call", "tool": "type_text", "args": {"text": "15:30"}, "ms": 307.2, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793290886.4189417, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 827.5, "bytes": 239004, "images": 1, "is_error": false}
+{"t": 1793290889.4378672, "method": "tools/call", "tool": "click", "args": {"x": 890, "y": 818}, "ms": 213.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793290889.463912, "method": "tools/call", "tool": "click", "args": {"name": "Salvar", "role": "button"}, "ms": 24.2, "bytes": 910, "images": 0, "is_error": false}
+{"t": 1793290890.091991, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 626.2, "bytes": 190693, "images": 1, "is_error": false}

@@ -1,0 +1,56 @@
+{
+ "run_id": "baseline-invoices-bulk-r2",
+ "variant": "baseline",
+ "task": "invoices-bulk",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 45.48,
+ "agent_tool_calls": 20,
+ "agent_tool_errors": 0,
+ "mcp_calls": 20,
+ "mcp_ms_total": 9316.6,
+ "mcp_bytes_total": 908714,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "scroll",
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 772115,
+  "cached": 725376,
+  "output": 986
+ },
+ "final": "Archived all 3 overdue invoices for Acme Ltda.",
+ "state": {
+  "archived": [
+   "NF-1003",
+   "NF-1016",
+   "NF-1028"
+  ]
+ }
+}

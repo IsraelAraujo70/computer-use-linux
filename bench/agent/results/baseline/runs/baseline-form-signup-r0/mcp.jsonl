@@ -1,0 +1,37 @@
+{"t": 1793289901.9602814, "method": "initialize", "tool": null, "args": null, "ms": 24.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793289901.9662752, "method": "tools/list", "tool": null, "args": null, "ms": 5.6, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793289911.418876, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 609.0, "bytes": 158006, "images": 1, "is_error": false}
+{"t": 1793289915.480871, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Joana Ribeiro"}, "ms": 24.1, "bytes": 657, "images": 0, "is_error": false}
+{"t": 1793289915.5057151, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "joana.ribeiro@example.com"}, "ms": 23.2, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793289915.5305529, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(31) 98765-4321"}, "ms": 23.4, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793289915.7375755, "method": "tools/call", "tool": "click", "args": {"element_index": 112}, "ms": 205.7, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793289919.6826327, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 618.2, "bytes": 147608, "images": 1, "is_error": false}
+{"t": 1793289923.7118073, "method": "tools/call", "tool": "click", "args": {"element_index": 109}, "ms": 213.5, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793289923.91771, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 204.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793289924.2944863, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 375.1, "bytes": 866, "images": 0, "is_error": false}
+{"t": 1793289924.4951503, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 500}, "ms": 199.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289924.932328, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 435.4, "bytes": 890, "images": 0, "is_error": false}
+{"t": 1793289925.1318986, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 580}, "ms": 198.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289925.4968216, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 363.4, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793289930.0756016, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 660}, "ms": 201.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289930.4242516, "method": "tools/call", "tool": "type_text", "args": {"text": "Minas Gerais"}, "ms": 347.1, "bytes": 864, "images": 0, "is_error": false}
+{"t": 1793289934.9414601, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 197.1, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793289935.1483915, "method": "tools/call", "tool": "click", "args": {"x": 766, "y": 730}, "ms": 204.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289935.3494654, "method": "tools/call", "tool": "click", "args": {"x": 682, "y": 773}, "ms": 199.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289935.909068, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 557.6, "bytes": 155641, "images": 1, "is_error": false}
+{"t": 1793289941.1997538, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 660}, "ms": 213.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289941.3865635, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 185.4, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793289941.5747528, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 186.7, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793289941.7536724, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 177.4, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793289941.940229, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 185.2, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793289942.2940123, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 352.2, "bytes": 15217, "images": 0, "is_error": false}
+{"t": 1793289948.145459, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 660}, "ms": 207.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289948.3565543, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 900, "y": 850}, "ms": 209.6, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793289948.986383, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 628.1, "bytes": 162757, "images": 1, "is_error": false}
+{"t": 1793289953.5927913, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 1, "x": 900, "y": 800}, "ms": 149.4, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793289954.1647758, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 570.3, "bytes": 161177, "images": 1, "is_error": false}
+{"t": 1793289958.9813206, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 0.3, "x": 900, "y": 800}, "ms": 113.4, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793289959.5906835, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 607.6, "bytes": 163019, "images": 1, "is_error": false}
+{"t": 1793289963.686729, "method": "tools/call", "tool": "click", "args": {"x": 735, "y": 783}, "ms": 203.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289963.8869872, "method": "tools/call", "tool": "click", "args": {"x": 727, "y": 822}, "ms": 198.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793289964.4938588, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 605.4, "bytes": 160351, "images": 1, "is_error": false}
