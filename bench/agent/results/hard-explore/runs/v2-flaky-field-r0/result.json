@@ -1,0 +1,34 @@
+{
+ "run_id": "v2-flaky-field-r0",
+ "variant": "v2",
+ "task": "flaky-field",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": false,
+ "detail": "not paid",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 15.76,
+ "agent_tool_calls": 4,
+ "agent_tool_errors": 0,
+ "mcp_calls": 4,
+ "mcp_ms_total": 3571.8,
+ "mcp_bytes_total": 3259,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click",
+  "set_value"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 160023,
+  "cached": 147200,
+  "output": 343
+ },
+ "final": "Preenchi o cartão e cliquei em Pagar, mas a página informou que o número é inválido.",
+ "state": {}
+}

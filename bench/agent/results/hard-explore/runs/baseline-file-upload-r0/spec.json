@@ -1,0 +1,17 @@
+{
+ "run_id": "baseline-file-upload-r0",
+ "variant": "baseline",
+ "binary": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux",
+ "task": "file-upload",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "timeout": 300,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "claude_home": "/tmp/agent-cu-bench/claude-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_mode": "bots"
+}

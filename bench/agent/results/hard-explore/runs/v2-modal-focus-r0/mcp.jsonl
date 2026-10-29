@@ -1,0 +1,8 @@
+{"t": 1793310247.3394232, "method": "initialize", "tool": null, "args": null, "ms": 25.6, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310247.342227, "method": "tools/list", "tool": null, "args": null, "ms": 2.4, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310254.2011116, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 193.7, "bytes": 1044, "images": 0, "is_error": false}
+{"t": 1793310257.058938, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 56, "value": "Carlos Mendes"}, {"element_index": 59, "value": "carlos@example.com"}, {"element_index": 62, "value": "Quero cancelar minha assinatura."}]}, "ms": 1261.8, "bytes": 739, "images": 0, "is_error": false}
+{"t": 1793310259.0920827, "method": "tools/call", "tool": "click", "args": {"element_index": 63}, "ms": 1.1, "bytes": 167, "images": 0, "is_error": true}
+{"t": 1793310260.4073496, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 89.1, "bytes": 983, "images": 0, "is_error": false}
+{"t": 1793310262.7307942, "method": "tools/call", "tool": "click", "args": {"element_index": 112}, "ms": 308.2, "bytes": 1098, "images": 0, "is_error": false}
+{"t": 1793310271.1510212, "method": "tools/call", "tool": "click", "args": {"element_index": 127}, "ms": 463.4, "bytes": 458, "images": 0, "is_error": false}

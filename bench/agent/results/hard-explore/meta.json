@@ -1,6 +1,6 @@
 {
  "variants": {
-  "baseline": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux"
+  "v2": "/tmp/agent-cu-bench/bin/v2/computer-use-linux"
  },
  "agent": "codex",
  "model": "gpt-6.1-terra",

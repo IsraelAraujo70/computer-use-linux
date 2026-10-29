@@ -1,0 +1,50 @@
+{
+ "run_id": "v2-recover-error-r0",
+ "variant": "v2",
+ "task": "recover-error",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 69.5,
+ "agent_tool_calls": 14,
+ "agent_tool_errors": 0,
+ "mcp_calls": 14,
+ "mcp_ms_total": 43798.3,
+ "mcp_bytes_total": 8811,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "wait_for",
+  "get_app_state",
+  "click",
+  "wait_for",
+  "get_app_state",
+  "press_key",
+  "wait_for",
+  "set_value",
+  "click",
+  "wait_for",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 392374,
+  "cached": 367872,
+  "output": 612
+ },
+ "final": "Tentei salvar o telefone, mas a alteração não persistiu após recarregar a página.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

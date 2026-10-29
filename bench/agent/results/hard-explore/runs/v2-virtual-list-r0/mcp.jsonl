@@ -1,0 +1,7 @@
+{"t": 1793310180.0606422, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310180.0633345, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310184.4565425, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 256.7, "bytes": 4616, "images": 0, "is_error": false}
+{"t": 1793310216.4985232, "method": "tools/call", "tool": "scroll", "args": {"element_index": 56, "direction": "down", "until": {"role": "button", "name": "Arquivar pedido #1377"}}, "ms": 29222.0, "bytes": 156, "images": 0, "is_error": true}
+{"t": 1793310217.503652, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 181.4, "bytes": 5430, "images": 0, "is_error": false}
+{"t": 1793310239.8304808, "method": "tools/call", "tool": "scroll", "args": {"element_index": 56, "direction": "up", "until": {"role": "button", "name": "Arquivar pedido #1377"}}, "ms": 21308.5, "bytes": 5507, "images": 0, "is_error": false}
+{"t": 1793310241.2584238, "method": "tools/call", "tool": "click", "args": {"element_index": 29268}, "ms": 779.9, "bytes": 5542, "images": 0, "is_error": false}

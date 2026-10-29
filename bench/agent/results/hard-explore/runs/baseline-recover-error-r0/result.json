@@ -1,0 +1,49 @@
+{
+ "run_id": "baseline-recover-error-r0",
+ "variant": "baseline",
+ "task": "recover-error",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 25.74,
+ "agent_tool_calls": 13,
+ "agent_tool_errors": 0,
+ "mcp_calls": 13,
+ "mcp_ms_total": 5116.8,
+ "mcp_bytes_total": 212340,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "wait_for",
+  "get_app_state",
+  "click",
+  "wait_for",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 416037,
+  "cached": 348032,
+  "output": 595
+ },
+ "final": "Telefone alterado para (11) 91234-5678 e salvo.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

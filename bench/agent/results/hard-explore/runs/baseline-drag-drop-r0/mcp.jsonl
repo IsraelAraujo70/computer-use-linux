@@ -1,0 +1,6 @@
+{"t": 1793309901.8909655, "method": "initialize", "tool": null, "args": null, "ms": 23.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793309901.8964007, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793309913.9174292, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 804.9, "bytes": 197069, "images": 1, "is_error": false}
+{"t": 1793309916.5318463, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 360, "end_x": 1500, "end_y": 520}, "ms": 92.5, "bytes": 465, "images": 0, "is_error": false}
+{"t": 1793309920.239657, "method": "tools/call", "tool": "click", "args": {"x": 150, "y": 352}, "ms": 204.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793309922.625516, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 710.4, "bytes": 179331, "images": 1, "is_error": false}

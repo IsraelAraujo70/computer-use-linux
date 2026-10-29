@@ -1,0 +1,16 @@
+{"t": 1793310374.667146, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310374.6695051, "method": "tools/list", "tool": null, "args": null, "ms": 2.0, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310382.150485, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 205.5, "bytes": 1052, "images": 0, "is_error": false}
+{"t": 1793310384.2073278, "method": "tools/call", "tool": "set_value", "args": {"element_index": 60, "value": "(11) 91234-5678"}, "ms": 615.3, "bytes": 377, "images": 0, "is_error": false}
+{"t": 1793310385.5252023, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 300.6, "bytes": 425, "images": 0, "is_error": false}
+{"t": 1793310397.0375707, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Salvo", "timeout_ms": 10000}, "ms": 10164.6, "bytes": 345, "images": 0, "is_error": false}
+{"t": 1793310398.14349, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 91.4, "bytes": 1143, "images": 0, "is_error": false}
+{"t": 1793310399.4857037, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 305.7, "bytes": 337, "images": 0, "is_error": false}
+{"t": 1793310411.9532647, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "role": "notification", "timeout_ms": 10000}, "ms": 10120.0, "bytes": 345, "images": 0, "is_error": false}
+{"t": 1793310413.1006377, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 89.9, "bytes": 1116, "images": 0, "is_error": false}
+{"t": 1793310414.678233, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R"}, "ms": 364.5, "bytes": 1010, "images": 0, "is_error": false}
+{"t": 1793310426.5816562, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "text": "91234", "timeout_ms": 10000}, "ms": 10413.4, "bytes": 346, "images": 0, "is_error": false}
+{"t": 1793310428.2918704, "method": "tools/call", "tool": "set_value", "args": {"element_index": 122, "value": "(11) 91234-5678"}, "ms": 612.7, "bytes": 382, "images": 0, "is_error": false}
+{"t": 1793310428.6000402, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 306.6, "bytes": 431, "images": 0, "is_error": false}
+{"t": 1793310439.8208091, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Altera\u00e7\u00f5es salvas", "timeout_ms": 10000}, "ms": 10115.5, "bytes": 346, "images": 0, "is_error": false}
+{"t": 1793310440.924969, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 92.6, "bytes": 1156, "images": 0, "is_error": false}
