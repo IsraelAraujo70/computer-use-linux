@@ -1847,7 +1847,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "fill_form",
-        description = "Set several fields in order with set_value semantics; each field is {element_index or role/name, value}. Returns each field's value read back and one change report.",
+        description = "Set several fields in one call, in order, like set_value: text, \"true\"/\"false\" for checkboxes, radios and switches, option text for selects and comboboxes, so several clicks become one call. Each field is {element_index or role/name, value}. Returns each value read back and one change report.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
