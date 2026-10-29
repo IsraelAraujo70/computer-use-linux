@@ -18,7 +18,9 @@ vars() {
 
 start() {
   mkdir -p "$ROOT" "$RUN"; chmod 700 "$RUN"
-  if [[ ! -S /tmp/.X11-unix/X$DISPLAY_NUM ]]; then
+  if [[ ! -f "$ROOT/xvfb.pid" ]] || ! kill -0 "$(cat "$ROOT/xvfb.pid")" 2>/dev/null; then
+    [[ -S /tmp/.X11-unix/X$DISPLAY_NUM ]] && pgrep -f "Xvfb :$DISPLAY_NUM " >/dev/null && { echo "Xvfb :$DISPLAY_NUM is owned by someone else" >&2; exit 1; }
+    rm -f /tmp/.X11-unix/X$DISPLAY_NUM
     nohup Xvfb ":$DISPLAY_NUM" -screen 0 1920x1080x24 -nolisten tcp >"$ROOT/xvfb.log" 2>&1 &
     echo $! >"$ROOT/xvfb.pid"
     for _ in $(seq 50); do [[ -S /tmp/.X11-unix/X$DISPLAY_NUM ]] && break; sleep 0.1; done

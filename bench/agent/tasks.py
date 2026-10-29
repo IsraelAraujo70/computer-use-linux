@@ -20,6 +20,8 @@ class Task:
     page: str  # path under /apps/ for web tasks
     prompt: str
     check: Check
+    # Optional per-episode preparation (files to upload, ...), run before the app opens.
+    setup: Callable[[Path], None] | None = None
 
 
 def norm(text) -> str:
@@ -248,6 +250,25 @@ TASKS = [
 ]
 
 BY_ID = {task.id: task for task in TASKS}
+
+
+def suite(name: str) -> list[Task]:
+    """Tasks of a named suite: "easy" (this module) or "hard" (tasks_hard.py)."""
+    if name == "easy":
+        return TASKS
+    if name == "hard":
+        import tasks_hard
+
+        return tasks_hard.HARD_TASKS
+    raise ValueError(f"unknown suite {name!r}")
+
+
+def by_id(task_id: str) -> Task:
+    if task_id in BY_ID:
+        return BY_ID[task_id]
+    import tasks_hard
+
+    return {t.id: t for t in tasks_hard.HARD_TASKS}[task_id]
 
 
 def read_state(state_dir: Path, task_id: str) -> dict:
