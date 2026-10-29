@@ -1,0 +1,14 @@
+{"t": 1793306535.3623288, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793306535.3645287, "method": "tools/list", "tool": null, "args": null, "ms": 1.8, "bytes": 18919, "images": 0, "is_error": false}
+{"t": 1793306541.4651494, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 246.7, "bytes": 8336, "images": 0, "is_error": false}
+{"t": 1793306543.800992, "method": "tools/call", "tool": "set_value", "args": {"element_index": 49, "value": "Banco Aurora"}, "ms": 833.7, "bytes": 408, "images": 0, "is_error": false}
+{"t": 1793306544.357257, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 554.5, "bytes": 197, "images": 0, "is_error": false}
+{"t": 1793306545.7955003, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 191.4, "bytes": 8356, "images": 0, "is_error": false}
+{"t": 1793306547.4297326, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "list item", "text": "Banco Aurora"}, "ms": 128.8, "bytes": 959, "images": 0, "is_error": false}
+{"t": 1793306548.6710126, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "check box", "text": "Comprovante de transfer\u00eancia"}, "ms": 134.0, "bytes": 517, "images": 0, "is_error": false}
+{"t": 1793306550.7552202, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 655.3, "bytes": 479, "images": 0, "is_error": false}
+{"t": 1793306551.3026023, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 546.0, "bytes": 400, "images": 0, "is_error": false}
+{"t": 1793306551.949461, "method": "tools/call", "tool": "click", "args": {"element_index": 69}, "ms": 645.5, "bytes": 790, "images": 0, "is_error": false}
+{"t": 1793306553.8613794, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 645.7, "bytes": 381, "images": 0, "is_error": false}
+{"t": 1793306554.4072316, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 544.5, "bytes": 8540, "images": 0, "is_error": false}
+{"t": 1793306554.5390632, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "list item", "text": "Banco Aurora"}, "ms": 130.2, "bytes": 966, "images": 0, "is_error": false}

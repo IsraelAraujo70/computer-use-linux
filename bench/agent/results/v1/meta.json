@@ -1,0 +1,22 @@
+{
+ "variants": {
+  "v1": "/tmp/agent-cu-bench/bin/v1/computer-use-linux"
+ },
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "tasks": [
+  "mail-reply",
+  "mail-label",
+  "calendar-event",
+  "form-signup",
+  "settings-dialog",
+  "contacts-infinite",
+  "iframe-billing",
+  "order-support",
+  "invoices-bulk",
+  "terminal"
+ ],
+ "reps": 3,
+ "timeout": 360
+}

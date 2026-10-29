@@ -1,0 +1,16 @@
+{
+ "run_id": "v1-mail-label-r2",
+ "variant": "v1",
+ "binary": "/tmp/agent-cu-bench/bin/v1/computer-use-linux",
+ "task": "mail-label",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "timeout": 360,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_a11y": true
+}

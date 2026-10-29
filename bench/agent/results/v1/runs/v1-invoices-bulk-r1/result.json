@@ -1,0 +1,41 @@
+{
+ "run_id": "v1-invoices-bulk-r1",
+ "variant": "v1",
+ "task": "invoices-bulk",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.06,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 3637.6,
+ "mcp_bytes_total": 27974,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "scroll",
+  "fill_form",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 18919,
+ "tokens": {
+  "input": 215762,
+  "cached": 193664,
+  "output": 274
+ },
+ "final": "Arquivei as 3 faturas vencidas da Acme Ltda.",
+ "state": {
+  "archived": [
+   "NF-1003",
+   "NF-1016",
+   "NF-1028"
+  ]
+ }
+}

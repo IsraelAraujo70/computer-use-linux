@@ -48,16 +48,18 @@ def main() -> None:
         "agent": args.agent, "model": args.model or ("gpt-6.1-terra" if args.agent == "codex" else "claude-sonnet-5-5"),
         "effort": args.effort or ("low" if args.agent == "codex" else "medium"),
         "port": args.port, "root": str(root), "codex_home": str(root / "codex-home"),
-        "workdir": str(root / "work"), "timeout": 360,
+        "workdir": str(root / "work"), "timeout": 360, "chrome_mode": "bots",
     }
-    task = tasks.BY_ID[args.task]
+    task = tasks.by_id(args.task)
     env = run_one.session_env(root)
     run_one.http(f"http://127.0.0.1:{args.port}/api/reset", b"{}")
+    if task.setup:
+        task.setup(root)
     app = run_one.launch_app(task, spec, env, root)
     context = ("An Alacritty terminal window is already open." if task.kind == "terminal"
                else "A Chrome window is already open on the app for this task.")
     prompt = run_one.PREAMBLE.format(context=context, prompt=task.prompt)
-    agent_env = {**os.environ, "CODEX_HOME": spec["codex_home"]}
+    agent_env = {**os.environ, "CODEX_HOME": spec["codex_home"], "CLAUDE_CONFIG_DIR": str(root / "claude-home")}
     if args.agent == "codex":
         cmd = [c for c in run_one.codex_cmd(spec, env, prompt, run_dir / "mcp.jsonl") if c != "--ephemeral"]
     else:
@@ -65,8 +67,12 @@ def main() -> None:
                if c != "--no-session-persistence"]
     started = time.monotonic()
     with open(run_dir / "agent.jsonl", "w") as out:
-        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                                env=agent_env, cwd=spec["workdir"], start_new_session=True)
+        proc = subprocess.Popen(cmd, stdout=out, stderr=subprocess.DEVNULL,
+                                stdin=subprocess.PIPE if args.agent == "claude" else subprocess.DEVNULL,
+                                env=agent_env, cwd=spec["workdir"], start_new_session=True, text=True)
+        if args.agent == "claude":
+            proc.stdin.write(prompt)
+            proc.stdin.close()
         try:
             proc.wait(timeout=spec["timeout"])
         except subprocess.TimeoutExpired:
@@ -84,9 +90,9 @@ def main() -> None:
     else:
         session = next(e["session_id"] for e in events if e.get("session_id"))
         resume = ["claude", "-p", "--resume", session, "--model", spec["model"], "--output-format", "json",
-                  "--setting-sources", "", "--tools", "", QUESTIONS]
+                  "--setting-sources", "", "--tools", ""]
     answer = subprocess.run(resume, capture_output=True, text=True, env=agent_env, cwd=spec["workdir"],
-                            stdin=subprocess.DEVNULL, timeout=300).stdout
+                            input=QUESTIONS if args.agent == "claude" else None, timeout=300).stdout
     if args.agent == "codex":
         texts = [json.loads(l).get("item", {}).get("text", "") for l in answer.splitlines() if l.startswith("{")]
         answer = "\n".join(t for t in texts if t)

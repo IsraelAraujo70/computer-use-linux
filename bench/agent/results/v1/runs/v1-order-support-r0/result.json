@@ -1,0 +1,42 @@
+{
+ "run_id": "v1-order-support-r0",
+ "variant": "v1",
+ "task": "order-support",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.62,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2959.2,
+ "mcp_bytes_total": 9743,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 18919,
+ "tokens": {
+  "input": 196416,
+  "cached": 181632,
+  "output": 273
+ },
+ "final": "Chamado de entrega aberto para o pedido #4821 com o código de rastreio e a mensagem solicitada.",
+ "state": {
+  "ticket": {
+   "order": "4821",
+   "tracking": "BR482193XQ",
+   "category": "Entrega",
+   "message": "Pedido não chegou"
+  }
+ }
+}

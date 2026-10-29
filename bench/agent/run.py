@@ -59,6 +59,16 @@ def ensure_codex_home(root: Path) -> Path:
     return home
 
 
+def ensure_claude_home(root: Path) -> Path:
+    """A Claude config dir holding only the login, so user CLAUDE.md, skills and hooks stay out."""
+    home = root / "claude-home"
+    home.mkdir(parents=True, exist_ok=True)
+    creds = home / ".credentials.json"
+    if not creds.exists():
+        creds.symlink_to(Path.home() / ".claude" / ".credentials.json")
+    return home
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -72,7 +82,9 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--root", default=os.environ.get("BENCH_ROOT", "/tmp/agent-cu-bench"))
     ap.add_argument("--no-heavy", action="store_true", help="run episodes without heavy.sh")
-    ap.add_argument("--no-chrome-a11y", action="store_true")
+    ap.add_argument("--suite", choices=["easy", "hard"], default="easy")
+    ap.add_argument("--chrome-mode", choices=["bench", "bots", "bots-noa11y"], default="bench",
+                    help="bots = chrome-perfil flags + --force-renderer-accessibility; bots-noa11y = chrome-perfil today")
     args = ap.parse_args()
 
     model = args.model or ("gpt-6.1-terra" if args.agent == "codex" else "claude-sonnet-5-5")
@@ -81,13 +93,14 @@ def main() -> None:
     for name, binary in variants:
         if not os.access(binary, os.X_OK):
             raise SystemExit(f"variant {name}: {binary} is not executable")
-    task_ids = [t.id for t in tasks.TASKS] if args.tasks == "all" else args.tasks.split(",")
+    task_ids = [t.id for t in tasks.suite(args.suite)] if args.tasks == "all" else args.tasks.split(",")
     out = Path(args.out).resolve()
     (out / "runs").mkdir(parents=True, exist_ok=True)
     root = Path(args.root)
     subprocess.run([str(HERE / "env.sh"), "start"], check=True, env={**os.environ, "BENCH_ROOT": str(root)})
     ensure_server(root, args.port)
     codex_home = ensure_codex_home(root)
+    claude_home = ensure_claude_home(root)
     workdir = root / "work"
     workdir.mkdir(parents=True, exist_ok=True)
     done = set()
@@ -95,7 +108,8 @@ def main() -> None:
     if runs_path.exists():
         done = {json.loads(l)["run_id"] for l in runs_path.read_text().splitlines() if l.strip()}
     (out / "meta.json").write_text(json.dumps({"variants": dict(variants), "agent": args.agent, "model": model,
-                                               "effort": effort, "tasks": task_ids, "reps": args.reps,
+                                               "effort": effort, "suite": args.suite, "chrome_mode": args.chrome_mode,
+                                               "tasks": task_ids, "reps": args.reps,
                                                "timeout": args.timeout}, indent=1))
     order = []
     for rep in range(args.reps):
@@ -113,8 +127,8 @@ def main() -> None:
             (run_dir / stale).unlink(missing_ok=True)
         spec = {"run_id": run_id, "variant": name, "binary": binary, "task": task_id, "rep": rep,
                 "agent": args.agent, "model": model, "effort": effort, "timeout": args.timeout,
-                "port": args.port, "root": str(root), "codex_home": str(codex_home), "workdir": str(workdir),
-                "chrome_a11y": not args.no_chrome_a11y}
+                "port": args.port, "root": str(root), "codex_home": str(codex_home), "claude_home": str(claude_home), "workdir": str(workdir),
+                "chrome_mode": args.chrome_mode}
         (run_dir / "spec.json").write_text(json.dumps(spec, indent=1))
         cmd = [sys.executable, str(HERE / "run_one.py"), str(run_dir / "spec.json")]
         if not args.no_heavy:

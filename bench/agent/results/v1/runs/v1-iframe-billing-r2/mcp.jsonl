@@ -1,0 +1,5 @@
+{"t": 1793307043.809132, "method": "initialize", "tool": null, "args": null, "ms": 22.0, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793307043.8105206, "method": "tools/list", "tool": null, "args": null, "ms": 1.1, "bytes": 18919, "images": 0, "is_error": false}
+{"t": 1793307052.3282566, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 204.5, "bytes": 4056, "images": 0, "is_error": false}
+{"t": 1793307055.2067034, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 56, "value": "30130-010"}, {"element_index": 59, "value": "Avenida Afonso Pena"}, {"element_index": 62, "value": "1500"}, {"element_index": 65, "value": "Belo Horizonte"}, {"element_index": 68, "value": "MG - Minas Gerais"}]}, "ms": 1623.8, "bytes": 1038, "images": 0, "is_error": false}
+{"t": 1793307056.527365, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 450.6, "bytes": 414, "images": 0, "is_error": false}

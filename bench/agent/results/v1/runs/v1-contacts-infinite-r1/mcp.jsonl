@@ -1,0 +1,9 @@
+{"t": 1793306389.3950088, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793306389.3978972, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 18919, "images": 0, "is_error": false}
+{"t": 1793306396.3869305, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 226.5, "bytes": 4058, "images": 0, "is_error": false}
+{"t": 1793306398.0272036, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Val\u00e9ria Nunes"}, "ms": 113.8, "bytes": 371, "images": 0, "is_error": false}
+{"t": 1793306401.6502516, "method": "tools/call", "tool": "scroll", "args": {"element_index": 58, "direction": "down", "pages": 20}, "ms": 1924.6, "bytes": 4641, "images": 0, "is_error": false}
+{"t": 1793306407.471926, "method": "tools/call", "tool": "scroll", "args": {"element_index": 58, "direction": "down", "pages": 50}, "ms": 4544.0, "bytes": 4462, "images": 0, "is_error": false}
+{"t": 1793306409.0825024, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Val\u00e9ria Nunes"}, "ms": 350.4, "bytes": 825, "images": 0, "is_error": false}
+{"t": 1793306411.3395896, "method": "tools/call", "tool": "click", "args": {"element_index": 950}, "ms": 941.1, "bytes": 338, "images": 0, "is_error": false}
+{"t": 1793306413.083002, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Val\u00e9ria Nunes"}, "ms": 352.0, "bytes": 865, "images": 0, "is_error": false}

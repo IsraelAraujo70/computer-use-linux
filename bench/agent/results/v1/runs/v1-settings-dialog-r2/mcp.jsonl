@@ -1,0 +1,9 @@
+{"t": 1793306965.9521558, "method": "initialize", "tool": null, "args": null, "ms": 24.1, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793306965.954482, "method": "tools/list", "tool": null, "args": null, "ms": 1.9, "bytes": 18919, "images": 0, "is_error": false}
+{"t": 1793306969.8991728, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 194.1, "bytes": 1397, "images": 0, "is_error": false}
+{"t": 1793306971.3272686, "method": "tools/call", "tool": "click", "args": {"element_index": 49}, "ms": 530.7, "bytes": 596, "images": 0, "is_error": false}
+{"t": 1793306972.6016207, "method": "tools/call", "tool": "click", "args": {"element_index": 121}, "ms": 543.9, "bytes": 1448, "images": 0, "is_error": false}
+{"t": 1793306973.7301567, "method": "tools/call", "tool": "click", "args": {"element_index": 128}, "ms": 440.7, "bytes": 1207, "images": 0, "is_error": false}
+{"t": 1793306975.2035878, "method": "tools/call", "tool": "set_value", "args": {"element_index": 148, "value": "Semanal"}, "ms": 623.4, "bytes": 507, "images": 0, "is_error": false}
+{"t": 1793306975.7350185, "method": "tools/call", "tool": "set_value", "args": {"element_index": 153, "value": "true"}, "ms": 529.7, "bytes": 392, "images": 0, "is_error": false}
+{"t": 1793306976.811019, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 430.3, "bytes": 406, "images": 0, "is_error": false}

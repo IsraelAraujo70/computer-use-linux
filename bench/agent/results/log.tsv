@@ -1,3 +1,4 @@
 date	variant	change	binary_commit	runs	success_rate	tasks_per_min	mean_wall_s	mean_mcp_calls	mean_screenshots	mean_input_tokens_k	notes
 2026-10-29	baseline	installed fork binary (unchanged)	f669057	30	1.00	1.249	48	25.6	4.9	640	pre-registered baseline
 2026-10-29	lean	X11-only removal (no behavior work)	53f1dc0	30	1.00	1.489	40	24.2	2.5	536	not interleaved; 1.19x vs baseline, no task regressed
+2026-10-29	v1	working web fields+fill_form, clipboard paste, stable ids, change reports, page-scoped text outline, auto screenshot, lean tools/list	a4d9eb5	30	1.00	2.842	21	6.1	0.2	210	not interleaved; 2.27x vs baseline

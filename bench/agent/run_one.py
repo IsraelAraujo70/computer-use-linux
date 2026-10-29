@@ -51,6 +51,24 @@ def window_count(env: dict) -> int:
     return out.stdout.count('"window_type":"normal"') if out.returncode == 0 else 0
 
 
+def chrome_args(profile: Path, mode: str) -> list[str]:
+    """Chrome command line for an episode.
+
+    "bots" reproduces ~/.local/bin/chrome-perfil exactly (plus the accessibility
+    flag the fix adds); "bots-noa11y" is chrome-perfil as it is today; "bench"
+    adds a few quieting flags used by the first runs.
+    """
+    base = [str(CHROME), f"--user-data-dir={profile}", "--no-first-run", "--no-default-browser-check"]
+    if mode == "bots":
+        return base + ["--force-renderer-accessibility"]
+    if mode == "bots-noa11y":
+        return base
+    if mode == "bench":
+        return base + ["--password-store=basic", "--disable-sync", "--disable-search-engine-choice-screen",
+                       "--disable-features=Translate,MediaRouter", "--force-renderer-accessibility"]
+    raise ValueError(f"unknown chrome mode {mode!r}")
+
+
 def launch_app(task: tasks.Task, spec: dict, env: dict, root: Path) -> subprocess.Popen:
     full_env = {**os.environ, **env}
     if task.kind == "terminal":
@@ -65,11 +83,7 @@ def launch_app(task: tasks.Task, spec: dict, env: dict, root: Path) -> subproces
         shutil.rmtree(profile, ignore_errors=True)
         profile.mkdir(parents=True)
         url = f"http://127.0.0.1:{spec['port']}/apps/{task.page}"
-        args = [str(CHROME), f"--user-data-dir={profile}", "--no-first-run", "--no-default-browser-check",
-                "--password-store=basic", "--disable-sync", "--disable-search-engine-choice-screen",
-                "--disable-features=Translate,MediaRouter"]
-        if spec.get("chrome_a11y", True):
-            args.append("--force-renderer-accessibility")
+        args = chrome_args(profile, spec.get("chrome_mode", "bench"))
         proc = subprocess.Popen(args + [url], env=full_env, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL, start_new_session=True)
     deadline = time.time() + 20
@@ -122,7 +136,7 @@ def claude_cmd(spec: dict, env: dict, prompt: str, mcp_log: Path, cfg_path: Path
     return ["claude", "-p", "--model", spec["model"], "--output-format", "stream-json", "--verbose",
             "--mcp-config", str(cfg_path), "--strict-mcp-config", "--setting-sources", "",
             "--tools", "", "--allowedTools", "mcp__cu", "--permission-mode", "bypassPermissions",
-            "--no-session-persistence", "--effort", spec.get("effort", "medium"), prompt]
+            "--no-session-persistence", "--effort", spec.get("effort", "medium")]  # prompt goes on stdin
 
 
 def parse_codex(events: list[dict]) -> dict:
@@ -161,16 +175,19 @@ def main() -> None:
     spec_path = Path(sys.argv[1])
     spec = json.loads(spec_path.read_text())
     root = Path(spec["root"])
-    task = tasks.BY_ID[spec["task"]]
+    task = tasks.by_id(spec["task"])
     run_dir = spec_path.parent
     env = session_env(root)
     http(f"http://127.0.0.1:{spec['port']}/api/reset", b"{}")
+    if task.setup:
+        task.setup(root)
     app = launch_app(task, spec, env, root)
     context = ("An Alacritty terminal window is already open." if task.kind == "terminal"
                else "A Chrome window is already open on the app for this task.")
     prompt = spec.get("prompt_override") or PREAMBLE.format(context=context, prompt=task.prompt)
     mcp_log = run_dir / "mcp.jsonl"
-    agent_env = {**os.environ, "CODEX_HOME": spec["codex_home"]}
+    agent_env = {**os.environ, "CODEX_HOME": spec["codex_home"],
+                 "CLAUDE_CONFIG_DIR": spec.get("claude_home", str(root / "claude-home"))}
     if spec["agent"] == "codex":
         cmd = codex_cmd(spec, env, prompt, mcp_log)
     else:
@@ -178,8 +195,12 @@ def main() -> None:
     started = time.monotonic()
     timed_out = False
     with open(run_dir / "agent.jsonl", "w") as out, open(run_dir / "agent.err", "w") as err:
-        proc = subprocess.Popen(cmd, stdout=out, stderr=err, stdin=subprocess.DEVNULL, env=agent_env,
-                                cwd=spec["workdir"], start_new_session=True)
+        stdin = subprocess.PIPE if spec["agent"] == "claude" else subprocess.DEVNULL
+        proc = subprocess.Popen(cmd, stdout=out, stderr=err, stdin=stdin, env=agent_env,
+                                cwd=spec["workdir"], start_new_session=True, text=True)
+        if spec["agent"] == "claude":
+            proc.stdin.write(prompt)
+            proc.stdin.close()
         try:
             proc.wait(timeout=spec["timeout"])
         except subprocess.TimeoutExpired:
