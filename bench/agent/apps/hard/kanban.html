@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Quadro - Projeto Aurora</title><link rel="stylesheet" href="../style.css">
+<style>
+  .board { display: flex; gap: 16px; padding: 0 24px 24px; align-items: flex-start; }
+  .column { flex: 1; background: #ebecf0; border-radius: 12px; padding: 12px; min-height: 420px; }
+  .column.over { background: #d3e3fd; outline: 2px dashed #0b57d0; }
+  .column h2 { font-size: 15px; margin: 4px 4px 12px; }
+  .column [role=list] { min-height: 360px; display: flex; flex-direction: column; gap: 8px; }
+  .card { background: #fff; border-radius: 8px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.2); cursor: grab; user-select: none; }
+  .card.dragging { opacity: .4; }
+  .card small { display: block; color: #5f6368; margin-top: 6px; }
+</style></head>
+<body>
+<header class="topbar"><div class="logo"><b>▦</b> Quadros</div><span class="spacer"></span></header>
+<h1 style="font-weight:400;margin:0 24px 16px">Quadro - Projeto Aurora</h1>
+<div class="board" id="board"></div>
+<script src="../common.js"></script>
+<script>
+const COLUMNS = [['todo', 'A fazer'], ['doing', 'Em andamento'], ['done', 'Concluído']];
+const CARDS = [
+  ['k1', 'Revisar contrato', 'todo', 'Jurídico'], ['k2', 'Atualizar orçamento 2027', 'todo', 'Financeiro'],
+  ['k3', 'Revisar cronograma', 'todo', 'Gestão'], ['k4', 'Migrar servidor de e-mail', 'doing', 'TI'],
+  ['k5', 'Pesquisa com clientes', 'doing', 'Produto'], ['k6', 'Design da landing page', 'doing', 'Marketing'],
+  ['k7', 'Reunião de kickoff', 'done', 'Gestão'], ['k8', 'Contratar designer', 'done', 'RH'],
+];
+const where = Object.fromEntries(CARDS.map(([id, , col]) => [id, col]));
+const lists = {};
+let dragged = null;
+
+for (const [colId, title] of COLUMNS) {
+  const list = h('div', { role: 'list', 'aria-label': title, id: 'list-' + colId });
+  const column = h('section', { class: 'column', 'data-col': colId, 'aria-labelledby': 'h-' + colId },
+    h('h2', { id: 'h-' + colId }, title), list);
+  // The whole column (header included) is a drop target, so a drop anywhere on it counts.
+  column.addEventListener('dragenter', e => { if (dragged) { e.preventDefault(); column.classList.add('over'); } });
+  column.addEventListener('dragover', e => { if (dragged) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; column.classList.add('over'); } });
+  column.addEventListener('dragleave', e => { if (!column.contains(e.relatedTarget)) column.classList.remove('over'); });
+  column.addEventListener('drop', e => { e.preventDefault(); column.classList.remove('over'); drop(e.dataTransfer.getData('text/plain') || dragged, colId); });
+  lists[colId] = list;
+  document.getElementById('board').append(column);
+}
+for (const [id, title, col, tag] of CARDS) {
+  const card = h('div', { class: 'card', role: 'listitem', draggable: 'true', id }, title, h('small', {}, tag));
+  card.addEventListener('dragstart', e => {
+    dragged = id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+    card.classList.add('dragging');
+  });
+  card.addEventListener('dragend', () => {
+    dragged = null;
+    card.classList.remove('dragging');
+    document.querySelectorAll('.column.over').forEach(c => c.classList.remove('over'));
+  });
+  lists[col].append(card);
+}
+
+async function drop(id, colId) {
+  if (!(id in where)) return;
+  where[id] = colId;
+  lists[colId].append(document.getElementById(id));
+  await postState('drag-drop', { columns: { ...where } });
+}
+</script>
+</body>
+</html>

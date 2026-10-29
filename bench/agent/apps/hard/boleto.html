@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Pagar boleto</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<div class="sitebar"><b>Banco Aurora</b><span class="spacer"></span><a href="#">Extrato</a><a href="#">Pix</a><a href="#">Pagamentos</a></div>
+<main class="page" style="max-width:720px">
+  <h1 style="font-weight:400">Pagar boleto</h1>
+  <p>Você tem 1 boleto pendente: <b>Condomínio Solar - novembro/2026</b> (vence em 10/11/2026).
+    <a href="boleto-view.html" target="_blank">Ver boleto</a></p>
+  <form id="form" novalidate>
+    <div class="field"><label for="code">Linha digitável</label><input id="code" inputmode="numeric" autocomplete="off" placeholder="00000.00000 00000.000000 00000.000000 0 00000000000000"></div>
+    <p class="error" role="alert" id="err"></p>
+    <button class="btn primary" type="submit">Pagar</button>
+  </form>
+  <p id="done" role="status" style="font-size:20px;color:#137333"></p>
+</main>
+<script src="../common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const code = $('code').value;
+  if (code.replace(/\D/g, '').length !== 47) { $('err').textContent = 'Linha digitável inválida: ela deve ter 47 números.'; return; }
+  $('err').textContent = '';
+  await postState('multi-tab', { paid: { code } });
+  $('done').textContent = 'Pagamento agendado';
+});
+</script>
+</body>
+</html>

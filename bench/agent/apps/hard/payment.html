@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Pagamento</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<div class="sitebar"><b>Loja Vértice</b><span class="spacer"></span><a href="#">Minha conta</a></div>
+<main class="page" style="display:flex;gap:32px;max-width:1000px">
+  <section style="flex:1">
+    <h1 style="font-weight:400">Pagamento</h1>
+    <p class="snippet">Cartão de crédito · ambiente seguro</p>
+    <form id="form" novalidate>
+      <div class="field"><label for="name">Nome no cartão</label><input id="name" autocomplete="off"><span class="error" role="alert" id="name-err"></span></div>
+      <div class="field"><label for="card">Número do cartão</label><input id="card" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 0000"><span class="error" role="alert" id="card-err"></span></div>
+      <div style="display:flex;gap:16px">
+        <div class="field" style="flex:1"><label for="expiry">Validade</label><input id="expiry" inputmode="numeric" autocomplete="off" placeholder="MM/AA"><span class="error" role="alert" id="expiry-err"></span></div>
+        <div class="field" style="flex:1"><label for="cvv">CVV</label><input id="cvv" inputmode="numeric" autocomplete="off" maxlength="4"><span class="error" role="alert" id="cvv-err"></span></div>
+      </div>
+      <button class="btn primary" type="submit">Pagar</button>
+    </form>
+    <p id="done" role="status" style="font-size:20px;color:#137333"></p>
+  </section>
+  <aside style="width:300px"><h2 style="font-weight:400">Resumo</h2>
+    <table class="data"><tr><td>Assinatura anual</td><td>R$ 238,80</td></tr><tr><th>Total</th><th>R$ 238,80</th></tr></table></aside>
+</main>
+<script src="../common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const card = $('card'), expiry = $('expiry'), cvv = $('cvv');
+
+card.addEventListener('input', () => {
+  const d = card.value.replace(/\D/g, '').slice(0, 16);
+  card.value = d.replace(/(\d{4})(?=\d)/g, '$1 ');
+});
+// The card widget "initializes" a moment after its first focus and wipes whatever was
+// typed until then, without telling anyone.
+card.addEventListener('focus', () => setTimeout(() => { card.value = ''; }, 1200), { once: true });
+
+expiry.addEventListener('input', () => {
+  const d = expiry.value.replace(/\D/g, '').slice(0, 4);
+  expiry.value = d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+});
+cvv.addEventListener('input', () => { cvv.value = cvv.value.replace(/\D/g, '').slice(0, 4); });
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = $('name').value.trim(), digits = card.value.replace(/\D/g, '');
+  const m = /^(\d{2})\/(\d{2})$/.exec(expiry.value);
+  const errors = {
+    name: !name && 'Informe o nome impresso no cartão',
+    card: digits.length !== 16 && 'Número do cartão inválido',
+    expiry: !(m && +m[1] >= 1 && +m[1] <= 12) && 'Validade inválida (MM/AA)',
+    cvv: !/^\d{3}$/.test(cvv.value) && 'CVV inválido',
+  };
+  let bad = false;
+  for (const [k, msg] of Object.entries(errors)) { $(k + '-err').textContent = msg || ''; bad = bad || !!msg; }
+  if (bad) return;
+  await postState('flaky-field', { paid: { name, card_digits: digits, expiry: expiry.value, cvv: cvv.value } });
+  $('done').textContent = 'Pagamento aprovado';
+});
+</script>
+</body>
+</html>

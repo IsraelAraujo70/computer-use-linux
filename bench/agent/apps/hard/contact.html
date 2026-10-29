@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Fale conosco</title><link rel="stylesheet" href="../style.css">
+<style>
+  .dialog .close { position: absolute; top: 16px; right: 16px; }
+  .dialog { position: relative; }
+  .backdrop[hidden] { display: none; }
+</style></head>
+<body>
+<div id="site">
+  <div class="sitebar"><b>StreamMax</b><span class="spacer"></span><a href="#">Planos</a><a href="#">Ajuda</a></div>
+  <main class="page" style="max-width:640px">
+    <h1 style="font-weight:400">Fale conosco</h1>
+    <p class="snippet">Respondemos em até 2 dias úteis.</p>
+    <form id="form" novalidate>
+      <div class="field"><label for="name">Nome</label><input id="name" autocomplete="off"></div>
+      <div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="off"></div>
+      <div class="field"><label for="message">Mensagem</label><textarea id="message"></textarea></div>
+      <p class="error" role="alert" id="err"></p>
+      <button class="btn primary" type="submit">Enviar mensagem</button>
+    </form>
+    <p id="done" role="status" style="font-size:20px;color:#137333"></p>
+  </main>
+</div>
+<div class="backdrop" id="modal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="nl-title" aria-describedby="nl-desc">
+    <button class="icon-btn close" type="button" aria-label="Fechar" id="nl-close">×</button>
+    <h2 id="nl-title">Receba nossas novidades</h2>
+    <p id="nl-desc">Cadastre seu e-mail e ganhe 10% de desconto no próximo mês.</p>
+    <form id="nl-form" novalidate>
+      <div class="field"><label for="nl-email">Seu e-mail</label><input id="nl-email" type="email" autocomplete="off"></div>
+      <div class="actions"><button class="btn" type="button" id="nl-later">Agora não</button><button class="btn primary" type="submit">Assinar</button></div>
+    </form>
+  </div>
+</div>
+<script src="../common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const state = {};
+const modal = $('modal'), site = $('site');
+let returnFocus = null;
+
+// The newsletter pop-up shows up 2 s after the visitor starts typing, takes the focus and
+// makes the page behind it inert until it is dismissed.
+$('form').addEventListener('input', () => setTimeout(openModal, 2000), { once: true });
+
+function openModal() {
+  returnFocus = document.activeElement;
+  modal.hidden = false;
+  site.inert = true;
+  $('nl-email').focus();
+}
+function closeModal() {
+  modal.hidden = true;
+  site.inert = false;
+  if (returnFocus && returnFocus !== document.body) returnFocus.focus();
+}
+$('nl-close').addEventListener('click', closeModal);
+$('nl-later').addEventListener('click', closeModal);
+modal.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+$('nl-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('nl-email').value.trim();
+  if (!email) return;
+  state.newsletter = { email };
+  closeModal();
+  await postState('modal-focus', state);
+  toast('Inscrição na newsletter confirmada');
+});
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = id => $(id).value.trim();
+  if (!v('name') || !/^\S+@\S+\.\S+$/.test(v('email')) || !v('message')) {
+    $('err').textContent = 'Preencha nome, um e-mail válido e a mensagem.';
+    return;
+  }
+  $('err').textContent = '';
+  state.sent = { name: v('name'), email: v('email'), message: v('message') };
+  await postState('modal-focus', state);
+  $('done').textContent = 'Mensagem enviada';
+});
+</script>
+</body>
+</html>
