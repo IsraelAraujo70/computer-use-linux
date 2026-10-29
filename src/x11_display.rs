@@ -297,6 +297,16 @@ impl X11Display {
         )
     }
 
+    /// Whether the X server lets this client read root-window pixels, the
+    /// one thing a screenshot needs: a single 1x1 `GetImage`.
+    pub(crate) fn can_read_root(&self) -> bool {
+        self.conn
+            .get_image(ImageFormat::Z_PIXMAP, self.root, 0, 0, 1, 1, !0)
+            .ok()
+            .and_then(|cookie| cookie.reply().ok())
+            .is_some()
+    }
+
     /// Root window size in pixels: the space of screenshots and XTEST input.
     pub(crate) fn root_size(&self) -> (u32, u32) {
         let screen = &self.conn.setup().roots[self.screen];

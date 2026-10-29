@@ -55,11 +55,41 @@ const SHELL_RESPONSE_STREAM_BYTES: usize = 512 * 1024;
 struct CachedAccessibilitySnapshot {
     nodes: Vec<AccessibilityNode>,
     pid: Option<u32>,
+    /// What the snapshot covered, so a rescan reads the same elements.
+    scope: Option<SnapshotScope>,
+}
+
+/// One read of an observed scope, with stable ids.
+struct Rescan {
+    nodes: Vec<AccessibilityNode>,
+    root_pid: Option<u32>,
+    scope: SnapshotScope,
+}
+
+/// Wait after an action before the first read, so the app has handled it.
+const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(120);
+/// Gap between reads while waiting for the tree to stop changing.
+const SETTLE_POLL: Duration = Duration::from_millis(150);
+/// Longest wait for the tree to settle after an action.
+const SETTLE_LIMIT: Duration = Duration::from_secs(2);
+
+/// The app filter and limits of an observation, reused when an action has
+/// to read the same part of the tree again.
+#[derive(Debug, Clone)]
+struct SnapshotScope {
+    app_filter: Option<String>,
+    target_pid: Option<u32>,
+    max_nodes: usize,
+    max_depth: u32,
+    /// How outlines and change reports of this scope are drawn.
+    options: crate::page_view::ViewOptions,
 }
 
 #[derive(Clone, Default)]
 pub struct ComputerUseLinux {
     last_snapshot: Arc<Mutex<CachedAccessibilitySnapshot>>,
+    /// Stable `[n]` ids for every element reported so far.
+    element_ids: Arc<Mutex<crate::element_ids::ElementIds>>,
     input_operation_lock: Arc<tokio::sync::Mutex<()>>,
     /// Root window size from the latest capture or X11 query; used for
     /// off-screen warnings and window-relative coordinate clipping.
@@ -109,11 +139,9 @@ impl ComputerUseLinux {
             for value in input_schema.values_mut() {
                 sanitize_unsigned_integer_formats(value);
             }
-            if let Some(output_schema) = route.attr.output_schema.as_mut() {
-                for value in Arc::make_mut(output_schema).values_mut() {
-                    sanitize_unsigned_integer_formats(value);
-                }
-            }
+            // Results are text for the agent to read; output schemas only
+            // add kilobytes to every tools/list.
+            route.attr.output_schema = None;
         }
         router
     }
@@ -123,7 +151,7 @@ impl ComputerUseLinux {
 impl ComputerUseLinux {
     #[tool(
         name = "doctor",
-        description = "Check the X11 session: X display, i3 window IPC, AT-SPI bus, xdotool and tesseract. readiness.blockers names the fix for each failure.",
+        description = "Check the X11 session (display, i3, AT-SPI, xdotool, tesseract). readiness.blockers names the fix for each failure.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -137,7 +165,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "list_apps",
-        description = "List running app processes and the AT-SPI application roots (their names work as app_name_or_bundle_identifier).",
+        description = "List app processes and AT-SPI application names (usable as app_name_or_bundle_identifier).",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -161,7 +189,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "list_windows",
-        description = "List X11 windows (i3, or EWMH via wmctrl) with window_id, title, app_id (WM_CLASS instance), wm_class, pid, focus state and bounds.",
+        description = "List X11 windows with window_id, title, wm_class, pid, focus and bounds.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -210,7 +238,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "activate_window",
-        description = "Focus an X11 window (switching i3 workspace if needed) by window_id, pid, app_id, wm_class, title, or terminal selectors (tty, terminal_pid, terminal_command, terminal_cwd).",
+        description = "Focus a window by window_id, pid, wm_class or title.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -254,9 +282,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "get_app_state",
-        output_schema = rmcp::handler::server::tool::schema_for_output::<GetAppStateOutput>()
-            .expect("get_app_state output schema"),
-        description = "Screenshot plus accessibility tree of an app on the X11 display; call it first. Scope with app_name_or_bundle_identifier (AT-SPI app name, e.g. chrome) or a window target (window_id/pid/app_id/wm_class/title); unscoped it returns the whole desktop. accessibility_outline has one line per element, `[index] role \"name\" @x,y wxh {states} actions=...`, indented by depth; the index is what click, perform_action and set_value take (tree_format=json gives full nodes). find_elements is cheaper for one control. screenshot metadata has coordinate_width/coordinate_height and scale for mapping image pixels to screen coordinates. A window-targeted screenshot needs that window already focused.",
+        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per visible element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -273,20 +299,34 @@ impl ComputerUseLinux {
 
     async fn app_state(&self, params: GetAppStateParams) -> Result<CallToolResult, ErrorData> {
         let tree_format = params.tree_format.unwrap_or_default();
-        let (mut output, screenshot) = self.collect_app_state(params).await;
-        if tree_format == TreeFormat::Outline {
-            let viewport = output
-                .window_context
-                .as_ref()
-                .and_then(|window| window.bounds.as_ref())
-                .map(|bounds| (bounds.width, bounds.height));
-            output.accessibility_outline = Some(crate::outline::render_outline(
-                &output.accessibility_tree,
-                viewport,
-            ));
-            output.accessibility_tree.clear();
+        let options = params.view_options();
+        let (output, screenshot) = self.collect_app_state(params).await;
+        if tree_format == TreeFormat::Json {
+            return app_state_result(output, screenshot);
         }
-        app_state_result(output, screenshot)
+        let view = crate::page_view::page_view(&output.accessibility_tree, options);
+        let window_id = match &output.window_context {
+            Some(window) => Some(window.window_id),
+            None => focused_window()
+                .await
+                .ok()
+                .flatten()
+                .filter(|window| window.title.is_some() && window.title == view.title)
+                .map(|window| window.window_id),
+        };
+        let mut content = vec![ContentBlock::text(app_state_text(
+            &output,
+            &view,
+            window_id,
+            screenshot.as_ref(),
+        ))];
+        if let Some(capture) = screenshot {
+            content.push(ContentBlock::image(
+                data_url_payload(&capture.data_url),
+                capture.mime_type,
+            ));
+        }
+        Ok(CallToolResult::success(content))
     }
 
     /// Captures the screenshot and accessibility snapshot for `get_app_state`
@@ -296,7 +336,7 @@ impl ComputerUseLinux {
         params: GetAppStateParams,
     ) -> (GetAppStateOutput, Option<ScreenshotCapture>) {
         let verbose = params.verbose.unwrap_or(false);
-        let mut diagnostics = if verbose || params.include_screenshot.unwrap_or(true) {
+        let mut diagnostics = if verbose {
             self.diagnostics().await
         } else {
             self.cached_diagnostics().await
@@ -305,7 +345,7 @@ impl ComputerUseLinux {
             self.resolve_window_context(&params).await;
         let (max_nodes, max_depth) =
             crate::atspi_tree::snapshot_limits(params.max_nodes, params.max_depth);
-        let include_screenshot = params.include_screenshot.unwrap_or(true);
+        let options = params.view_options();
         let screenshot_options = params.screenshot_options();
         let screenshot_target_requested = params.window_target().has_target();
         // Whether the caller asked for any scope at all. `tree_scoped` can still
@@ -319,6 +359,68 @@ impl ComputerUseLinux {
         let app_filter = self
             .resolve_accessibility_app_filter(&params, window_context.as_ref())
             .await;
+        let mut tree_scoped = false;
+        let mut tree_root_pid = None;
+        let mut accessibility_tree_truncated = false;
+        let mut shell_only_note = None;
+        let (accessibility_tree, accessibility_tree_raw_count, accessibility_error) =
+            if diagnostics.readiness.can_build_accessibility_tree {
+                let target_pid = window_context.as_ref().and_then(|window| window.pid);
+                match snapshot_accessibility_tree(
+                    app_filter.as_deref(),
+                    target_pid,
+                    max_nodes,
+                    max_depth,
+                )
+                .await
+                {
+                    Ok(snapshot) => {
+                        tree_scoped = snapshot.scoped;
+                        tree_root_pid = snapshot.root_pid;
+                        accessibility_tree_truncated = snapshot.truncated;
+                        let raw_count = snapshot.nodes.len();
+                        let (mut nodes, note) = compact_accessibility_tree_with_note(
+                            snapshot.nodes,
+                            tree_scoped,
+                            accessibility_tree_truncated,
+                        );
+                        self.assign_ids(&mut nodes);
+                        shell_only_note = note;
+                        (nodes, raw_count, None)
+                    }
+                    Err(error) => (Vec::new(), 0, Some(format!("{error:#}"))),
+                }
+            } else {
+                (
+                    Vec::new(),
+                    0,
+                    Some("AT-SPI is unavailable; readiness.blockers names the fix.".to_string()),
+                )
+            };
+        if accessibility_error.is_none() {
+            // Record a pid only when the tree's roots were matched by it. A pid
+            // with no AT-SPI root falls back to every app, or to an app-name
+            // match that can be another app entirely; recording the pid then
+            // would let that app's index pass the target check instead of
+            // taking the per-node owner lookup.
+            let scope = SnapshotScope {
+                app_filter: app_filter.clone(),
+                target_pid: window_context.as_ref().and_then(|window| window.pid),
+                max_nodes,
+                max_depth,
+                options,
+            };
+            self.commit_observation(&accessibility_tree, tree_root_pid, Some(scope))
+                .await;
+        } else {
+            self.commit_snapshot(&[], None).await;
+        }
+        // Auto: a screenshot only when the tree shows too little to act on
+        // (terminals, canvases, apps without accessibility).
+        let include_screenshot = params.include_screenshot.unwrap_or_else(|| {
+            crate::page_view::page_view(&accessibility_tree, options).content_elements()
+                < MIN_CONTENT_ELEMENTS
+        });
         let (screenshot, screenshot_error) = if include_screenshot {
             let result: Result<ScreenshotCapture> = async {
                 let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
@@ -351,54 +453,6 @@ impl ComputerUseLinux {
         } else {
             (None, None)
         };
-        let mut tree_scoped = false;
-        let mut tree_root_pid = None;
-        let mut accessibility_tree_truncated = false;
-        let mut shell_only_note = None;
-        let (accessibility_tree, accessibility_tree_raw_count, accessibility_error) =
-            if diagnostics.readiness.can_build_accessibility_tree {
-                let target_pid = window_context.as_ref().and_then(|window| window.pid);
-                match snapshot_accessibility_tree(
-                    app_filter.as_deref(),
-                    target_pid,
-                    max_nodes,
-                    max_depth,
-                )
-                .await
-                {
-                    Ok(snapshot) => {
-                        tree_scoped = snapshot.scoped;
-                        tree_root_pid = snapshot.root_pid;
-                        accessibility_tree_truncated = snapshot.truncated;
-                        let raw_count = snapshot.nodes.len();
-                        let (nodes, note) = compact_accessibility_tree_with_note(
-                            snapshot.nodes,
-                            tree_scoped,
-                            accessibility_tree_truncated,
-                        );
-                        shell_only_note = note;
-                        (nodes, raw_count, None)
-                    }
-                    Err(error) => (Vec::new(), 0, Some(format!("{error:#}"))),
-                }
-            } else {
-                (
-                    Vec::new(),
-                    0,
-                    Some("AT-SPI is unavailable; readiness.blockers names the fix.".to_string()),
-                )
-            };
-        if accessibility_error.is_none() {
-            // Record a pid only when the tree's roots were matched by it. A pid
-            // with no AT-SPI root falls back to every app, or to an app-name
-            // match that can be another app entirely; recording the pid then
-            // would let that app's index pass the target check instead of
-            // taking the per-node owner lookup.
-            self.commit_snapshot(&accessibility_tree, tree_root_pid)
-                .await;
-        } else {
-            self.commit_snapshot(&[], None).await;
-        }
         let mut message = if let Some(error) = &accessibility_error {
             format!("MCP registration is working, but AT-SPI tree extraction failed: {error}")
         } else if let Some(capture) = &screenshot {
@@ -457,7 +511,46 @@ impl ComputerUseLinux {
         {
             message.push_str(" Pass verbose=true for full diagnostics.");
         }
+        if accessibility_error.is_some() || screenshot_error.is_some() || window_error.is_some() {
+            // The cached readiness may be what is stale; probe again next time.
+            self.forget_diagnostics();
+        }
+        // What the text result prints besides the outline: only what is wrong
+        // or incomplete, each with its fix.
+        let mut notes = Vec::new();
+        if let Some(error) = &accessibility_error {
+            notes.push(format!("accessibility tree failed: {error}"));
+        }
+        if let Some(error) = &window_error {
+            notes.push(format!("window target did not resolve: {error}"));
+            if let Some(hint) = &window_permissions_hint {
+                notes.push(hint.clone());
+            }
+        }
+        if let Some(error) = &screenshot_error {
+            notes.push(format!("screenshot failed: {error}"));
+        }
+        notes.extend(
+            unscoped_accessibility_tree_warning(
+                tree_scoped,
+                accessibility_error.is_none(),
+                accessibility_target_requested,
+            )
+            .map(str::to_string),
+        );
+        notes.extend(
+            truncated_accessibility_tree_note(accessibility_tree_truncated).map(str::to_string),
+        );
+        notes.extend(shell_only_note.map(str::to_string));
+        notes.extend(
+            diagnostics
+                .readiness
+                .blockers
+                .iter()
+                .map(|blocker| format!("blocker: {blocker}")),
+        );
         let output = GetAppStateOutput {
+            notes,
             app_name_or_bundle_identifier: params.app_name_or_bundle_identifier,
             window_context,
             window_error,
@@ -466,7 +559,6 @@ impl ComputerUseLinux {
             screenshot: screenshot.as_ref().map(ScreenshotSummary::from),
             screenshot_error,
             accessibility_tree,
-            accessibility_outline: None,
             accessibility_tree_raw_count,
             tree_scoped,
             accessibility_tree_truncated,
@@ -480,7 +572,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "find_elements",
-        description = "Search an app's accessibility tree and return only matching elements as outline lines `[index] role \"name\" @x,y wxh {states} actions=...`. Cheaper than get_app_state for locating a control. Scope with app_name_or_bundle_identifier or a window target. role/name/text/states must all match (case-insensitive substrings). The indices stay valid for click, perform_action and set_value until the next snapshot.",
+        description = "Find elements by role/name/text/states (case-insensitive substrings, all must match), including ones hidden from get_app_state (browser UI, off-screen). Returns their `[n]` lines.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -544,7 +636,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "wait_for",
-        description = "Poll an app's accessibility tree until a condition holds or timeout_ms passes. condition=appears waits for an element matching role/name/text/states; disappears waits until none match; changed waits until the scoped tree differs from its state at the first poll and returns the differing lines prefixed + or - (the query is ignored). Each poll rereads the tree, about 1-3 s for a large browser page, so the effective timeout rounds up to whole polls. Use after an action instead of repeated screenshots.",
+        description = "Wait until an element appears or disappears (role/name/text/states), or until the tree changes (condition=changed). Actions already report their changes; use this for slow updates.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -640,7 +732,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "ocr",
-        description = "Read on-screen text with tesseract OCR and return lines as `@x,y wxh text`. Use it where the accessibility tree is empty (canvas, some Electron apps). Without a window target the whole screen is read in screen coordinates; with one the window is focused first and coordinates are window-relative, ready for click with relative=true. Optional region crops first; query keeps only lines containing that text (case-insensitive). Default languages: por+eng when installed.",
+        description = "Read on-screen text with OCR as `@x,y wxh text` lines, for canvases and apps without an accessibility tree. With a window target, coordinates are window-relative (click with relative=true).",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -688,7 +780,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "screenshot",
-        description = "Capture the X11 screen as a size-bounded image. With a window target (window_id/pid/app_id/wm_class/title) the window is focused first and the image is cropped to it; full_screen=true keeps the whole screen. The caption gives returned width/height, coordinate_width/coordinate_height, scale, format and crop details. Use format=jpeg/quality or max_width/max_height/max_bytes to shrink the payload.",
+        description = "Capture the screen, or a focused window with a window target, as an image. The caption gives scale: click x/y = image pixel / scale.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -792,16 +884,6 @@ impl ComputerUseLinux {
         ]))
     }
 
-    #[tool(
-        name = "click",
-        description = "Click an element by element_index or semantic selector (role/name/text/states), or at screen coordinates x/y (screenshot coordinate pixels; with relative=true and a window target, relative to that window's crop). A plain left click on an element invokes its AT-SPI click/press/toggle action; coordinates, right/middle buttons and click_count>1 send an xdotool pointer click.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn click(&self, Parameters(mut params): Parameters<ClickParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
@@ -872,6 +954,22 @@ impl ComputerUseLinux {
             }
         }
         if params.x.zip(params.y).is_none() {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::Click,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "click".to_string(),
+                    message,
+                    received,
+                });
+            }
             if let Some(node) = self.cached_node_for(
                 params.element_index,
                 &params.selector(),
@@ -888,9 +986,62 @@ impl ComputerUseLinux {
                 }
             }
         }
-        let target = match self.resolve_click_target(&params) {
-            Ok(target) => target,
-            Err(message) => {
+        let node = if params.x.zip(params.y).is_none() {
+            self.cached_node_for(
+                params.element_index,
+                &params.selector(),
+                ElementResolvePurpose::Click,
+            )
+        } else {
+            None
+        };
+        let label = node.as_ref().map(crate::outline::element_label);
+        let clicked = label.as_deref().unwrap_or("the element");
+        let resolved = self.resolve_click_target(&params);
+        // An element click whose point is not on the visible page (scrolled
+        // away, inside a closed popup, no bounds) would land on no pixel or
+        // on the wrong thing: use the element's own action, else scroll it
+        // into view, else refuse.
+        let needs_fallback = match (&resolved, &node) {
+            (Ok(ClickTarget::Coordinates(x, y)), Some(node)) => {
+                !self.point_visible_for(node, (*x, *y)).await
+            }
+            (Err(_), Some(_)) => true,
+            _ => false,
+        };
+        let target = match (resolved, node) {
+            (_, Some(node)) if needs_fallback => {
+                match self
+                    .off_screen_click(
+                        &node,
+                        clicked,
+                        is_plain_left_click(params.button.as_deref(), params.click_count),
+                    )
+                    .await
+                {
+                    Ok(OffScreenClick::Invoked(message)) => {
+                        return Json(ActionOutput {
+                            ok: true,
+                            implemented: true,
+                            action: "click".to_string(),
+                            message,
+                            received,
+                        });
+                    }
+                    Ok(OffScreenClick::ScrolledTo(x, y)) => ClickTarget::Coordinates(x, y),
+                    Err(message) => {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "click".to_string(),
+                            message,
+                            received,
+                        });
+                    }
+                }
+            }
+            (Ok(target), _) => target,
+            (Err(message), _) => {
                 return Json(ActionOutput {
                     ok: false,
                     implemented: true,
@@ -921,12 +1072,11 @@ impl ComputerUseLinux {
                     action: "click".to_string(),
                     message: if invocation.ok {
                         format!(
-                            "Invoked the primary AT-SPI action{} without pointer-coordinate conversion.",
+                            "clicked {clicked} (AT-SPI {})",
                             action_name
                                 .as_deref()
                                 .filter(|name| !name.is_empty())
-                                .map(|name| format!(" ({name})"))
-                                .unwrap_or_default()
+                                .unwrap_or("action")
                         )
                     } else {
                         format!(
@@ -966,28 +1116,30 @@ impl ComputerUseLinux {
                 received,
             });
         };
-        let off_screen_note = self.off_screen_note_for_point(x, y).await;
+        if let Some(note) = self.off_screen_note_for_point(x, y).await {
+            return Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "click".to_string(),
+                message: format!("{note} Nothing was clicked."),
+                received,
+            });
+        }
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
             run_xdotool(&xdotool_args, INPUT_COMMAND_TIMEOUT).await
         })
         .await;
         let _input_guard = input_guard;
-        Json(with_notes(
-            action_result("click", result.map(|output| vec![output]), received),
-            off_screen_note,
-        ))
+        let mut output = action_result("click", result.map(|output| vec![output]), received);
+        if output.ok {
+            output.message = match &label {
+                Some(label) => format!("clicked {label} at {x},{y} (xdotool)"),
+                None => format!("clicked {x},{y} (xdotool)"),
+            };
+        }
+        Json(output)
     }
 
-    #[tool(
-        name = "perform_action",
-        description = "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn perform_action(
         &self,
         Parameters(params): Parameters<ActionParams>,
@@ -996,29 +1148,40 @@ impl ComputerUseLinux {
         self.perform_element_action(&params, requested_action).await
     }
 
-    #[tool(
-        name = "set_value",
-        description = "Set the value of a settable accessibility element selected by index, identifier, or semantic selector.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn set_value(
         &self,
         Parameters(params): Parameters<SetValueParams>,
     ) -> Json<ActionOutput> {
         let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let received = Some(serde_json::json!(params.clone()));
-        let object_ref = match self.resolve_object_ref(
+        if params
+            .element_identifier
+            .as_deref()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::SetValue,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "set_value".to_string(),
+                    message,
+                    received,
+                });
+            }
+        }
+        let node = match self.resolve_field_node(
             params.element_index,
             params.element_identifier.as_deref(),
             &params.selector(),
-            ElementResolvePurpose::SetValue,
         ) {
-            Ok(object_ref) => object_ref,
+            Ok(node) => node,
             Err(message) => {
                 return Json(ActionOutput {
                     ok: false,
@@ -1029,42 +1192,89 @@ impl ComputerUseLinux {
                 });
             }
         };
-
-        match set_element_value(&object_ref, &params.value).await {
-            Ok(ValueSetInvocation::Numeric { value }) => Json(ActionOutput {
-                ok: true,
-                implemented: true,
-                action: "set_value".to_string(),
-                message: format!("AT-SPI numeric value set to {value}."),
-                received,
-            }),
-            Ok(ValueSetInvocation::EditableText) => Json(ActionOutput {
-                ok: true,
-                implemented: true,
-                action: "set_value".to_string(),
-                message: "AT-SPI editable text contents set.".to_string(),
-                received,
-            }),
-            Err(error) => Json(ActionOutput {
-                ok: false,
-                implemented: true,
-                action: "set_value".to_string(),
-                message: error.to_string(),
-                received,
-            }),
-        }
+        let node = match node {
+            Some(node) => node,
+            None => {
+                let object_ref = params.element_identifier.as_deref().unwrap_or_default();
+                match crate::atspi_tree::read_element(object_ref.trim()).await {
+                    Ok(node) => node,
+                    Err(error) => {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "set_value".to_string(),
+                            message: format!("{error:#}"),
+                            received,
+                        });
+                    }
+                }
+            }
+        };
+        let outcome = self.set_field(&node, &params.value).await;
+        Json(ActionOutput {
+            ok: outcome.ok,
+            implemented: true,
+            action: "set_value".to_string(),
+            message: outcome.message,
+            received,
+        })
     }
 
-    #[tool(
-        name = "scroll",
-        description = "Scroll an element in a direction by a number of pages. With a window target and no x/y/element_index, scrolls at the centre of the targeted window.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = false,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
+    async fn fill_form(
+        &self,
+        Parameters(params): Parameters<FillFormParams>,
+    ) -> Json<ActionOutput> {
+        let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let received = Some(serde_json::json!(params.clone()));
+        if params.fields.is_empty() {
+            return Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "fill_form".to_string(),
+                message: "Pass at least one field.".to_string(),
+                received,
+            });
+        }
+        let mut lines = Vec::new();
+        let mut ok_count = 0;
+        for field in &params.fields {
+            let selector = field.selector();
+            let resolved = match self
+                .ensure_resolvable(
+                    field.element_index,
+                    &selector,
+                    ElementResolvePurpose::SetValue,
+                )
+                .await
+            {
+                Ok(()) => self
+                    .resolve_field_node(field.element_index, None, &selector)
+                    .and_then(|node| node.ok_or_else(|| "no element given".to_string())),
+                Err(message) => Err(message),
+            };
+            let (label, outcome) = match resolved {
+                Ok(node) => (
+                    crate::outline::element_label(&node),
+                    self.set_field(&node, &field.value).await,
+                ),
+                Err(message) => (field.describe(), FieldOutcome::failed(message)),
+            };
+            ok_count += usize::from(outcome.ok);
+            lines.push(form_field_line(&label, &outcome));
+        }
+        Json(ActionOutput {
+            ok: ok_count == params.fields.len(),
+            implemented: true,
+            action: "fill_form".to_string(),
+            message: format!(
+                "{ok_count}/{} fields set\n{}",
+                params.fields.len(),
+                lines.join("\n")
+            ),
+            received,
+        })
+    }
+
     async fn scroll(&self, Parameters(mut params): Parameters<ScrollParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
         let units = match scroll_units(params.pages) {
@@ -1182,6 +1392,22 @@ impl ComputerUseLinux {
             }
         }
         if params.x.is_none() && params.y.is_none() {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &ElementSelector::default(),
+                    ElementResolvePurpose::Click,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message,
+                    received,
+                });
+            }
             if let Some(node) = self.cached_node_for(
                 params.element_index,
                 &ElementSelector::default(),
@@ -1227,10 +1453,50 @@ impl ComputerUseLinux {
                 });
             }
         };
-        let off_screen_note = match target_point {
-            Some((x, y)) => self.off_screen_note_for_point(x, y).await,
-            None => None,
-        };
+        if params.x.zip(params.y).is_none() {
+            if let Some(node) = self.cached_node_for(
+                params.element_index,
+                &ElementSelector::default(),
+                ElementResolvePurpose::Click,
+            ) {
+                let visible = match target_point {
+                    Some(point) => self.point_visible_for(&node, point).await,
+                    None => false,
+                };
+                if !visible {
+                    // Wheel input at an off-page point scrolls nothing; ask
+                    // the toolkit to bring the element into view instead.
+                    let label = crate::outline::element_label(&node);
+                    return Json(match crate::atspi_tree::scroll_into_view(&node.object_ref).await {
+                        Ok(_) => ActionOutput {
+                            ok: true,
+                            implemented: true,
+                            action: "scroll".to_string(),
+                            message: format!("scrolled {label} into view (AT-SPI ScrollTo)"),
+                            received,
+                        },
+                        Err(error) => ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "scroll".to_string(),
+                            message: format!("{label} is off the visible page and could not be scrolled into view: {error:#}"),
+                            received,
+                        },
+                    });
+                }
+            }
+        }
+        if let Some((x, y)) = target_point {
+            if let Some(note) = self.off_screen_note_for_point(x, y).await {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message: format!("{note} Nothing was scrolled."),
+                    received,
+                });
+            }
+        }
         // XTEST wheel buttons have no XI2 valuators, so GTK 3 takes its button
         // path instead of re-baselining smooth-scroll valuators (#184).
         let repeat = u32::try_from(units.max(1)).unwrap_or(1);
@@ -1241,22 +1507,24 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        Json(with_notes(
-            action_result("scroll", result.map(|output| vec![output]), received),
-            off_screen_note,
-        ))
+        let mut output = action_result("scroll", result.map(|output| vec![output]), received);
+        if output.ok {
+            output.message = match target_point {
+                Some((x, y)) => format!(
+                    "scrolled {} {} page(s) at {x},{y} (xdotool)",
+                    params.direction.to_ascii_lowercase(),
+                    params.pages.unwrap_or(1.0)
+                ),
+                None => format!(
+                    "scrolled {} {} page(s) under the pointer (xdotool)",
+                    params.direction.to_ascii_lowercase(),
+                    params.pages.unwrap_or(1.0)
+                ),
+            };
+        }
+        Json(output)
     }
 
-    #[tool(
-        name = "drag",
-        description = "Drag with the left button from start_x,start_y to end_x,end_y in screen coordinates (xdotool).",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn drag(&self, Parameters(params): Parameters<DragParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params));
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
@@ -1265,19 +1533,16 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        Json(action_result("drag", result, received))
+        let mut output = action_result("drag", result, received);
+        if output.ok {
+            output.message = format!(
+                "dragged {},{} to {},{} (xdotool)",
+                params.start_x, params.start_y, params.end_x, params.end_y
+            );
+        }
+        Json(output)
     }
 
-    #[tool(
-        name = "press_key",
-        description = "Press a key or chord with xdotool, optionally after focusing a target window or terminal selector. Grammar (case-insensitive; hyphens/spaces ignored): combos join with '+', e.g. Ctrl+L or Ctrl+Shift+T. Modifiers: ctrl/control, alt/option, shift, meta/super/cmd/command. Named keys: enter/return, escape/esc, tab, backspace, delete/del, space, home, end, pageup, pagedown, arrowleft/left, arrowright/right, arrowup/up, arrowdown/down, f1-f12, plus single letters a-z and digits 0-9. Anything else is an error. i3 may consume its own bindings (Super+...) before the app sees them.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn press_key(
         &self,
         Parameters(params): Parameters<PressKeyParams>,
@@ -1312,11 +1577,157 @@ impl ComputerUseLinux {
         .await;
         let _input_guard = input_guard;
         let mut output = action_result("press_key", result.map(|output| vec![output]), received);
+        if output.ok {
+            output.message = format!("pressed {} (xdotool)", params.key.trim());
+        }
         if output.ok && focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), false).await;
             output = with_notes(output, notes);
         }
         Json(output)
+    }
+
+    #[tool(
+        name = "click",
+        description = "Click an element by element_index (or role/name/text), or screen x/y. Element clicks use the element's own action when it has one, so off-screen items in lists work. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn click_tool(&self, Parameters(params): Parameters<ClickParams>) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.click(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "perform_action",
+        description = "Invoke a named AT-SPI action of an element (default: its primary action). Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn perform_action_tool(
+        &self,
+        Parameters(params): Parameters<ActionParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.perform_action(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "set_value",
+        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn set_value_tool(
+        &self,
+        Parameters(params): Parameters<SetValueParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.set_value(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "fill_form",
+        description = "Set several fields in order with set_value semantics; each field is {element_index or role/name, value}. Returns each field's value read back and one change report.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn fill_form_tool(
+        &self,
+        Parameters(params): Parameters<FillFormParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.fill_form(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "scroll",
+        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn scroll_tool(&self, Parameters(params): Parameters<ScrollParams>) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.scroll(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "drag",
+        description = "Drag with the left button from start_x,start_y to end_x,end_y (screen coordinates). Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn drag_tool(&self, Parameters(params): Parameters<DragParams>) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.drag(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "press_key",
+        description = "Press a key or chord, e.g. Enter, Escape, Tab, ArrowDown, Ctrl+L, Ctrl+Shift+T (letters, digits, F1-F12, Home/End/PageUp/PageDown, Backspace, Delete, Space). Optional window target. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn press_key_tool(
+        &self,
+        Parameters(params): Parameters<PressKeyParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.press_key(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "type_text",
+        description = "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter. To replace a field's content use set_value. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn type_text_tool(
+        &self,
+        Parameters(params): Parameters<TypeTextParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.type_text(Parameters(params)).await;
+        self.finish_action(output, observe).await
     }
 
     #[tool(
@@ -1336,27 +1747,11 @@ impl ComputerUseLinux {
         Json(execute_shell(params).await)
     }
 
-    #[tool(
-        name = "type_text",
-        description = "Type literal text with xdotool (layout-aware XTEST), optionally after focusing a target window or terminal selector; newlines press Return. With a target, the result reports the AT-SPI focused element and warns when it is not editable. Success confirms dispatch only; re-observe the field before retrying. NUL is rejected. For long text in an editable field, set_value is faster.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn type_text(
         &self,
         Parameters(params): Parameters<TypeTextParams>,
     ) -> Json<ActionOutput> {
-        let Json(mut output) = self.dispatch_type_text(params).await;
-        if output.ok {
-            output.message.push_str(
-                " Field contents were not verified; re-observe the target before retrying.",
-            );
-        }
-        Json(output)
+        self.dispatch_type_text(params).await
     }
 
     async fn dispatch_type_text(&self, params: TypeTextParams) -> Json<ActionOutput> {
@@ -1370,29 +1765,80 @@ impl ComputerUseLinux {
             ));
         }
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let failed = |message: String| {
+            Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "type_text".to_string(),
+                message,
+                received: received.clone(),
+            })
+        };
         let focus = match self.focus_target_for_input(&params.window_target()).await {
             Ok(focus) => focus,
-            Err(message) => {
-                return Json(ActionOutput {
-                    ok: false,
-                    implemented: true,
-                    action: "type_text".to_string(),
-                    message,
-                    received,
-                });
-            }
+            Err(message) => return failed(message),
         };
-        // xdotool type resolves keysyms against the live XKB layout.
-        let delay_ms = xdotool_type_delay_ms();
-        let args = xdotool_type_args_with_delay(&params.text, delay_ms);
-        let command_timeout = xdotool_type_timeout(&params.text, delay_ms);
+        let target = if params.element_index.is_some() || !params.selector().is_empty() {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::SetValue,
+                )
+                .await
+            {
+                return failed(message);
+            }
+            match self.resolve_cached_node(
+                params.element_index,
+                &params.selector(),
+                ElementResolvePurpose::SetValue,
+            ) {
+                Ok(node) => {
+                    let label = crate::outline::element_label(&node);
+                    if let Err(message) = self.focus_element(&node, &label).await {
+                        return failed(message);
+                    }
+                    Some(node)
+                }
+                Err(message) => return failed(message),
+            }
+        } else {
+            None
+        };
+        let window = match focus.as_ref() {
+            Some(focus) => focus.focused_window.clone(),
+            None => focused_window().await.ok().flatten(),
+        };
+        let paste_chord = paste_chord_for(window.as_ref());
+        let text = params.text.clone();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-            run_xdotool(&args, command_timeout).await
+            enter_text(&text, paste_chord).await.map(|()| Vec::new())
         })
         .await;
         let _input_guard = input_guard;
-        let mut output = action_result("type_text", result.map(|output| vec![output]), received);
-        if output.ok && focus.is_some() {
+        let mut output = action_result("type_text", result, received);
+        if !output.ok {
+            return Json(output);
+        }
+        output.message = if crate::fields::typeable_ascii(&params.text) {
+            "Typed through xdotool (X11 XTEST).".to_string()
+        } else {
+            format!("Pasted through the X11 clipboard ({paste_chord}).")
+        };
+        if let Some(node) = target {
+            sleep(Duration::from_millis(100)).await;
+            let read_back = crate::atspi_tree::read_element(&node.object_ref)
+                .await
+                .ok()
+                .and_then(|fresh| crate::fields::field_text(&fresh));
+            let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+            output.message.push_str(&format!(
+                " {} now holds \"{}\".",
+                crate::outline::element_label(&node),
+                crate::outline::truncate(&shown, 200)
+            ));
+        } else if focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), true).await;
             output = with_notes(output, notes);
         }
@@ -1408,7 +1854,7 @@ impl ComputerUseLinux {
     // can't be env!("CARGO_PKG_VERSION"); the MCP safety check (CI) fails the
     // build if it drifts from the Cargo version.
     version = "0.7.17",
-    instructions = "Drives apps on a virtual X11 display (Xvfb + i3) through AT-SPI, xdotool and X11 screenshots. Start each turn with get_app_state scoped to the app (app_name_or_bundle_identifier, e.g. chrome) or a window target; unscoped trees can flood context. Prefer element_index from the latest get_app_state or find_elements; click, perform_action and set_value also accept unique role/name/text/states selectors. After an action, use wait_for instead of repeated screenshots. Coordinates are screenshot coordinate pixels (divide image pixels by scale). type_text and press_key take optional window or terminal selectors, refuse to send input when focus cannot be verified, and report the focused AT-SPI element; type_text success means dispatched, not verified, so re-observe before retrying. accessibility_tree_truncated=true means the tree is incomplete: narrow the scope or raise max_nodes (max 2000). Chromium and Electron apps need --force-renderer-accessibility for a full tree; where the tree is empty, use ocr or a screenshot. If a tool fails, call doctor: readiness.blockers names the fix. Tools with readOnlyHint=false change app state; get approval before actions that submit, delete, send, purchase or overwrite data."
+    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid for the whole session. Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state; confirm before submitting, sending, deleting or buying. If a tool fails, doctor names the fix."
 )]
 impl ServerHandler for ComputerUseLinux {}
 
@@ -1788,8 +2234,10 @@ struct OcrParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     /// Window title substring.
@@ -1802,9 +2250,11 @@ struct OcrParams {
     #[serde(default)]
     query: Option<String>,
     /// Tesseract language codes such as `por+eng` (default: installed por/eng).
+    #[schemars(skip)]
     #[serde(default)]
     lang: Option<String>,
     /// Drop words below this confidence, 0 to 100 (default 60).
+    #[schemars(skip)]
     #[serde(default)]
     min_confidence: Option<f32>,
     /// Maximum lines returned (default 300).
@@ -1826,21 +2276,24 @@ struct OcrOutput {
 /// Window or app scope shared by `find_elements` and `wait_for`.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ElementScope {
-    /// App name or AT-SPI id that limits the search.
+    /// App name, e.g. chrome.
     #[serde(default)]
     app_name_or_bundle_identifier: Option<String>,
     #[serde(default)]
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     /// Window title substring.
     #[serde(default)]
     title: Option<String>,
-    /// Maximum raw AT-SPI nodes to read (default 2000, the hard max).
+    /// Nodes to read (default 2000).
+    #[schemars(skip)]
     #[serde(default)]
     max_nodes: Option<usize>,
 }
@@ -1913,6 +2366,7 @@ struct WaitForParams {
     #[serde(default)]
     timeout_ms: Option<u64>,
     /// Delay between polls in milliseconds (default 400).
+    #[schemars(skip)]
     #[serde(default)]
     interval_ms: Option<u64>,
 }
@@ -1935,87 +2389,101 @@ struct WaitForOutput {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct GetAppStateParams {
-    /// App name or AT-SPI id that limits the accessibility tree. Omit only when
-    /// you need the whole desktop tree; unscoped results can flood context.
+    /// App name, e.g. chrome. Omitting it reads the whole desktop.
     #[serde(default)]
     app_name_or_bundle_identifier: Option<String>,
-    /// X11 window id from list_windows. Also scopes the accessibility tree to
-    /// that window's application when possible.
+    /// Window id (header of an earlier result, or list_windows).
     #[serde(default)]
     window_id: Option<u64>,
-    /// Process id. Also scopes the accessibility tree to that process when it
-    /// exposes AT-SPI.
+    /// Process id of the app.
     #[serde(default)]
     pid: Option<u32>,
     /// Terminal tty device (for example /dev/pts/3). Resolves a window target
     /// and scopes the tree when possible.
+    #[schemars(skip)]
     #[serde(default)]
     tty: Option<String>,
     /// Terminal emulator pid. Resolves a window target and scopes the tree when
     /// possible.
+    #[schemars(skip)]
     #[serde(default)]
     terminal_pid: Option<u32>,
     /// Terminal command substring. Resolves a window target and scopes the tree
     /// when possible.
+    #[schemars(skip)]
     #[serde(default)]
     terminal_command: Option<String>,
     /// Terminal working directory. Resolves a window target and scopes the tree
     /// when possible.
+    #[schemars(skip)]
     #[serde(default)]
     terminal_cwd: Option<String>,
     /// Application id. Also scopes the accessibility tree when it matches an
     /// AT-SPI root.
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
-    /// Window manager class. Also scopes the accessibility tree when it matches
-    /// an AT-SPI root.
+    /// Window class, e.g. Alacritty.
     #[serde(default)]
     wm_class: Option<String>,
-    /// Window title substring. Also scopes the accessibility tree when it
-    /// matches an AT-SPI root.
+    /// Window title substring.
     #[serde(default)]
     title: Option<String>,
-    /// Maximum raw AT-SPI nodes to inspect before compaction (default 1000, hard max 2000).
+    /// Nodes to read (default 1000, max 2000); raise it when told the tree was cut.
     #[serde(default)]
     max_nodes: Option<usize>,
     /// Maximum AT-SPI traversal depth (default 32, hard max 64).
+    #[schemars(skip)]
     #[serde(default)]
     max_depth: Option<u32>,
-    /// `outline` (default) returns one text line per element in
-    /// `accessibility_outline`; `json` returns full node objects in
-    /// `accessibility_tree`.
+    /// `json` returns full node objects instead of the outline.
     #[serde(default)]
     tree_format: Option<TreeFormat>,
-    /// Include a size-bounded screenshot (default true). Set false when the
-    /// accessibility tree is enough.
+    /// true always attaches a screenshot, false never (default: only when
+    /// the tree shows little).
     #[serde(default)]
     include_screenshot: Option<bool>,
+    /// Also show browser toolbars and bubbles.
+    #[serde(default)]
+    include_browser_ui: Option<bool>,
     /// Maximum returned screenshot width in pixels (default 1920, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_width: Option<u32>,
     /// Maximum returned screenshot height in pixels (default 1920, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_height: Option<u32>,
     /// Maximum returned screenshot image bytes before base64 (default 2 MiB, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_bytes: Option<usize>,
     /// Additional downscale factor from 0.0 to 1.0, applied before max dimensions.
+    #[schemars(skip)]
     #[serde(default)]
     scale: Option<f32>,
     /// Output image format (default png). Use jpeg with quality to trade exact pixels for smaller payloads.
+    #[schemars(skip)]
     #[serde(default)]
     format: Option<ScreenshotOutputFormat>,
     /// JPEG quality from 1 to 95 (default 80). Ignored for png.
+    #[schemars(skip)]
     #[serde(default)]
-    #[schemars(range(min = 1, max = 95))]
     quality: Option<u8>,
     /// Include the full diagnostics report (large). Default false: only the
     /// compact readiness block is returned.
+    #[schemars(skip)]
     #[serde(default)]
     verbose: Option<bool>,
 }
 
 impl GetAppStateParams {
+    fn view_options(&self) -> crate::page_view::ViewOptions {
+        crate::page_view::ViewOptions {
+            include_browser_ui: self.include_browser_ui.unwrap_or(false),
+        }
+    }
+
     fn window_target(&self) -> WindowTarget {
         WindowTarget {
             window_id: self.window_id,
@@ -2048,8 +2516,10 @@ struct ScreenshotParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     #[serde(default)]
@@ -2061,20 +2531,23 @@ struct ScreenshotParams {
     #[serde(default)]
     max_width: Option<u32>,
     /// Maximum returned screenshot height in pixels (default 1920, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_height: Option<u32>,
     /// Maximum returned screenshot image bytes before base64 (default 2 MiB, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_bytes: Option<usize>,
     /// Additional downscale factor from 0.0 to 1.0, applied before max dimensions.
+    #[schemars(skip)]
     #[serde(default)]
     scale: Option<f32>,
     /// Output image format (default png). Use jpeg with quality to trade exact pixels for smaller payloads.
     #[serde(default)]
     format: Option<ScreenshotOutputFormat>,
     /// JPEG quality from 1 to 95 (default 80). Ignored for png.
+    #[schemars(skip)]
     #[serde(default)]
-    #[schemars(range(min = 1, max = 95))]
     quality: Option<u8>,
 }
 
@@ -2157,6 +2630,53 @@ impl From<&ScreenshotCapture> for ScreenshotSummary {
     }
 }
 
+/// Fewest named or actionable elements for which `get_app_state` skips the
+/// screenshot by default: the tree already shows what the agent needs.
+const MIN_CONTENT_ELEMENTS: usize = 5;
+
+/// The text `get_app_state` returns: one header line (window, id, URL,
+/// element count), the outline, then notes only when something needs fixing.
+fn app_state_text(
+    output: &GetAppStateOutput,
+    view: &crate::page_view::PageView,
+    window_id: Option<u64>,
+    screenshot: Option<&ScreenshotCapture>,
+) -> String {
+    let title = view.title.clone().or_else(|| {
+        output
+            .window_context
+            .as_ref()
+            .and_then(|window| window.title.clone())
+    });
+    let mut text = match title {
+        Some(title) => format!("window \"{title}\""),
+        None => "window (untitled)".to_string(),
+    };
+    if let Some(id) = window_id {
+        text.push_str(&format!(" window_id={id}"));
+    }
+    if let Some(url) = &view.url {
+        text.push_str(&format!(" url={url}"));
+    }
+    text.push_str(&format!(" elements={}\n", view.entries.len()));
+    text.push_str(&view.outline());
+    if let Some(capture) = screenshot {
+        text.push_str(&format!(
+            "screenshot attached: {}x{} image of {}x{} screen pixels (scale {}; click x/y = image pixel / scale)\n",
+            capture.width,
+            capture.height,
+            capture.coordinate_width,
+            capture.coordinate_height,
+            capture.scale
+        ));
+    }
+    for note in &output.notes {
+        text.push_str(note);
+        text.push('\n');
+    }
+    text
+}
+
 /// Assemble the `get_app_state` result: the screenshot (when present) as a
 /// structured image block first, then the JSON report as text and as
 /// `structured_content`. Inlining the base64 in the JSON made hosts treat a
@@ -2183,6 +2703,9 @@ fn app_state_result(
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 struct GetAppStateOutput {
+    /// Problems and warnings for the text result, each with its fix.
+    #[serde(skip)]
+    notes: Vec<String>,
     app_name_or_bundle_identifier: Option<String>,
     window_context: Option<WindowInfo>,
     window_error: Option<String>,
@@ -2194,10 +2717,6 @@ struct GetAppStateOutput {
     /// Full node objects; empty unless `tree_format` is `json`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     accessibility_tree: Vec<AccessibilityNode>,
-    /// One line per element, `[index] role "name" @x,y wxh {states} actions=...`,
-    /// indented by tree depth. The index is what element-targeted tools take.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    accessibility_outline: Option<String>,
     accessibility_tree_raw_count: usize,
     /// True when the snapshot was limited to selected app roots rather than the
     /// full desktop AT-SPI registry.
@@ -2218,6 +2737,10 @@ struct GetAppStateOutput {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ClickParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2243,16 +2766,15 @@ struct ClickParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     #[serde(default)]
     window_title: Option<String>,
-    /// Interpret `x`/`y` from the clipped window screenshot crop origin, in
-    /// coordinate pixels before preview resizing. Divide preview pixels by its
-    /// scale first. This is not a toolkit widget or raw GDK surface origin.
-    /// Requires a window target; missing targets are rejected.
+    /// x/y are relative to the targeted window's screenshot.
     #[serde(default)]
     relative: Option<bool>,
 }
@@ -2293,6 +2815,10 @@ impl ClickParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ActionParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2322,6 +2848,10 @@ impl ActionParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct SetValueParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2348,8 +2878,69 @@ impl SetValueParams {
     }
 }
 
+/// One `fill_form` field: an element and the value to give it.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct FormField {
+    /// Element id `[n]` from an earlier result.
+    /// Element id `[n]` from any earlier result.
+    #[serde(default)]
+    element_index: Option<u32>,
+    /// Role substring, when not using element_index.
+    #[serde(default)]
+    role: Option<String>,
+    /// Name substring, when not using element_index.
+    #[serde(default)]
+    name: Option<String>,
+    /// Text, option name, or "true"/"false" for check boxes and radios.
+    value: String,
+}
+
+impl FormField {
+    fn selector(&self) -> ElementSelector<'_> {
+        ElementSelector {
+            role: self.role.as_deref(),
+            name: self.name.as_deref(),
+            text: None,
+            states: &[],
+        }
+    }
+
+    fn describe(&self) -> String {
+        match self.element_index {
+            Some(index) => format!("[{index}]"),
+            None => describe_selector(&self.selector()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct FillFormParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    fields: Vec<FormField>,
+}
+
+/// One `fill_form` result line: `label: ok value="…"` or `label: FAILED …`.
+fn form_field_line(label: &str, outcome: &FieldOutcome) -> String {
+    let value = outcome
+        .value
+        .as_deref()
+        .map(|value| format!(" value=\"{value}\""))
+        .unwrap_or_default();
+    if outcome.ok {
+        format!("{label}: ok{value}")
+    } else {
+        format!("{label}: FAILED{value} error: {}", outcome.message)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct ScrollParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2366,16 +2957,16 @@ struct ScrollParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     window_title: Option<String>,
-    /// Interpret `x`/`y` from the clipped window screenshot crop origin, in
-    /// coordinate pixels before preview resizing. Divide preview pixels by its
-    /// scale first. This is not a toolkit widget or raw GDK surface origin.
-    /// Requires a window target; missing targets are rejected.
+    /// x/y are relative to the targeted window's screenshot.
     #[serde(default)]
     relative: Option<bool>,
 }
@@ -2417,6 +3008,9 @@ impl ScrollParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct DragParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     start_x: i32,
     start_y: i32,
     end_x: i32,
@@ -2425,6 +3019,9 @@ struct DragParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct PressKeyParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     key: String,
     #[serde(default)]
     window_id: Option<u64>,
@@ -2448,7 +3045,20 @@ struct PressKeyParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct TypeTextParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     text: String,
+    /// Element id `[n]` to focus before typing.
+    /// Element id `[n]` from any earlier result.
+    #[serde(default)]
+    element_index: Option<u32>,
+    /// Role substring of the element to focus before typing.
+    #[serde(default)]
+    role: Option<String>,
+    /// Name substring of the element to focus before typing.
+    #[serde(default)]
+    name: Option<String>,
     #[serde(default)]
     window_id: Option<u64>,
     #[serde(default)]
@@ -2486,6 +3096,15 @@ impl PressKeyParams {
 }
 
 impl TypeTextParams {
+    fn selector(&self) -> ElementSelector<'_> {
+        ElementSelector {
+            role: self.role.as_deref(),
+            name: self.name.as_deref(),
+            text: None,
+            states: &[],
+        }
+    }
+
     fn window_target(&self) -> WindowTarget {
         WindowTarget {
             window_id: self.window_id,
@@ -2740,12 +3359,15 @@ impl ComputerUseLinux {
         report
     }
 
-    /// Like `diagnostics`, but reuses a report up to 15 s old.
+    /// Like `diagnostics`, but reuses the last report while it found the
+    /// session ready. A report with blockers is recomputed every time, so a
+    /// fix shows up at once, and a failed observation drops the cache
+    /// (`forget_diagnostics`).
     async fn cached_diagnostics(&self) -> DoctorReport {
         let cached = self.recent_diagnostics.lock().ok().and_then(|guard| {
             guard
                 .as_ref()
-                .filter(|(at, _)| at.elapsed() < Duration::from_secs(15))
+                .filter(|(_, report)| report.readiness.blockers.is_empty())
                 .map(|(_, report)| report.clone())
         });
         match cached {
@@ -2757,6 +3379,13 @@ impl ComputerUseLinux {
                 report
             }
             None => self.diagnostics().await,
+        }
+    }
+
+    /// Makes the next observation run every diagnostic probe again.
+    fn forget_diagnostics(&self) {
+        if let Ok(mut guard) = self.recent_diagnostics.lock() {
+            *guard = None;
         }
     }
 
@@ -2843,11 +3472,24 @@ impl ComputerUseLinux {
             .and_then(|window| window.pid)
             .or(focus.requested_window.pid);
         match timeout(Duration::from_millis(1500), probe_focused_element(pid)).await {
-            Ok(Ok(probe)) => Some(focus_probe_feedback(
-                &probe,
-                expects_editable,
-                focus.exact_window_focused,
-            )),
+            Ok(Ok(probe)) => {
+                let mut feedback =
+                    focus_probe_feedback(&probe, expects_editable, focus.exact_window_focused);
+                if let FocusProbe::Found(element) = &probe {
+                    let text = crate::atspi_tree::read_element(&element.object_ref)
+                        .await
+                        .ok()
+                        .and_then(|fresh| fresh.text)
+                        .map(|text| crate::outline::clean(text.content.as_deref()));
+                    if let Some(text) = text {
+                        feedback.push_str(&format!(
+                            " It now holds \"{}\".",
+                            crate::outline::truncate(&text.unwrap_or_default(), 200)
+                        ));
+                    }
+                }
+                Some(feedback)
+            }
             Ok(Err(error)) => Some(format!(
                 "Focused-element feedback unavailable ({}).",
                 first_line(&format!("{error:#}"))
@@ -2893,17 +3535,238 @@ impl ComputerUseLinux {
     /// or scroll again. Keep the snapshot stable for the whole input operation;
     /// otherwise a checked index could resolve to a different app's node.
     async fn commit_snapshot(&self, nodes: &[AccessibilityNode], target_pid: Option<u32>) {
-        let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
-        self.cache_snapshot(nodes, target_pid);
+        self.commit_observation(nodes, target_pid, None).await;
     }
 
+    async fn commit_observation(
+        &self,
+        nodes: &[AccessibilityNode],
+        target_pid: Option<u32>,
+        scope: Option<SnapshotScope>,
+    ) {
+        let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        self.cache_observation(nodes, target_pid, scope);
+    }
+
+    #[cfg(test)]
     fn cache_snapshot(&self, nodes: &[AccessibilityNode], target_pid: Option<u32>) {
+        self.cache_observation(nodes, target_pid, None);
+    }
+
+    fn cache_observation(
+        &self,
+        nodes: &[AccessibilityNode],
+        target_pid: Option<u32>,
+        scope: Option<SnapshotScope>,
+    ) {
         if let Ok(mut cached) = self.last_snapshot.lock() {
             *cached = CachedAccessibilitySnapshot {
                 nodes: nodes.to_vec(),
                 pid: target_pid,
+                scope,
             };
         }
+    }
+
+    /// Rewrites a compacted snapshot's positional indices to stable ids.
+    fn assign_ids(&self, nodes: &mut Vec<AccessibilityNode>) {
+        if let Ok(mut ids) = self.element_ids.lock() {
+            ids.assign(nodes);
+        }
+    }
+
+    /// Reads the scope of the cached observation again (or, with none, the
+    /// app owning `hint_ref`, else the focused window's app), with stable ids.
+    async fn rescan(&self, hint_ref: Option<&str>) -> Result<Rescan, String> {
+        let scope = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| cached.scope.clone());
+        let (app_filter, pid, max_nodes, max_depth, options) = match scope {
+            Some(scope) => (
+                scope.app_filter,
+                scope.target_pid,
+                scope.max_nodes,
+                scope.max_depth,
+                scope.options,
+            ),
+            None => {
+                let owner = match hint_ref {
+                    Some(object_ref) => object_ref_owner_pid(object_ref).await.ok().flatten(),
+                    None => None,
+                };
+                let pid = match owner {
+                    Some(pid) => Some(pid),
+                    None => focused_window()
+                        .await
+                        .ok()
+                        .flatten()
+                        .and_then(|window| window.pid),
+                };
+                let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
+                (None, pid, max_nodes, max_depth, Default::default())
+            }
+        };
+        let snapshot =
+            snapshot_accessibility_tree(app_filter.as_deref(), pid, max_nodes, max_depth)
+                .await
+                .map_err(|error| format!("{error:#}"))?;
+        let mut nodes = compact_accessibility_tree(snapshot.nodes);
+        self.assign_ids(&mut nodes);
+        Ok(Rescan {
+            nodes,
+            root_pid: snapshot.root_pid,
+            scope: SnapshotScope {
+                app_filter,
+                target_pid: pid,
+                max_nodes,
+                max_depth,
+                options,
+            },
+        })
+    }
+
+    /// Turns an action's outcome into its text result: `ok: …` or
+    /// `error: …`, then (when `observe`) what the action changed, so the
+    /// agent need not look again. Failures report changes only when input
+    /// may already have reached the app.
+    async fn finish_action(&self, output: ActionOutput, observe: bool) -> CallToolResult {
+        let input_reached_app = output.ok
+            || matches!(
+                output.action.as_str(),
+                "set_value" | "fill_form" | "type_text"
+            )
+            || output.message.contains("no longer exists");
+        let mut text = if output.ok {
+            format!("ok: {}", output.message)
+        } else {
+            format!("error: {}", output.message)
+        };
+        if observe && input_reached_app {
+            text.push('\n');
+            text.push_str(&self.observe_changes().await);
+        }
+        let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
+        if !output.ok {
+            result.is_error = Some(true);
+        }
+        result
+    }
+
+    /// Waits for the app to settle after an action, then reports what changed
+    /// against the snapshot the agent last saw and makes the settled snapshot
+    /// the cached one. Settled means two consecutive reads of the observed
+    /// scope agree, or `SETTLE_LIMIT` passed.
+    async fn observe_changes(&self) -> String {
+        sleep(SETTLE_FIRST_WAIT).await;
+        let started = std::time::Instant::now();
+        let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
+        let mut settled: Option<Rescan> = None;
+        let mut last_error = None;
+        loop {
+            match self.rescan(None).await {
+                Ok(rescan) => {
+                    let contents = crate::outline::element_contents(&rescan.nodes);
+                    let stable = previous.as_ref() == Some(&contents);
+                    previous = Some(contents);
+                    settled = Some(rescan);
+                    if stable {
+                        break;
+                    }
+                }
+                Err(error) => last_error = Some(error),
+            }
+            if started.elapsed() >= SETTLE_LIMIT {
+                break;
+            }
+            sleep(SETTLE_POLL).await;
+        }
+        let Some(settled) = settled else {
+            return format!(
+                "changes: unknown (the tree could not be read: {})\n",
+                last_error.unwrap_or_default()
+            );
+        };
+        let before = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
+        let options = settled.scope.options;
+        let report = crate::page_view::change_report(
+            &crate::page_view::page_view(&before, options),
+            &crate::page_view::page_view(&settled.nodes, options),
+        );
+        self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
+            .await;
+        report
+    }
+
+    /// Makes the element an action names resolvable from the cache. An id or
+    /// selector the cached snapshot lacks gets one rescan of the same scope:
+    /// a found element joins the cache (the whole rescan when nothing was
+    /// cached yet); an id whose element is gone is reported as such.
+    async fn ensure_resolvable(
+        &self,
+        element_index: Option<u32>,
+        selector: &ElementSelector<'_>,
+        purpose: ElementResolvePurpose,
+    ) -> std::result::Result<(), String> {
+        if element_index.is_none() && selector.is_empty() {
+            return Ok(());
+        }
+        let cached_error = match self.resolve_cached_node(element_index, selector, purpose) {
+            Ok(_) => return Ok(()),
+            Err(message) => message,
+        };
+        if element_index.is_none() && self.cache_matches(selector) {
+            // An ambiguous selector: a rescan cannot make it unique.
+            return Err(cached_error);
+        }
+        let hint = match element_index {
+            Some(id) => match self
+                .element_ids
+                .lock()
+                .ok()
+                .and_then(|ids| ids.object_ref(id).map(str::to_string))
+            {
+                Some(object_ref) => Some(object_ref),
+                None => {
+                    return Err(format!(
+                        "element [{id}] was never reported; use an id from an earlier result"
+                    ))
+                }
+            },
+            None => None,
+        };
+        let fresh = self.rescan(hint.as_deref()).await?.nodes;
+        let node = match element_index {
+            Some(id) => fresh
+                .iter()
+                .find(|node| node.index == id)
+                .cloned()
+                .ok_or_else(|| format!("element [{id}] no longer exists"))?,
+            None => resolve_semantic_node(&fresh, selector, purpose)?,
+        };
+        if let Ok(mut cached) = self.last_snapshot.lock() {
+            if cached.nodes.is_empty() {
+                cached.nodes = fresh;
+            } else {
+                cached.nodes.push(node);
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether any cached node matches the selector at all.
+    fn cache_matches(&self, selector: &ElementSelector<'_>) -> bool {
+        self.last_snapshot.lock().is_ok_and(|cached| {
+            cached
+                .nodes
+                .iter()
+                .any(|node| node_matches_selector(node, selector))
+        })
     }
 
     #[cfg(test)]
@@ -3048,6 +3911,21 @@ impl ComputerUseLinux {
             .map(|node| node.object_ref)
     }
 
+    /// The cached node a field-setting call names, or `Ok(None)` when it
+    /// passes a raw `element_identifier`, which the caller reads fresh.
+    fn resolve_field_node(
+        &self,
+        element_index: Option<u32>,
+        element_identifier: Option<&str>,
+        selector: &ElementSelector<'_>,
+    ) -> std::result::Result<Option<AccessibilityNode>, String> {
+        if element_identifier.is_some_and(|value| !value.trim().is_empty()) {
+            return Ok(None);
+        }
+        self.resolve_cached_node(element_index, selector, ElementResolvePurpose::SetValue)
+            .map(Some)
+    }
+
     fn resolve_cached_node(
         &self,
         element_index: Option<u32>,
@@ -3087,6 +3965,28 @@ impl ComputerUseLinux {
     ) -> Json<ActionOutput> {
         let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let received = Some(serde_json::json!(params.clone()));
+        if params
+            .element_identifier
+            .as_deref()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::Action,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "perform_action".to_string(),
+                    message,
+                    received,
+                });
+            }
+        }
         let object_ref = match self.resolve_object_ref(
             params.element_index,
             params.element_identifier.as_deref(),
@@ -3105,6 +4005,18 @@ impl ComputerUseLinux {
             }
         };
 
+        let label = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| {
+                cached
+                    .nodes
+                    .iter()
+                    .find(|node| node.object_ref == object_ref)
+                    .map(crate::outline::element_label)
+            })
+            .unwrap_or_else(|| object_ref.clone());
         match invoke_accessibility_action(&object_ref, requested_action).await {
             Ok(invocation) => Json(ActionOutput {
                 ok: invocation.ok,
@@ -3112,13 +4024,12 @@ impl ComputerUseLinux {
                 action: "perform_action".to_string(),
                 message: if invocation.ok {
                     format!(
-                        "AT-SPI action {} ({}) invoked.",
-                        invocation.action_index,
+                        "invoked {} on {label}",
                         invocation
                             .action_name
                             .as_deref()
                             .filter(|name| !name.is_empty())
-                            .unwrap_or("unnamed")
+                            .unwrap_or("the primary action")
                     )
                 } else {
                     format!(
@@ -3143,6 +4054,709 @@ impl ComputerUseLinux {
         }
     }
 }
+
+/// What `set_value` did to one field.
+#[derive(Debug, Clone)]
+struct FieldOutcome {
+    ok: bool,
+    /// The field's value read back after the change, when readable.
+    value: Option<String>,
+    message: String,
+}
+
+impl FieldOutcome {
+    fn failed(message: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            value: None,
+            message: message.into(),
+        }
+    }
+}
+
+/// How long `set_value` polls a field for the value it entered.
+const FIELD_READBACK_TIMEOUT: Duration = Duration::from_millis(1_200);
+/// How long a combo box gets to show its options after being opened.
+const OPTIONS_APPEAR_TIMEOUT: Duration = Duration::from_millis(1_500);
+
+impl ComputerUseLinux {
+    /// Sets one field the way a user would and reads it back: AT-SPI
+    /// EditableText/Value when exposed, else per kind (text entry, toggle,
+    /// option choice). `ok` only when the read-back value is the requested one.
+    async fn set_field(&self, node: &AccessibilityNode, value: &str) -> FieldOutcome {
+        let label = crate::outline::element_label(node);
+        if node.supports_editable_text
+            || (node.value.is_some() && value.trim().parse::<f64>().is_ok())
+        {
+            if let Ok(invocation) = set_element_value(&node.object_ref, value).await {
+                let fresh = crate::atspi_tree::read_element(&node.object_ref).await.ok();
+                let read_back = match invocation {
+                    ValueSetInvocation::Numeric { .. } => fresh
+                        .as_ref()
+                        .and_then(|node| node.value.as_ref())
+                        .map(|value| value.current.to_string()),
+                    ValueSetInvocation::EditableText => {
+                        fresh.as_ref().and_then(crate::fields::field_text)
+                    }
+                };
+                let ok = match invocation {
+                    ValueSetInvocation::Numeric { value } => fresh
+                        .as_ref()
+                        .and_then(|node| node.value.as_ref())
+                        .is_some_and(|current| (current.current - value).abs() < 1e-9),
+                    ValueSetInvocation::EditableText => {
+                        crate::fields::values_match(read_back.as_deref(), value)
+                    }
+                };
+                return self.text_outcome(&label, ok, read_back, value);
+            }
+        }
+        match crate::fields::field_kind(node) {
+            crate::fields::FieldKind::Text => self.set_text_field(node, &label, value).await,
+            crate::fields::FieldKind::Toggle => self.set_toggle_field(node, &label, value).await,
+            crate::fields::FieldKind::Choice => {
+                self.set_choice_field(node, &label, value, false).await
+            }
+            crate::fields::FieldKind::Other => {
+                // A fieldset or radio group: pick its radio button by name.
+                let outcome = self.set_choice_field(node, &label, value, true).await;
+                if outcome.ok || !outcome.message.contains("no radio buttons") {
+                    return outcome;
+                }
+                FieldOutcome::failed(format!(
+                    "{label} is not a text field, check box, combo box or radio group; use click or type_text"
+                ))
+            }
+        }
+    }
+
+    fn text_outcome(
+        &self,
+        label: &str,
+        ok: bool,
+        read_back: Option<String>,
+        requested: &str,
+    ) -> FieldOutcome {
+        let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+        FieldOutcome {
+            ok,
+            message: if ok {
+                format!("set {label} value=\"{shown}\"")
+            } else {
+                format!("{label} now holds \"{shown}\", not the requested \"{requested}\"")
+            },
+            value: Some(shown),
+        }
+    }
+
+    async fn set_text_field(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        value: &str,
+    ) -> FieldOutcome {
+        if let Err(message) = self.focus_element(node, label).await {
+            return FieldOutcome::failed(message);
+        }
+        if let Err(message) = send_key_chord("ctrl+a").await {
+            return FieldOutcome::failed(message);
+        }
+        let entered = if value.is_empty() {
+            send_key_chord("BackSpace").await
+        } else {
+            enter_text(value, "ctrl+v").await
+        };
+        if let Err(message) = entered {
+            return FieldOutcome::failed(message);
+        }
+        let password = node.role.eq_ignore_ascii_case("password text");
+        let expected_chars = value.chars().count();
+        let fresh = poll_element(&node.object_ref, FIELD_READBACK_TIMEOUT, |fresh| {
+            let text = crate::fields::field_text(fresh);
+            if password {
+                text.map_or(0, |text| text.chars().count()) == expected_chars
+            } else {
+                crate::fields::values_match(text.as_deref(), value)
+            }
+        })
+        .await;
+        let (matched, read_back) = match fresh {
+            Some((matched, fresh)) => (matched, crate::fields::field_text(&fresh)),
+            None => (false, None),
+        };
+        if password {
+            let count = read_back.map_or(0, |text| text.chars().count());
+            return FieldOutcome {
+                ok: matched,
+                message: if matched {
+                    format!("set {label} ({count} characters, masked)")
+                } else {
+                    format!("{label} holds {count} characters, not {expected_chars}")
+                },
+                value: Some("•".repeat(count)),
+            };
+        }
+        self.text_outcome(label, matched, read_back, value)
+    }
+
+    async fn set_toggle_field(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        value: &str,
+    ) -> FieldOutcome {
+        let Some(wanted) = crate::fields::parse_toggle(value) else {
+            return FieldOutcome::failed(format!(
+                "{label} is a {}; pass value \"true\" or \"false\"",
+                node.role
+            ));
+        };
+        let current = match crate::atspi_tree::read_element(&node.object_ref).await {
+            Ok(fresh) => crate::fields::is_checked(&fresh),
+            Err(error) => return FieldOutcome::failed(format!("{label}: {error:#}")),
+        };
+        let state_word = |checked: bool| if checked { "checked" } else { "unchecked" };
+        if current == wanted {
+            return FieldOutcome {
+                ok: true,
+                value: Some(wanted.to_string()),
+                message: format!("{label} is already {}", state_word(wanted)),
+            };
+        }
+        if !wanted && node.role.to_ascii_lowercase().contains("radio") {
+            return FieldOutcome::failed(format!(
+                "{label} is a radio button; it cannot be cleared, set another option of its group instead"
+            ));
+        }
+        if let Err(message) = self.activate_element(node, label, TOGGLE_ACTIONS).await {
+            return FieldOutcome::failed(message);
+        }
+        let fresh = poll_element(&node.object_ref, FIELD_READBACK_TIMEOUT, |fresh| {
+            crate::fields::is_checked(fresh) == wanted
+        })
+        .await;
+        let (matched, now) = match fresh {
+            Some((matched, fresh)) => (matched, crate::fields::is_checked(&fresh)),
+            None => (false, current),
+        };
+        FieldOutcome {
+            ok: matched,
+            value: Some(now.to_string()),
+            message: if matched {
+                format!("{label} is now {}", state_word(now))
+            } else {
+                format!("{label} stayed {} after activation", state_word(now))
+            },
+        }
+    }
+
+    /// Picks the option named by `value` in a combo box or list box (or, with
+    /// `radio_group`, the radio button of a group), opening it when its
+    /// options are not in the tree yet. Options are invoked through their
+    /// AT-SPI action, so options scrolled out of the popup still work.
+    async fn set_choice_field(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        value: &str,
+        radio_group: bool,
+    ) -> FieldOutcome {
+        let pid = object_ref_owner_pid(&node.object_ref).await.ok().flatten();
+        let mut nodes = match self.fresh_app_nodes(pid).await {
+            Ok(nodes) => nodes,
+            Err(error) => return FieldOutcome::failed(format!("{label}: {error}")),
+        };
+        let Some(mut target) = nodes
+            .iter()
+            .position(|candidate| candidate.object_ref == node.object_ref)
+        else {
+            return FieldOutcome::failed(format!("{label} is no longer in the tree"));
+        };
+        let mut options = crate::fields::option_candidates(&nodes, target, None, radio_group);
+        if radio_group && options.is_empty() {
+            return FieldOutcome::failed(format!("{label} has no radio buttons"));
+        }
+        let names = |nodes: &[AccessibilityNode], options: &[usize]| -> Vec<String> {
+            options
+                .iter()
+                .map(|&at| nodes[at].name.clone().unwrap_or_default())
+                .collect()
+        };
+        let mut matched = {
+            let option_names = names(&nodes, &options);
+            let refs: Vec<&str> = option_names.iter().map(String::as_str).collect();
+            crate::fields::match_option(&refs, value)
+        };
+        if matched.is_err() && !radio_group && !crate::fields::has_state(node, "expanded") {
+            // Collapsed custom combo boxes keep their options out of the tree.
+            let before: std::collections::HashSet<String> =
+                nodes.iter().map(|node| node.object_ref.clone()).collect();
+            if let Err(message) = self.activate_element(node, label, EXPAND_ACTIONS).await {
+                return FieldOutcome::failed(message);
+            }
+            let started = std::time::Instant::now();
+            loop {
+                sleep(Duration::from_millis(150)).await;
+                if let Ok(fresh) = self.fresh_app_nodes(pid).await {
+                    if let Some(at) = fresh
+                        .iter()
+                        .position(|candidate| candidate.object_ref == node.object_ref)
+                    {
+                        nodes = fresh;
+                        target = at;
+                        options =
+                            crate::fields::option_candidates(&nodes, target, Some(&before), false);
+                        let option_names = names(&nodes, &options);
+                        let refs: Vec<&str> = option_names.iter().map(String::as_str).collect();
+                        matched = crate::fields::match_option(&refs, value);
+                        if matched.is_ok() {
+                            break;
+                        }
+                    }
+                }
+                if started.elapsed() >= OPTIONS_APPEAR_TIMEOUT {
+                    break;
+                }
+            }
+        }
+        let option = match matched {
+            Ok(index) => nodes[options[index]].clone(),
+            Err(message) => return FieldOutcome::failed(format!("{label}: {message}")),
+        };
+        let option_label = crate::outline::element_label(&option);
+        let option_name = option.name.clone().unwrap_or_default();
+        if radio_group {
+            let outcome = self.set_toggle_field(&option, &option_label, "true").await;
+            return FieldOutcome {
+                value: outcome.ok.then(|| option_name.clone()),
+                message: if outcome.ok {
+                    format!("set {label} to {option_label}")
+                } else {
+                    outcome.message
+                },
+                ok: outcome.ok,
+            };
+        }
+        if let Err(message) = self
+            .activate_element(&option, &option_label, OPTION_ACTIONS)
+            .await
+        {
+            return FieldOutcome::failed(message);
+        }
+        let mut chosen = self
+            .choice_read_back(&node.object_ref, &option.object_ref, &option_name)
+            .await;
+        if !chosen.0 {
+            // Some popups react only to real pointer input (mousedown handlers):
+            // bring the option into view and click it.
+            if let Some(point) = self.visible_center_after_scroll(&option.object_ref).await {
+                if click_point(point).await.is_ok() {
+                    chosen = self
+                        .choice_read_back(&node.object_ref, &option.object_ref, &option_name)
+                        .await;
+                }
+            }
+        }
+        let (ok, shown) = chosen;
+        FieldOutcome {
+            ok,
+            message: if ok {
+                format!("set {label} to \"{option_name}\" (shows \"{shown}\")")
+            } else {
+                format!(
+                    "invoked {option_label}, but {label} shows \"{shown}\"; the choice did not take"
+                )
+            },
+            value: Some(shown),
+        }
+    }
+
+    /// A compacted snapshot of one app with stable ids, for internal lookups
+    /// that must not replace the agent's cached snapshot.
+    async fn fresh_app_nodes(&self, pid: Option<u32>) -> Result<Vec<AccessibilityNode>, String> {
+        let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
+        let snapshot = snapshot_accessibility_tree(None, pid, max_nodes, max_depth)
+            .await
+            .map_err(|error| format!("{error:#}"))?;
+        let mut nodes = compact_accessibility_tree(snapshot.nodes);
+        self.assign_ids(&mut nodes);
+        Ok(nodes)
+    }
+
+    /// Whether the combo box now shows the option (or the option reports
+    /// `selected`), and what the combo box shows.
+    async fn choice_read_back(
+        &self,
+        combo_ref: &str,
+        option_ref: &str,
+        option_name: &str,
+    ) -> (bool, String) {
+        let wanted = crate::outline::clean(Some(option_name))
+            .unwrap_or_default()
+            .to_lowercase();
+        let started = std::time::Instant::now();
+        loop {
+            sleep(Duration::from_millis(100)).await;
+            let shown = crate::atspi_tree::read_element(combo_ref)
+                .await
+                .ok()
+                .and_then(|combo| crate::fields::choice_text(&combo))
+                .unwrap_or_default();
+            let option_selected = crate::atspi_tree::read_element(option_ref)
+                .await
+                .is_ok_and(|option| crate::fields::has_state(&option, "selected"));
+            let shows_option = !wanted.is_empty() && shown.to_lowercase().contains(&wanted);
+            if shows_option || option_selected {
+                let shown = if shows_option || shown.is_empty() {
+                    if shown.is_empty() {
+                        option_name.to_string()
+                    } else {
+                        shown
+                    }
+                } else {
+                    option_name.to_string()
+                };
+                return (true, shown);
+            }
+            if started.elapsed() >= FIELD_READBACK_TIMEOUT {
+                return (false, shown);
+            }
+        }
+    }
+
+    /// Gives an element keyboard focus: its app window first, then AT-SPI
+    /// GrabFocus, then a click on its centre when it is on screen. Succeeds
+    /// only once AT-SPI reports the element `focused`.
+    async fn focus_element(&self, node: &AccessibilityNode, label: &str) -> Result<(), String> {
+        self.raise_owner_window(&node.object_ref).await;
+        let _ = crate::atspi_tree::grab_focus(&node.object_ref).await;
+        let focused = |fresh: &AccessibilityNode| crate::fields::has_state(fresh, "focused");
+        if let Some((true, _)) =
+            poll_element(&node.object_ref, Duration::from_millis(400), focused).await
+        {
+            return Ok(());
+        }
+        if let Some(point) = self.visible_center_after_scroll(&node.object_ref).await {
+            click_point(point).await?;
+            if let Some((true, _)) =
+                poll_element(&node.object_ref, Duration::from_millis(600), focused).await
+            {
+                return Ok(());
+            }
+        }
+        Err(format!(
+            "could not focus {label}; it may be disabled or covered. Click it, then use type_text."
+        ))
+    }
+
+    /// Invokes the first of `actions` the element exposes, else clicks its
+    /// centre when it is on screen.
+    async fn activate_element(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        actions: &[&str],
+    ) -> Result<String, String> {
+        match crate::atspi_tree::invoke_preferred_action(&node.object_ref, actions).await {
+            Ok(Some(invocation)) if invocation.ok => {
+                return Ok(invocation.action_name.unwrap_or_default());
+            }
+            Ok(_) => {}
+            Err(error) => return Err(format!("{label}: {error:#}")),
+        }
+        self.raise_owner_window(&node.object_ref).await;
+        match self.visible_center_after_scroll(&node.object_ref).await {
+            Some(point) => click_point(point)
+                .await
+                .map(|()| "pointer click".to_string()),
+            None => Err(format!(
+                "{label} exposes no usable AT-SPI action and is not on screen to click"
+            )),
+        }
+    }
+
+    /// Whether a point inside an element's bounds is on the visible page:
+    /// inside its web document's viewport (else its window frame) and on the
+    /// desktop.
+    async fn point_visible_for(&self, node: &AccessibilityNode, (x, y): (i32, i32)) -> bool {
+        let area = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| crate::page_view::visible_area(&cached.nodes, node.index));
+        let in_area = area.is_none_or(|area| {
+            x >= area.x && y >= area.y && x < area.x + area.width && y < area.y + area.height
+        });
+        let on_desktop = self.desktop_size().await.is_none_or(|(width, height)| {
+            x >= 0 && y >= 0 && (x as u32) < width && (y as u32) < height
+        });
+        in_area && on_desktop
+    }
+
+    /// Clicks an element whose centre is not on the visible page: its AT-SPI
+    /// action (plain left clicks only), else `Component.ScrollTo` and the
+    /// centre it then has, else an error naming the fix.
+    async fn off_screen_click(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        plain_left_click: bool,
+    ) -> std::result::Result<OffScreenClick, String> {
+        if plain_left_click {
+            match crate::atspi_tree::invoke_preferred_action(
+                &node.object_ref,
+                OFF_SCREEN_CLICK_ACTIONS,
+            )
+            .await
+            {
+                Ok(Some(invocation)) if invocation.ok => {
+                    return Ok(OffScreenClick::Invoked(format!(
+                        "clicked {label} (AT-SPI {}; it is outside the visible page)",
+                        invocation.action_name.unwrap_or_default()
+                    )));
+                }
+                Ok(_) => {}
+                Err(error) => return Err(format!("{label}: {error:#}")),
+            }
+        }
+        if crate::atspi_tree::scroll_into_view(&node.object_ref)
+            .await
+            .is_ok()
+        {
+            sleep(Duration::from_millis(150)).await;
+            if let Ok(fresh) = crate::atspi_tree::read_element(&node.object_ref).await {
+                if let Some(center) = fresh.bounds.as_ref().and_then(bounds_center) {
+                    let mut moved = fresh;
+                    moved.index = node.index;
+                    if self.point_visible_for(&moved, center).await {
+                        return Ok(OffScreenClick::ScrolledTo(center.0, center.1));
+                    }
+                }
+            }
+        }
+        Err(format!(
+            "element [{id}] is outside the visible window; scroll it into view with scroll(element_index={id})",
+            id = node.index
+        ))
+    }
+
+    /// The element's centre when it lies on the desktop, scrolling it into
+    /// view through AT-SPI first when it does not.
+    async fn visible_center_after_scroll(&self, object_ref: &str) -> Option<(i32, i32)> {
+        let id = self
+            .element_ids
+            .lock()
+            .map(|mut ids| ids.id_for(object_ref))
+            .unwrap_or_default();
+        let fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
+        let mut fresh = fresh;
+        fresh.index = id;
+        if let Some(point) = fresh.bounds.as_ref().and_then(bounds_center) {
+            if self.point_visible_for(&fresh, point).await {
+                return Some(point);
+            }
+        }
+        crate::atspi_tree::scroll_into_view(object_ref).await.ok()?;
+        sleep(Duration::from_millis(150)).await;
+        let mut moved = crate::atspi_tree::read_element(object_ref).await.ok()?;
+        moved.index = id;
+        let point = moved.bounds.as_ref().and_then(bounds_center)?;
+        self.point_visible_for(&moved, point).await.then_some(point)
+    }
+
+    /// Focus the window of the app that owns the element unless it already
+    /// has focus, so keyboard input reaches that app. Best effort.
+    async fn raise_owner_window(&self, object_ref: &str) {
+        let Ok(Some(pid)) = object_ref_owner_pid(object_ref).await else {
+            return;
+        };
+        if let Ok(Some(window)) = focused_window().await {
+            if window.pid == Some(pid) {
+                return;
+            }
+        }
+        let target = WindowTarget {
+            pid: Some(pid),
+            ..WindowTarget::default()
+        };
+        if focus_window_target(&target).await.is_ok() {
+            sleep(Duration::from_millis(120)).await;
+        }
+    }
+}
+
+/// Actions that flip a check box, radio button or switch.
+const TOGGLE_ACTIONS: &[&str] = &[
+    "toggle", "check", "uncheck", "click", "press", "activate", "select",
+];
+/// Actions that open a combo box popup.
+const EXPAND_ACTIONS: &[&str] = &["open", "expand", "show", "click", "press", "activate"];
+/// Actions that choose an option.
+const OPTION_ACTIONS: &[&str] = &["select", "click", "press", "activate", "jump", "dodefault"];
+
+/// Rereads an element until `done` holds or `limit` passes. `None` when the
+/// element cannot be read at all; otherwise whether `done` held, and the last read.
+async fn poll_element(
+    object_ref: &str,
+    limit: Duration,
+    done: impl Fn(&AccessibilityNode) -> bool,
+) -> Option<(bool, AccessibilityNode)> {
+    let started = std::time::Instant::now();
+    let mut last = None;
+    loop {
+        if let Ok(fresh) = crate::atspi_tree::read_element(object_ref).await {
+            if done(&fresh) {
+                return Some((true, fresh));
+            }
+            last = Some(fresh);
+        }
+        if started.elapsed() >= limit {
+            return last.map(|fresh| (false, fresh));
+        }
+        sleep(Duration::from_millis(80)).await;
+    }
+}
+
+/// One left click at a screen point.
+async fn click_point((x, y): (i32, i32)) -> Result<(), String> {
+    let args = xdotool_pointer_click_args(x, y, 1, None)
+        .ok_or_else(|| "left button is always supported".to_string())?;
+    run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await.map(|_| ())
+}
+
+/// Presses one xdotool key chord such as `ctrl+a`.
+async fn send_key_chord(chord: &str) -> Result<(), String> {
+    let args = vec![
+        "key".to_string(),
+        "--clearmodifiers".to_string(),
+        chord.to_string(),
+    ];
+    run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await.map(|_| ())
+}
+
+/// Types printable ASCII with `xdotool type`; anything else is pasted from
+/// an X11 CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or
+/// Ctrl+Shift+V in terminals), since XTEST drops non-ASCII text on Xvfb.
+/// Pasted text goes line by line with Return in between, as typing does:
+/// a newline inside a paste is inert in shells with bracketed paste.
+async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
+    if crate::fields::typeable_ascii(text) {
+        let delay_ms = xdotool_type_delay_ms();
+        let args = xdotool_type_args_with_delay(text, delay_ms);
+        return run_xdotool(&args, xdotool_type_timeout(text, delay_ms))
+            .await
+            .map(|_| ());
+    }
+    let text = text.replace("\r\n", "\n");
+    let lines: Vec<&str> = text.split('\n').collect();
+    for (index, line) in lines.iter().enumerate() {
+        if !line.is_empty() {
+            paste_text(line, paste_chord).await?;
+        }
+        if index + 1 < lines.len() {
+            send_key_chord("Return").await?;
+        }
+    }
+    Ok(())
+}
+
+/// How long the clipboard stays owned after a paste was first served.
+const CLIPBOARD_LINGER: Duration = Duration::from_secs(4);
+
+async fn paste_text(text: &str, paste_chord: &str) -> Result<(), String> {
+    let owned = text.to_string();
+    let guard = tokio::task::spawn_blocking(move || {
+        crate::x11_clipboard::hold_clipboard(&owned, Duration::from_secs(10))
+    })
+    .await
+    .map_err(|error| format!("clipboard task failed: {error}"))?
+    .map_err(|error| format!("could not own the X11 clipboard: {error:#}"))?;
+    let sent = send_key_chord(paste_chord).await;
+    let served = tokio::task::spawn_blocking(move || {
+        let served = guard.wait_served(Duration::from_secs(2));
+        // Chromium reads the selection once when ownership changes and again
+        // when the paste lands; an owner that is gone by then yields an empty
+        // paste, and one that vanishes mid-request stalls the renderer. Keep
+        // serving a while; the next paste's owner takes over cleanly.
+        std::thread::spawn(move || {
+            std::thread::sleep(CLIPBOARD_LINGER);
+            drop(guard);
+        });
+        served
+    })
+    .await
+    .unwrap_or(false);
+    sent?;
+    if served {
+        Ok(())
+    } else {
+        Err(format!(
+            "pasted with {paste_chord}, but the focused app never read the clipboard; the text was not entered"
+        ))
+    }
+}
+
+/// The paste chord for the focused window: terminals take Ctrl+Shift+V
+/// (xterm only Shift+Insert, which reads PRIMARY, also owned here).
+fn paste_chord_for(window: Option<&WindowInfo>) -> &'static str {
+    let class = window
+        .map(|window| {
+            format!(
+                "{} {}",
+                window.wm_class.as_deref().unwrap_or_default(),
+                window.app_id.as_deref().unwrap_or_default()
+            )
+            .to_ascii_lowercase()
+        })
+        .unwrap_or_default();
+    if class
+        .split_whitespace()
+        .any(|word| word == "xterm" || word == "uxterm")
+    {
+        "shift+Insert"
+    } else if [
+        "alacritty",
+        "terminal",
+        "kitty",
+        "konsole",
+        "wezterm",
+        "foot",
+        "terminator",
+        "tilix",
+        "urxvt",
+        "st-256color",
+    ]
+    .iter()
+    .any(|name| class.contains(name))
+    {
+        "ctrl+shift+v"
+    } else {
+        "ctrl+v"
+    }
+}
+
+/// How a click on an off-page element went.
+enum OffScreenClick {
+    /// Its AT-SPI action ran; the message says which.
+    Invoked(String),
+    /// ScrollTo brought it on screen at this point.
+    ScrolledTo(i32, i32),
+}
+
+/// Actions that stand in for a left click on an element that is not on the
+/// visible page, in order of preference.
+const OFF_SCREEN_CLICK_ACTIONS: &[&str] = &[
+    "press",
+    "click",
+    "activate",
+    "select",
+    "jump",
+    "toggle",
+    "check",
+    "uncheck",
+    "open",
+    "dodefault",
+];
 
 #[derive(Debug)]
 enum ClickTarget {
@@ -3208,6 +4822,17 @@ fn resolve_semantic_node(
         .collect::<Vec<_>>();
     if !useful_matches.is_empty() {
         matches = useful_matches;
+    } else if matches!(purpose, ElementResolvePurpose::SetValue) {
+        // A radio group's legend repeats its name as plain text; the group
+        // is the field.
+        let containers = matches
+            .iter()
+            .copied()
+            .filter(|node| !TEXT_ONLY_ROLES.contains(&node.role.as_str()))
+            .collect::<Vec<_>>();
+        if !containers.is_empty() {
+            matches = containers;
+        }
     }
 
     if let Some(node) = unique_preferred_node(&matches, node_is_showing) {
@@ -3233,6 +4858,9 @@ fn resolve_semantic_node(
         describe_matching_nodes(&matches),
     ))
 }
+
+/// Roles that only carry text, never a value to set.
+const TEXT_ONLY_ROLES: [&str; 6] = ["static", "label", "heading", "paragraph", "caption", "text"];
 
 fn unique_preferred_node<'a>(
     nodes: &[&'a AccessibilityNode],
@@ -3277,7 +4905,11 @@ fn node_matches_resolve_purpose(node: &AccessibilityNode, purpose: ElementResolv
                 || primary_action_name(&node.actions).is_some()
         }
         ElementResolvePurpose::Action => !node.actions.is_empty(),
-        ElementResolvePurpose::SetValue => node.supports_editable_text || node.value.is_some(),
+        ElementResolvePurpose::SetValue => {
+            node.supports_editable_text
+                || node.value.is_some()
+                || crate::fields::field_kind(node) != crate::fields::FieldKind::Other
+        }
     }
 }
 
@@ -3486,7 +5118,11 @@ fn compact_accessibility_tree(nodes: Vec<AccessibilityNode>) -> Vec<Accessibilit
     let mut old_to_new = vec![None; nodes.len()];
     let mut compacted = Vec::new();
 
-    for (old_index, node) in nodes.iter().enumerate() {
+    // Snapshots arrive breadth-first; emit in document (depth-first) order so
+    // a kept node re-parented past dropped wrappers still lands between its
+    // neighbours instead of after every shallower sibling.
+    for old_index in depth_first_order(&nodes) {
+        let node = &nodes[old_index];
         if !keep[old_index] {
             continue;
         }
@@ -3517,6 +5153,36 @@ fn compact_accessibility_tree(nodes: Vec<AccessibilityNode>) -> Vec<Accessibilit
     }
 
     compacted
+}
+
+/// Positions of a positional snapshot in depth-first pre-order, children in
+/// snapshot order. Nodes whose parent is missing start their own subtree.
+fn depth_first_order(nodes: &[AccessibilityNode]) -> Vec<usize> {
+    let mut children = vec![Vec::new(); nodes.len()];
+    let mut roots = Vec::new();
+    for (at, node) in nodes.iter().enumerate() {
+        match node
+            .parent_index
+            .map(|parent| parent as usize)
+            .filter(|&parent| parent < nodes.len() && parent != at)
+        {
+            Some(parent) => children[parent].push(at),
+            None => roots.push(at),
+        }
+    }
+    let mut order = Vec::with_capacity(nodes.len());
+    let mut visited = vec![false; nodes.len()];
+    let mut stack: Vec<usize> = roots.into_iter().rev().collect();
+    while let Some(at) = stack.pop() {
+        if std::mem::replace(&mut visited[at], true) {
+            continue;
+        }
+        order.push(at);
+        stack.extend(children[at].iter().rev());
+    }
+    // A parent cycle leaves nodes unreachable from any root; keep them.
+    order.extend((0..nodes.len()).filter(|&at| !visited[at]));
+    order
 }
 
 fn nearest_kept_parent(
@@ -4464,6 +6130,7 @@ mod tests {
             serde_json::from_value(serde_json::json!({"x":5536,"y":700,"direction":"down"}))
                 .unwrap();
         let drag = DragParams {
+            observe: None,
             start_x: 100,
             start_y: 100,
             end_x: 200,
@@ -4756,6 +6423,7 @@ mod tests {
 
     fn sample_app_state_output(screenshot: Option<&ScreenshotCapture>) -> GetAppStateOutput {
         GetAppStateOutput {
+            notes: Vec::new(),
             app_name_or_bundle_identifier: None,
             window_context: None,
             window_error: None,
@@ -4764,7 +6432,6 @@ mod tests {
             screenshot: screenshot.map(ScreenshotSummary::from),
             screenshot_error: None,
             accessibility_tree: Vec::new(),
-            accessibility_outline: None,
             accessibility_tree_raw_count: 0,
             tree_scoped: true,
             accessibility_tree_truncated: false,
@@ -4784,6 +6451,24 @@ mod tests {
             diagnostics: None,
             message: "ok".to_string(),
         }
+    }
+
+    #[test]
+    fn app_state_text_is_a_header_and_the_outline_with_notes_only_when_needed() {
+        let mut output = sample_app_state_output(None);
+        let view = crate::page_view::PageView {
+            title: Some("Criar conta - Chromium".to_string()),
+            url: Some("127.0.0.1/apps/signup.html".to_string()),
+            browser: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            app_state_text(&output, &view, Some(42), None),
+            "window \"Criar conta - Chromium\" window_id=42 url=127.0.0.1/apps/signup.html elements=0\n--- page ---\n"
+        );
+        output.notes = vec!["blocker: xdotool is not installed".to_string()];
+        assert!(app_state_text(&output, &view, None, None)
+            .ends_with("elements=0\n--- page ---\nblocker: xdotool is not installed\n"));
     }
 
     #[test]
@@ -5775,6 +7460,7 @@ mod tests {
             editable: false,
             states: vec!["focused".to_string(), "editable".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         assert!(focused_element_is_editable(&element));
         assert!(!describe_focused_element(&element, true).starts_with("WARNING:"));
@@ -6154,6 +7840,7 @@ mod tests {
             editable: false,
             states: vec!["focused".to_string()],
             is_terminal,
+            object_ref: String::new(),
         }
     }
 
@@ -6165,6 +7852,7 @@ mod tests {
             editable: true,
             states: vec!["focused".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let described = describe_focused_element(&element, true);
         assert!(described.contains("editable"));
@@ -6188,6 +7876,7 @@ mod tests {
             editable: false,
             states: vec!["focused".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let described = describe_focused_element(&element, true);
         assert!(described.contains("WARNING"));
@@ -6202,6 +7891,7 @@ mod tests {
             editable: false,
             states: vec![],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let described = describe_focused_element(&element, false);
         assert!(!described.contains("WARNING"));
@@ -6221,6 +7911,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: Some(true),
+            observe: None,
         };
         apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(110));
@@ -6241,6 +7932,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: None,
+            observe: None,
         };
         apply_window_center_scroll_point(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(500));
@@ -6261,6 +7953,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: None,
+            observe: None,
         };
         let error = apply_window_center_scroll_point(&mut params, (0, 0, 0, 0)).unwrap_err();
         assert!(error.contains("pass x/y explicitly"));
@@ -6282,6 +7975,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: Some(true),
+            observe: None,
         };
         assert!(
             apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).is_err()
@@ -6418,6 +8112,62 @@ mod tests {
 }
 
 #[cfg(test)]
+mod field_entry_tests {
+    use super::*;
+
+    fn window(wm_class: &str) -> WindowInfo {
+        WindowInfo {
+            window_id: 1,
+            title: None,
+            app_id: None,
+            wm_class: Some(wm_class.to_string()),
+            pid: None,
+            bounds: None,
+            workspace: None,
+            focused: true,
+            hidden: false,
+            client_type: None,
+            backend: "i3".to_string(),
+            terminal: None,
+        }
+    }
+
+    #[test]
+    fn terminals_paste_with_their_own_chord() {
+        assert_eq!(paste_chord_for(Some(&window("Alacritty"))), "ctrl+shift+v");
+        assert_eq!(
+            paste_chord_for(Some(&window("Gnome-terminal"))),
+            "ctrl+shift+v"
+        );
+        assert_eq!(paste_chord_for(Some(&window("XTerm"))), "shift+Insert");
+        assert_eq!(paste_chord_for(Some(&window("Google-chrome"))), "ctrl+v");
+        assert_eq!(paste_chord_for(None), "ctrl+v");
+    }
+
+    #[test]
+    fn form_lines_show_the_read_back_value_and_the_failure() {
+        let ok = FieldOutcome {
+            ok: true,
+            value: Some("Joana".into()),
+            message: String::new(),
+        };
+        assert_eq!(
+            form_field_line("[3] entry \"Nome\"", &ok),
+            "[3] entry \"Nome\": ok value=\"Joana\""
+        );
+        let failed = FieldOutcome {
+            ok: false,
+            value: Some(String::new()),
+            message: "could not focus".into(),
+        };
+        assert_eq!(
+            form_field_line("[4] entry", &failed),
+            "[4] entry: FAILED value=\"\" error: could not focus"
+        );
+    }
+}
+
+#[cfg(test)]
 mod accessibility_tree_note_tests {
     use super::{truncated_accessibility_tree_note, unscoped_accessibility_tree_warning};
 
@@ -6509,6 +8259,7 @@ mod focus_probe_feedback_tests {
             editable: true,
             states: vec!["focused".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let text = focus_probe_feedback(&FocusProbe::Found(element), true, false);
         assert!(text.contains("text"), "{text}");

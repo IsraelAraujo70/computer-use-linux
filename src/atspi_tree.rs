@@ -109,6 +109,8 @@ const HARD_SNAPSHOT_MAX_NODES: usize = 2_000;
 const DEFAULT_SNAPSHOT_MAX_DEPTH: u32 = 32;
 const HARD_SNAPSHOT_MAX_DEPTH: u32 = 64;
 const CHILD_READ_CONCURRENCY: usize = 16;
+/// Nodes whose properties a snapshot reads at the same time.
+const NODE_READ_BATCH: usize = 32;
 const SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_DISCOVERY_ROOTS: usize = 256;
 const ROOT_MATCH_CHILD_LIMIT: usize = 8;
@@ -354,37 +356,96 @@ async fn snapshot_tree_inner(
             .map(|object_ref| (object_ref, 0_u32, None)),
     );
 
-    while let Some((object_ref, depth, parent_index)) = traversal.pop() {
-        let Ok(proxy) = open_accessible(&conn, &object_ref).await else {
-            continue;
-        };
-        let index = nodes.len() as u32;
-        let remaining = traversal.remaining_capacity();
-        let node = read_node(&proxy, &object_ref, index, parent_index, depth).await;
-        let child_refs = if depth < max_depth && remaining > 0 {
-            match children_up_to(&proxy, remaining, &mut remaining_traversal_reads).await {
-                Ok(batch) => {
-                    // A read-budget cut inside the fetch reports `incomplete`; an
-                    // already-exhausted budget returns the I/O-free empty batch, so
-                    // fall back to the child_count read_node already fetched.
-                    truncated |= batch.incomplete || (batch.attempted == 0 && node.child_count > 0);
-                    batch.items
+    // Breadth-first in batches: every node of a batch is read concurrently,
+    // then their children are listed concurrently. Results keep queue order,
+    // so indices and parent links match a one-at-a-time traversal.
+    loop {
+        let batch: Vec<_> = std::iter::from_fn(|| traversal.pop())
+            .take(NODE_READ_BATCH)
+            .collect();
+        if batch.is_empty() {
+            break;
+        }
+        let read: Vec<_> = stream::iter(batch)
+            .map(|(object_ref, depth, parent_index)| {
+                let conn = &conn;
+                async move {
+                    let proxy = open_accessible(conn, &object_ref).await.ok()?;
+                    let node = read_node(&proxy, &object_ref, 0, parent_index, depth).await;
+                    drop(proxy);
+                    Some((object_ref, depth, node))
                 }
-                Err(_) => Vec::new(),
-            }
-        } else {
-            // Depth or node cap reached: any child this node reports is unread.
-            truncated |= node.child_count > 0;
-            Vec::new()
-        };
+            })
+            .buffered(NODE_READ_BATCH)
+            .collect()
+            .await;
 
-        nodes.push(node);
+        // Split the node cap and the child read budget in queue order, as the
+        // sequential traversal did; `None` marks a node whose children stay
+        // unread because of the depth or node cap.
+        let mut remaining = traversal.remaining_capacity();
+        let planned: Vec<_> = read
+            .into_iter()
+            .flatten()
+            .map(|(object_ref, depth, node)| {
+                let attempts = (depth < max_depth && remaining > 0).then(|| {
+                    let attempts = bounded_child_count(node.child_count, remaining)
+                        .min(remaining_traversal_reads);
+                    remaining -= attempts;
+                    remaining_traversal_reads -= attempts;
+                    attempts
+                });
+                (object_ref, depth, node, attempts)
+            })
+            .collect();
+        let listings: Vec<_> = planned
+            .iter()
+            .map(|(object_ref, _, node, attempts)| {
+                (object_ref.clone(), node.child_count, *attempts)
+            })
+            .collect();
+        let children: Vec<_> = stream::iter(listings)
+            .map(|(object_ref, child_count, attempts)| {
+                let conn = &conn;
+                async move {
+                    let attempts = attempts?;
+                    let proxy = open_accessible(conn, &object_ref).await.ok()?;
+                    let mut budget = attempts;
+                    let listed = fetch_indexed_up_to(child_count, attempts, &mut budget, |index| {
+                        proxy.get_child_at_index(index)
+                    })
+                    .await;
+                    drop(proxy);
+                    Some(listed)
+                }
+            })
+            .buffered(NODE_READ_BATCH)
+            .collect()
+            .await;
 
-        traversal.enqueue(
-            child_refs
-                .into_iter()
-                .map(|child| (child, depth + 1, Some(index))),
-        );
+        for ((_, depth, mut node, attempts), listed) in planned.into_iter().zip(children) {
+            let index = nodes.len() as u32;
+            node.index = index;
+            let child_refs = match (attempts, listed) {
+                // A cut by the node cap or read budget reports `incomplete`.
+                (Some(_), Some(listed)) => {
+                    truncated |= listed.incomplete;
+                    listed.items
+                }
+                (Some(_), None) => Vec::new(),
+                // Depth or node cap reached: any child this node reports is unread.
+                (None, _) => {
+                    truncated |= node.child_count > 0;
+                    Vec::new()
+                }
+            };
+            nodes.push(node);
+            traversal.enqueue(
+                child_refs
+                    .into_iter()
+                    .map(|child| (child, depth + 1, Some(index))),
+            );
+        }
     }
     truncated |= traversal.truncated();
 
@@ -409,6 +470,10 @@ pub struct FocusedElementSummary {
     #[serde(skip)]
     #[schemars(skip)]
     pub is_terminal: bool,
+    /// `:bus/path` of the element, for reading its text back. Internal only.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub object_ref: String,
 }
 
 const FOCUS_PROBE_MAX_NODES: usize = 400;
@@ -494,6 +559,7 @@ async fn focused_element_probe(
                 editable: supports_editable_text(proxies.as_ref()).await,
                 states: state_labels(state),
                 is_terminal,
+                object_ref: object_ref_id(&object_ref),
             }));
         }
         let remaining = traversal.remaining_capacity();
@@ -606,6 +672,92 @@ async fn perform_action_inner(
     })
 }
 
+/// Fresh read of one element by object ref. `index`, `parent_index` and
+/// `depth` are zero: the node is not part of any snapshot.
+pub(crate) async fn read_element(object_ref_id: &str) -> Result<AccessibilityNode> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref)
+        .await
+        .with_context(|| format!("failed to open AT-SPI object {object_ref_id}"))?;
+    // A vanished object answers every property read with an error, which
+    // read_node would turn into an empty "unknown" node; check one first.
+    proxy
+        .get_state()
+        .await
+        .with_context(|| format!("AT-SPI object {object_ref_id} no longer exists"))?;
+    Ok(read_node(&proxy, &object_ref, 0, None, 0).await)
+}
+
+/// Moves keyboard focus to the element through `Component.GrabFocus`.
+/// Returns the toolkit's answer; callers still read the `focused` state back.
+pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref).await?;
+    let component = proxy
+        .proxies()
+        .await?
+        .component()
+        .await
+        .context("element does not expose the AT-SPI Component interface")?;
+    Ok(component.grab_focus().await?)
+}
+
+/// Asks the toolkit to scroll the element into view (`Component.ScrollTo`).
+pub(crate) async fn scroll_into_view(object_ref_id: &str) -> Result<bool> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref).await?;
+    let component = proxy
+        .proxies()
+        .await?
+        .component()
+        .await
+        .context("element does not expose the AT-SPI Component interface")?;
+    Ok(component.scroll_to(atspi::ScrollType::Anywhere).await?)
+}
+
+/// Invokes the first action whose name appears in `preferred` (in that
+/// order, case-insensitive). `Ok(None)` when the element has none of them.
+pub(crate) async fn invoke_preferred_action(
+    object_ref_id: &str,
+    preferred: &[&str],
+) -> Result<Option<ActionInvocation>> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref)
+        .await
+        .with_context(|| format!("failed to open AT-SPI object {object_ref_id}"))?;
+    let Ok(action) = proxy.proxies().await?.action().await else {
+        return Ok(None);
+    };
+    let mut actions = action.get_actions().await.unwrap_or_default();
+    for (index, entry) in actions.iter_mut().enumerate() {
+        if entry.name.is_empty() {
+            if let Ok(name) = action.get_name(index as i32).await {
+                entry.name = name;
+            }
+        }
+    }
+    let Some(action_index) = preferred.iter().find_map(|wanted| {
+        actions
+            .iter()
+            .position(|action| action.name.eq_ignore_ascii_case(wanted))
+    }) else {
+        return Ok(None);
+    };
+    let ok = action
+        .do_action(action_index as i32)
+        .await
+        .with_context(|| format!("failed to invoke AT-SPI action {action_index}"))?;
+    Ok(Some(ActionInvocation {
+        action_index: action_index as i32,
+        action_name: actions.get(action_index).map(|action| action.name.clone()),
+        ok,
+    }))
+}
+
 pub async fn set_element_value(object_ref_id: &str, value: &str) -> Result<ValueSetInvocation> {
     let conn = connect().await?;
     let object_ref = object_ref_from_id(object_ref_id)?;
@@ -650,11 +802,31 @@ pub async fn set_element_value(object_ref_id: &str, value: &str) -> Result<Value
     ))
 }
 
+/// The a11y bus connection, opened once and shared by every read. Opening one
+/// costs a bus handshake per call otherwise.
+static CONNECTION: std::sync::Mutex<Option<AccessibilityConnection>> = std::sync::Mutex::new(None);
+
 async fn connect() -> Result<AccessibilityConnection> {
+    if let Some(conn) = CONNECTION.lock().ok().and_then(|cached| cached.clone()) {
+        return Ok(conn);
+    }
     hydrate_session_bus_env();
-    AccessibilityConnection::new()
+    let conn = AccessibilityConnection::new()
         .await
-        .context("failed to connect to AT-SPI bus")
+        .context("failed to connect to AT-SPI bus")?;
+    if let Ok(mut cached) = CONNECTION.lock() {
+        *cached = Some(conn.clone());
+    }
+    Ok(conn)
+}
+
+/// Drops the shared connection so the next read reconnects; called when the
+/// registry stops answering (bus restarted, or the runtime that owned the
+/// connection's reader task is gone).
+fn forget_connection() {
+    if let Ok(mut cached) = CONNECTION.lock() {
+        *cached = None;
+    }
 }
 
 /// Open an `AccessibleProxy` for an object on the a11y bus.
@@ -685,9 +857,13 @@ async fn registry_children(
         .root_accessible_on_registry()
         .await
         .context("failed to open AT-SPI registry root")?;
-    let batch = children_up_to(&root, limit, remaining_child_reads)
-        .await
-        .context("failed to read AT-SPI registry children")?;
+    let batch = match children_up_to(&root, limit, remaining_child_reads).await {
+        Ok(batch) => batch,
+        Err(error) => {
+            forget_connection();
+            return Err(anyhow!(error).context("failed to read AT-SPI registry children"));
+        }
+    };
     if batch.all_failed() {
         return Err(anyhow!(
             "AT-SPI registry reported children, but every indexed child read failed"
@@ -850,23 +1026,39 @@ async fn read_node(
     parent_index: Option<u32>,
     depth: u32,
 ) -> AccessibilityNode {
-    let proxies = proxy.proxies().await.ok();
+    // Independent reads go out together; each is one bus round trip.
+    let (proxies, role, name, description, child_count, states) = futures_util::join!(
+        proxy.proxies(),
+        role_name(proxy),
+        proxy.name(),
+        proxy.description(),
+        proxy.child_count(),
+        states_from_proxy(proxy),
+    );
+    let proxies = proxies.ok();
+    let (bounds, actions, value, text, supports_editable_text) = futures_util::join!(
+        bounds_from_proxies(proxies.as_ref(), proxy),
+        actions_from_proxies(proxies.as_ref()),
+        value_from_proxies(proxies.as_ref()),
+        text_from_proxies(proxies.as_ref()),
+        supports_editable_text(proxies.as_ref()),
+    );
 
     AccessibilityNode {
         index,
         parent_index,
         depth,
         object_ref: object_ref_id(object_ref),
-        role: role_name(proxy).await,
-        name: optional_string(proxy.name().await.ok()),
-        description: optional_string(proxy.description().await.ok()),
-        child_count: proxy.child_count().await.unwrap_or_default(),
-        bounds: bounds_from_proxies(proxies.as_ref(), proxy).await,
-        states: states_from_proxy(proxy).await,
-        actions: actions_from_proxies(proxies.as_ref()).await,
-        value: value_from_proxies(proxies.as_ref()).await,
-        text: text_from_proxies(proxies.as_ref()).await,
-        supports_editable_text: supports_editable_text(proxies.as_ref()).await,
+        role,
+        name: optional_string(name.ok()),
+        description: optional_string(description.ok()),
+        child_count: child_count.unwrap_or_default(),
+        bounds,
+        states,
+        actions,
+        value,
+        text,
+        supports_editable_text,
     }
 }
 
@@ -961,8 +1153,19 @@ async fn actions_from_proxies(
         .collect();
     // Chromium answers GetActions with blank names but GetName(i) with the
     // real ones ("click", "doDefault"), so fill the gaps per index.
-    for action in actions.iter_mut().filter(|action| action.name.is_empty()) {
-        if let Ok(name) = action_proxy.get_name(action.index).await {
+    let names = futures_util::future::join_all(
+        actions
+            .iter()
+            .filter(|action| action.name.is_empty())
+            .map(|action| action_proxy.get_name(action.index)),
+    )
+    .await;
+    for (action, name) in actions
+        .iter_mut()
+        .filter(|action| action.name.is_empty())
+        .zip(names)
+    {
+        if let Ok(name) = name {
             action.name = name;
         }
     }
@@ -994,17 +1197,20 @@ async fn text_from_proxies(
     proxies: Option<&atspi::proxy::proxy_ext::Proxies<'_>>,
 ) -> Option<AccessibilityText> {
     let text = proxies?.text().await.ok()?;
-    let character_count = text.character_count().await.ok()?.max(0);
-    let caret_offset = text.caret_offset().await.ok();
+    let (character_count, caret_offset, selection_count) = futures_util::join!(
+        text.character_count(),
+        text.caret_offset(),
+        text.get_nselections(),
+    );
+    let character_count = character_count.ok()?.max(0);
+    let caret_offset = caret_offset.ok();
     let capped_count = character_count.min(MAX_TEXT_READBACK_CHARS);
     let content = if capped_count > 0 {
         optional_string(text.get_text(0, capped_count).await.ok())
     } else {
         None
     };
-    let selection_count = text
-        .get_nselections()
-        .await
+    let selection_count = selection_count
         .unwrap_or_default()
         .clamp(0, MAX_TEXT_SELECTIONS);
     let mut selections = Vec::new();

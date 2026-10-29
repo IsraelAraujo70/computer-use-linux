@@ -22,8 +22,6 @@ fn latin1(text: &str) -> Vec<u8> {
 }
 
 /// Owns CLIPBOARD and PRIMARY until dropped or the hold duration elapses.
-// wired into type_text by the integration step
-#[allow(dead_code)]
 pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<ClipboardGuard> {
     anyhow::ensure!(text.len() <= 256 * 1024, "clipboard text exceeds 256 KB");
     let (conn, screen) = x11rb::connect(None)?;
@@ -145,8 +143,6 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
 }
 
 /// Lifetime guard for the background selection owner.
-// wired into type_text by the integration step
-#[allow(dead_code)]
 pub(crate) struct ClipboardGuard {
     stop: Arc<AtomicBool>,
     served: Arc<AtomicBool>,
@@ -154,8 +150,6 @@ pub(crate) struct ClipboardGuard {
 }
 impl ClipboardGuard {
     /// Waits up to timeout for a text request to be answered.
-    // wired into type_text by the integration step
-    #[allow(dead_code)]
     pub(crate) fn wait_served(&self, timeout: Duration) -> bool {
         let start = Instant::now();
         while !self.served.load(Ordering::Acquire) && start.elapsed() < timeout {

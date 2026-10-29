@@ -1,6 +1,6 @@
-//! Text views of an accessibility snapshot: a one-line-per-element outline and
-//! a query matcher. Both read the same compacted node list that element
-//! indices refer to, so `[index]` in a line is what `click` and friends take.
+//! Text forms of accessibility elements: the one-line rendering every outline
+//! and result uses, and the query matcher of `find_elements` and `wait_for`.
+//! `[n]` in a line is the element's stable id, what `click` and friends take.
 
 use crate::atspi_tree::{AccessibilityAction, AccessibilityNode};
 use schemars::JsonSchema;
@@ -32,39 +32,11 @@ const SIGNIFICANT_STATES: [&str; 13] = [
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TreeFormat {
-    /// One indented line per element: `[index] role "name" @x,y wxh states`.
+    /// One indented line per element.
     #[default]
     Outline,
     /// The full node objects, with every AT-SPI field.
     Json,
-}
-
-/// Renders nodes as indented lines, one per element, in snapshot order.
-///
-/// With a `viewport` (the window size), elements whose bounds lie wholly
-/// outside `0..width` by `0..height`, such as
-/// content scrolled away, are left out and counted in a closing line.
-pub fn render_outline(nodes: &[AccessibilityNode], viewport: Option<(u32, u32)>) -> String {
-    let mut out = String::new();
-    let mut omitted = 0;
-    for node in nodes {
-        if viewport.is_some_and(|viewport| outside(node, viewport)) {
-            omitted += 1;
-            continue;
-        }
-        let indent = node_depth_in(nodes, node);
-        for _ in 0..indent {
-            out.push_str("  ");
-        }
-        out.push_str(&render_line(node));
-        out.push('\n');
-    }
-    if omitted > 0 {
-        out.push_str(&format!(
-            "({omitted} elements outside the visible window omitted; find_elements searches them)\n"
-        ));
-    }
-    out
 }
 
 /// One element as `wait_for(changed)` compares it.
@@ -130,16 +102,6 @@ pub fn content_diff(
     added.into_iter().chain(removed).take(limit).collect()
 }
 
-fn outside(node: &AccessibilityNode, (width, height): (u32, u32)) -> bool {
-    let Some(bounds) = &node.bounds else {
-        return false;
-    };
-    bounds.x >= width as i32
-        || bounds.y >= height as i32
-        || bounds.x + bounds.width <= 0
-        || bounds.y + bounds.height <= 0
-}
-
 /// Renders one element without indentation.
 pub fn render_line(node: &AccessibilityNode) -> String {
     let mut line = format!("[{}] {}", node.index, node.role);
@@ -160,7 +122,9 @@ pub fn render_line(node: &AccessibilityNode) -> String {
         .map(String::as_str)
         .filter(|state| SIGNIFICANT_STATES.contains(state))
         .collect();
-    if node.supports_editable_text {
+    // Chromium web fields carry the `editable` state without the
+    // EditableText interface; either makes the field writable.
+    if node.supports_editable_text || node.states.iter().any(|state| state == "editable") {
         flags.push("editable");
     }
     if !node.states.iter().any(|state| state == "enabled") && !node.actions.is_empty() {
@@ -203,6 +167,21 @@ pub fn render_line(node: &AccessibilityNode) -> String {
     line
 }
 
+/// Short reference to an element for action results: `[id] role "name"`,
+/// with the start of its text standing in for a missing name.
+pub fn element_label(node: &AccessibilityNode) -> String {
+    let text = || clean(node.text.as_ref().and_then(|text| text.content.as_deref()));
+    match clean(node.name.as_deref()).or_else(text) {
+        Some(name) => format!(
+            "[{}] {} \"{}\"",
+            node.index,
+            node.role,
+            truncate(&name, MAX_NAME_CHARS)
+        ),
+        None => format!("[{}] {}", node.index, node.role),
+    }
+}
+
 /// Whether an action says more than "this is a Chromium container": Chromium
 /// gives every node `doDefault` and `showContextMenu`, and every descendant of
 /// a clickable element `clickAncestor`.
@@ -217,16 +196,16 @@ pub fn is_specific_action(action: &AccessibilityAction) -> bool {
 /// string fields are case-insensitive substrings.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 pub struct ElementQuery {
-    /// Role substring, for example `button`, `entry`, `link`, `check box`.
+    /// Role substring, e.g. button, entry, link, check box.
     #[serde(default)]
     pub role: Option<String>,
-    /// Substring of the element's accessible name.
+    /// Name substring.
     #[serde(default)]
     pub name: Option<String>,
-    /// Substring searched in the name, description, text content, and value text.
+    /// Substring of the name, description, text or value.
     #[serde(default)]
     pub text: Option<String>,
-    /// States the element must have, for example `["focused"]` or `["checked"]`.
+    /// Required states, e.g. ["checked"].
     #[serde(default)]
     pub states: Option<Vec<String>>,
 }
@@ -273,16 +252,6 @@ impl ElementQuery {
     }
 }
 
-fn node_depth_in(nodes: &[AccessibilityNode], node: &AccessibilityNode) -> usize {
-    let mut depth = 0;
-    let mut parent = node.parent_index;
-    while let Some(index) = parent {
-        depth += 1;
-        parent = nodes.get(index as usize).and_then(|p| p.parent_index);
-    }
-    depth
-}
-
 /// Trims, collapses whitespace, and drops U+FFFC (embedded-object marker).
 pub fn clean(value: Option<&str>) -> Option<String> {
     let cleaned = value?
@@ -293,7 +262,8 @@ pub fn clean(value: Option<&str>) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
-fn truncate(value: &str, max_chars: usize) -> String {
+/// Cuts `value` to `max_chars` with an ellipsis; double quotes become single.
+pub fn truncate(value: &str, max_chars: usize) -> String {
     if value.chars().count() <= max_chars {
         return value.replace('"', "'");
     }
@@ -320,7 +290,6 @@ fn contains(haystack: Option<&str>, needle: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::atspi_tree::{AccessibilityText, Bounds};
 
     fn node(index: u32, parent: Option<u32>, role: &str, name: Option<&str>) -> AccessibilityNode {
         AccessibilityNode {
@@ -348,51 +317,6 @@ mod tests {
             description: String::new(),
             keybinding: String::new(),
         }
-    }
-
-    #[test]
-    fn outline_indents_by_kept_parent_and_hides_noise() {
-        let mut button = node(1, Some(0), "button", Some("Save"));
-        button.bounds = Some(Bounds {
-            x: 10,
-            y: 20,
-            width: 80,
-            height: 24,
-        });
-        button.states.push("focused".into());
-        button.actions = vec![action("click"), action("showContextMenu")];
-        let mut entry = node(2, Some(0), "entry", None);
-        entry.supports_editable_text = true;
-        entry.text = Some(AccessibilityText {
-            caret_offset: Some(0),
-            character_count: 5,
-            content: Some("hello\u{fffc}".into()),
-            selections: Vec::new(),
-            truncated: false,
-        });
-
-        let mut scrolled_away = node(3, Some(0), "static", Some("Old message"));
-        scrolled_away.bounds = Some(Bounds {
-            x: 0,
-            y: 5000,
-            width: 100,
-            height: 20,
-        });
-
-        let outline = render_outline(
-            &[
-                node(0, None, "frame", Some("App")),
-                button,
-                entry,
-                scrolled_away,
-            ],
-            Some((800, 600)),
-        );
-
-        assert_eq!(
-            outline,
-            "[0] frame \"App\"\n  [1] button \"Save\" @10,20 80x24 {focused} actions=click\n  [2] entry {editable} text=\"hello\"\n(1 elements outside the visible window omitted; find_elements searches them)\n"
-        );
     }
 
     #[test]
