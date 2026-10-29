@@ -1552,7 +1552,8 @@ impl ComputerUseLinux {
                 point: target_point,
                 direction,
                 direction_given: params.direction.is_some(),
-                max_clicks: repeat,
+                // Without `pages`, steps follow the scrolled area's size.
+                max_clicks: params.pages.is_some().then_some(repeat),
                 container: container.as_ref().map(|node| node.index),
                 hint_ref: container.map(|node| node.object_ref),
             };
@@ -1897,7 +1898,11 @@ impl ComputerUseLinux {
     )]
     async fn scroll_tool(&self, Parameters(params): Parameters<ScrollParams>) -> CallToolResult {
         let observe = params.observe != Some(false);
+        let until = params.until.is_some();
         let Json(output) = self.scroll(Parameters(params)).await;
+        // A found `until` match already prints its lines and cached the
+        // snapshot they come from; a change report would print the page.
+        let observe = observe && !(until && output.ok);
         self.finish_action(output, observe).await
     }
 
@@ -4937,18 +4942,22 @@ impl ComputerUseLinux {
     }
 
     /// Scrolls step by step until an element matching the query is rendered,
-    /// then brings it onto the visible page: returns its lines and the
-    /// scroll count. Each step moves `until_step_clicks` wheel clicks and
-    /// reads the tree until it stops changing (`read_after_scroll_step`);
-    /// `until_step` decides what follows. Without a requested direction a
-    /// search down that reaches the end goes on upward (`next_until_pass`).
-    /// On failure the last read becomes the cached snapshot, since the page
-    /// has moved.
+    /// then brings it onto the visible page: returns its line with a few
+    /// neighbours, the scroll count and the time taken, and makes the last
+    /// read the cached snapshot (so the ids it shows resolve) in place of a
+    /// change report. Each step moves about `SCROLL_UNTIL_STEP_SHARE` of the
+    /// scrolled area (`until_step_clicks`, recalibrated from how far rows
+    /// moved: `measured_click_px`) and reads the tree once
+    /// (`read_after_scroll_step`); `until_step` decides what follows.
+    /// Without a requested direction a search down that reaches the end goes
+    /// on upward (`next_until_pass`). On failure the last read is cached too,
+    /// since the page has moved.
     async fn scroll_until(&self, plan: &ScrollUntil) -> std::result::Result<String, String> {
+        let started = std::time::Instant::now();
         let hint = plan.hint_ref.as_deref();
         let mut last = self.rescan(hint).await?;
         if !rendered_matches(&last.nodes, &plan.query).is_empty() {
-            return self.reveal_until_match(plan, last, 0).await;
+            return self.reveal_until_match(plan, last, 0, started).await;
         }
         let horizontal = matches!(
             plan.direction,
@@ -4956,13 +4965,18 @@ impl ComputerUseLinux {
         );
         let shown = crate::page_view::shown_part(&last.nodes, plan.container);
         let extent = shown.map(|area| if horizontal { area.width } else { area.height });
-        let clicks = until_step_clicks(extent, plan.max_clicks);
+        let mut step = UntilStepSize {
+            extent,
+            click_px: f64::from(WHEEL_CLICK_PX),
+            measured: false,
+            max_clicks: plan.max_clicks,
+        };
         let mut direction = plan.direction;
         let mut scrolls = 0;
         let mut searched_back = false;
         let end = loop {
             let end = self
-                .scroll_until_pass(plan, direction, clicks, &mut last, &mut scrolls)
+                .scroll_until_pass(plan, direction, &mut step, &mut last, &mut scrolls)
                 .await?;
             match next_until_pass(direction, plan.direction_given, end) {
                 Some(next) => {
@@ -4974,7 +4988,7 @@ impl ComputerUseLinux {
             }
         };
         let message = match end {
-            UntilStep::Found => return self.reveal_until_match(plan, last, scrolls).await,
+            UntilStep::Found => return self.reveal_until_match(plan, last, scrolls, started).await,
             UntilStep::Cap => format!(
                 "no element matched until within {SCROLL_UNTIL_MAX_STEPS} scrolls; the list goes on"
             ),
@@ -4990,35 +5004,47 @@ impl ComputerUseLinux {
     }
 
     /// Scrolls in one direction until a match is rendered, the end, or
-    /// `SCROLL_UNTIL_MAX_STEPS` steps; `last` and `scrolls` follow along.
+    /// `SCROLL_UNTIL_MAX_STEPS` steps; `step`, `last` and `scrolls` follow
+    /// along.
     async fn scroll_until_pass(
         &self,
         plan: &ScrollUntil,
         direction: ScrollDirection,
-        clicks: u32,
+        step: &mut UntilStepSize,
         last: &mut Rescan,
         scrolls: &mut u32,
     ) -> std::result::Result<UntilStep, String> {
-        let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
-        let command_timeout = xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS);
+        let horizontal = matches!(direction, ScrollDirection::Left | ScrollDirection::Right);
         let mut previous = crate::outline::element_contents(&last.nodes);
         let mut steps = 0;
         let mut unchanged = 0;
         loop {
-            run_xdotool(&wheel, command_timeout).await?;
+            let clicks = step.clicks();
+            let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
+            run_xdotool(
+                &wheel,
+                xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS),
+            )
+            .await?;
             steps += 1;
             *scrolls += 1;
-            let rows_before = row_keys(&last.nodes);
-            *last = self
-                .read_after_scroll_step(plan.hint_ref.as_deref())
-                .await?;
+            let before = std::mem::replace(
+                last,
+                self.read_after_scroll_step(plan.hint_ref.as_deref(), &previous)
+                    .await?,
+            );
+            let rows_before = row_keys(&before.nodes);
             let new_rows = row_keys(&last.nodes).difference(&rows_before).count();
-            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?})");
+            if let Some(px) = measured_click_px(&before.nodes, &last.nodes, clicks, horizontal) {
+                step.click_px = px;
+                step.measured = true;
+            }
+            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each)", step.click_px);
             let contents = crate::outline::element_contents(&last.nodes);
             let found = !rendered_matches(&last.nodes, &plan.query).is_empty();
-            let step = until_step(found, contents != previous, unchanged, steps);
+            let next = until_step(found, contents != previous, unchanged, steps);
             previous = contents;
-            match step {
+            match next {
                 UntilStep::Continue => unchanged = 0,
                 UntilStep::Recheck => {
                     unchanged += 1;
@@ -5030,54 +5056,42 @@ impl ComputerUseLinux {
         }
     }
 
-    /// Reads the tree after a scroll step until two reads in a row agree or
-    /// `SCROLL_UNTIL_STEP_LIMIT` passes: smooth scrolling and virtual lists
-    /// keep changing it for a few frames.
-    async fn read_after_scroll_step(&self, hint: Option<&str>) -> Result<Rescan, String> {
-        let started = std::time::Instant::now();
-        sleep(SETTLE_FIRST_WAIT).await;
-        let mut last = self.rescan(hint).await?;
-        let mut previous = crate::outline::element_contents(&last.nodes);
-        while started.elapsed() < SCROLL_UNTIL_STEP_LIMIT {
-            sleep(SETTLE_POLL).await;
-            last = self.rescan(hint).await?;
-            let contents = crate::outline::element_contents(&last.nodes);
-            if contents == previous {
-                break;
-            }
-            previous = contents;
+    /// Reads the tree after a scroll step: once after
+    /// `SCROLL_UNTIL_STEP_WAIT`, and a second time after `SETTLE_POLL` only
+    /// when it still equals `previous` (the read before the step), since a
+    /// virtual list may not have re-rendered yet.
+    async fn read_after_scroll_step(
+        &self,
+        hint: Option<&str>,
+        previous: &[crate::outline::ElementContent],
+    ) -> Result<Rescan, String> {
+        sleep(SCROLL_UNTIL_STEP_WAIT).await;
+        let first = self.rescan(hint).await?;
+        if crate::outline::element_contents(&first.nodes) != previous {
+            return Ok(first);
         }
-        Ok(last)
+        sleep(SETTLE_POLL).await;
+        self.rescan(hint).await
     }
 
     /// Brings a rendered match onto the visible page: AT-SPI
     /// `Component.ScrollTo`, else a few small wheel scrolls toward it.
-    /// Reports its lines once it is visible, or that it stayed off the page.
+    /// Reports its line and up to `SCROLL_UNTIL_NEIGHBOURS` lines around it
+    /// once it is visible, or that it stayed off the page, and caches the
+    /// last read.
     async fn reveal_until_match(
         &self,
         plan: &ScrollUntil,
         mut last: Rescan,
         scrolls: u32,
+        started: std::time::Instant,
     ) -> std::result::Result<String, String> {
-        let lines = |found: &[&AccessibilityNode]| {
-            found
-                .iter()
-                .take(5)
-                .map(|node| crate::outline::render_line(node))
-                .collect::<Vec<_>>()
-                .join("\n")
-        };
-        let found_message = |found: &[&AccessibilityNode], revealed: bool| match (scrolls, revealed)
-        {
-            (0, false) => format!("already on the visible page:\n{}", lines(found)),
-            (0, true) => format!("found and scrolled into view:\n{}", lines(found)),
-            (n, _) => format!("found after {n} scroll(s):\n{}", lines(found)),
-        };
         let hint = plan.hint_ref.as_deref();
+        let mut revealed = None;
         for attempt in 0..=SCROLL_UNTIL_REVEAL_NUDGES {
-            let visible = visible_matches(&last.nodes, &plan.query);
-            if !visible.is_empty() {
-                return Ok(found_message(&visible, attempt > 0));
+            if let Some(first) = visible_matches(&last.nodes, &plan.query).first() {
+                revealed = Some((first.index, attempt > 0));
+                break;
             }
             let rendered = rendered_matches(&last.nodes, &plan.query);
             let Some(target) = rendered.first() else {
@@ -5109,19 +5123,41 @@ impl ComputerUseLinux {
             } else {
                 break;
             }
-            last = self.read_after_scroll_step(hint).await?;
+            let previous = crate::outline::element_contents(&last.nodes);
+            last = self.read_after_scroll_step(hint, &previous).await?;
         }
-        let rendered = rendered_matches(&last.nodes, &plan.query);
-        if rendered.is_empty() {
-            self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
-            return Err(format!(
+        let rendered: Vec<u32> = rendered_matches(&last.nodes, &plan.query)
+            .iter()
+            .map(|node| node.index)
+            .collect();
+        let view = crate::page_view::page_view(&last.nodes, last.scope.options);
+        let seconds = started.elapsed().as_secs_f64();
+        let message = match (revealed, rendered.first()) {
+            (Some((id, nudged)), _) => {
+                let header = match (scrolls, nudged) {
+                    (0, false) => "already on the visible page:".to_string(),
+                    (0, true) => format!("found and scrolled into view in {seconds:.1} s:"),
+                    (n, _) => format!("found after {n} scroll(s) in {seconds:.1} s:"),
+                };
+                let mut message = format!(
+                    "{header}\n{}",
+                    until_match_lines(&view, &last.nodes, id)
+                );
+                if rendered.len() > 1 {
+                    message.push_str(&format!("\n(and {} more matching)", rendered.len() - 1));
+                }
+                Ok(message)
+            }
+            (None, Some(&id)) => Ok(format!(
+                "found after {scrolls} scroll(s) in {seconds:.1} s, but it is not on the visible page yet (click still reaches it by id):\n{}",
+                until_match_lines(&view, &last.nodes, id)
+            )),
+            (None, None) => Err(format!(
                 "an element matching until showed up after {scrolls} scroll(s) but was gone after scrolling it into view"
-            ));
-        }
-        Ok(format!(
-            "found after {scrolls} scroll(s), but it is not on the visible page yet (click still reaches it by id):\n{}",
-            lines(&rendered)
-        ))
+            )),
+        };
+        self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
+        message
     }
 
     /// Whether a point inside an element's bounds is on the visible page:
@@ -5253,17 +5289,26 @@ fn still_busy_after(busy: Option<&crate::page_view::Busy>, quiet_for: Duration) 
 
 /// Most scroll steps one `scroll(until=…)` call makes in one direction.
 const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
-/// Longest wait after a scroll step for the tree to stop changing.
-const SCROLL_UNTIL_STEP_LIMIT: Duration = Duration::from_millis(700);
+/// Wait after a scroll step before reading the tree.
+const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(100);
 /// Small wheel scrolls toward a rendered match ScrollTo did not reveal.
 const SCROLL_UNTIL_REVEAL_NUDGES: u32 = 3;
-/// About how far one X11 wheel click scrolls: Chromium moves 53 px, GTK 3
-/// a little more on a typical page. Used only to size steps.
+/// Lines around the match a successful `scroll(until=…)` prints.
+const SCROLL_UNTIL_NEIGHBOURS: usize = 3;
+/// About how far one X11 wheel click scrolls before a step measures it
+/// (`measured_click_px`): Chromium moves 53 px, GTK 3 a little more on a
+/// typical page.
 const WHEEL_CLICK_PX: i32 = 53;
-/// Share of the scrolled area's visible extent one `until` step may move,
-/// so rows a virtual list renders around the viewport are read before it
-/// recycles them.
-const SCROLL_UNTIL_STEP_SHARE: f64 = 0.6;
+/// Wheel clicks per `until` step when neither the scrolled area's extent
+/// nor `pages` sizes it.
+const SCROLL_UNTIL_DEFAULT_CLICKS: u32 = 5;
+/// Share of the scrolled area's visible extent one `until` step moves once
+/// a step has measured a wheel click. Matches anywhere in the rendered tree
+/// count, and virtual lists render rows beyond the viewport, so the 10 %
+/// overlap skips no row.
+const SCROLL_UNTIL_STEP_SHARE: f64 = 0.9;
+/// The share before any measurement, while a click's distance is a guess.
+const SCROLL_UNTIL_FIRST_STEP_SHARE: f64 = 0.6;
 /// Extra wait after a scroll that changed nothing, before trying once more:
 /// an infinite list may still be loading its next rows.
 const SCROLL_UNTIL_END_WAIT: Duration = Duration::from_millis(500);
@@ -5276,11 +5321,47 @@ struct ScrollUntil {
     direction: ScrollDirection,
     /// Whether the caller chose `direction`; if not, the search also goes up.
     direction_given: bool,
-    /// Most wheel clicks per step, from the `pages` request.
-    max_clicks: u32,
+    /// Most wheel clicks per step, when the caller passed `pages`.
+    max_clicks: Option<u32>,
     /// The scrolled element's id and object, when one was given.
     container: Option<u32>,
     hint_ref: Option<String>,
+}
+
+/// How far each `scroll(until=…)` step goes.
+#[derive(Debug, Clone, Copy)]
+struct UntilStepSize {
+    /// Visible extent of the scrolled area along the scroll, in pixels.
+    extent: Option<i32>,
+    /// Pixels one wheel click moves, as last measured, else `WHEEL_CLICK_PX`.
+    click_px: f64,
+    /// Whether `click_px` was measured.
+    measured: bool,
+    /// Most wheel clicks per step, from `pages`.
+    max_clicks: Option<u32>,
+}
+
+impl UntilStepSize {
+    /// Wheel clicks that move about `SCROLL_UNTIL_STEP_SHARE` of the
+    /// visible extent (`SCROLL_UNTIL_FIRST_STEP_SHARE` until measured), at
+    /// least one, at most `max_clicks`.
+    fn clicks(&self) -> u32 {
+        let share = if self.measured {
+            SCROLL_UNTIL_STEP_SHARE
+        } else {
+            SCROLL_UNTIL_FIRST_STEP_SHARE
+        };
+        let fit = self
+            .extent
+            .filter(|&extent| extent > 0)
+            .map(|extent| (f64::from(extent) * share / self.click_px.max(1.0)).floor() as u32);
+        match (fit, self.max_clicks) {
+            (Some(fit), Some(max)) => fit.clamp(1, max.max(1)),
+            (Some(fit), None) => fit.max(1),
+            (None, Some(max)) => max.max(1),
+            (None, None) => SCROLL_UNTIL_DEFAULT_CLICKS,
+        }
+    }
 }
 
 /// What `scroll(until=…)` does after the tree settled following a step.
@@ -5326,18 +5407,80 @@ fn next_until_pass(
         .then_some(ScrollDirection::Up)
 }
 
-/// Wheel clicks per `until` step: the requested count, cut to about
-/// `SCROLL_UNTIL_STEP_SHARE` of the scrolled area's visible extent (pixels).
-fn until_step_clicks(extent: Option<i32>, requested: u32) -> u32 {
-    let requested = requested.max(1);
-    match extent {
-        Some(extent) if extent > 0 => {
-            let fit = (f64::from(extent) * SCROLL_UNTIL_STEP_SHARE / f64::from(WHEEL_CLICK_PX))
-                .floor() as u32;
-            requested.min(fit.max(1))
+/// Pixels one wheel click moved, from elements present before and after a
+/// step of `clicks` clicks, matched by role and label (labels that repeat
+/// in a read are skipped): the median of their shifts along the scroll,
+/// divided by `clicks`. Elements that stayed put (sticky headers) do not
+/// count. `None` when nothing moved or the result is implausible (under 5
+/// or over 1000 pixels).
+fn measured_click_px(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+    clicks: u32,
+    horizontal: bool,
+) -> Option<f64> {
+    let positions = |nodes: &[AccessibilityNode]| -> std::collections::HashMap<String, i32> {
+        let mut positions = std::collections::HashMap::new();
+        let mut repeated = std::collections::HashSet::new();
+        for node in nodes {
+            let (Some(label), Some(bounds)) = (
+                crate::outline::clean(node.name.as_deref()),
+                node.bounds.as_ref(),
+            ) else {
+                continue;
+            };
+            let key = format!("{} {label}", node.role);
+            let at = if horizontal { bounds.x } else { bounds.y };
+            if positions.insert(key.clone(), at).is_some() {
+                repeated.insert(key);
+            }
         }
-        _ => requested,
+        positions.retain(|key, _| !repeated.contains(key));
+        positions
+    };
+    let earlier = positions(before);
+    let mut shifts: Vec<i32> = positions(after)
+        .into_iter()
+        .filter_map(|(key, now)| Some((earlier.get(&key)? - now).abs()))
+        .filter(|&shift| shift > 0)
+        .collect();
+    if shifts.is_empty() || clicks == 0 {
+        return None;
     }
+    shifts.sort_unstable();
+    let px = f64::from(shifts[shifts.len() / 2]) / f64::from(clicks);
+    (5.0..=1000.0).contains(&px).then_some(px)
+}
+
+/// The outline lines a successful `scroll(until=…)` prints for match `id`:
+/// its line and up to `SCROLL_UNTIL_NEIGHBOURS` lines around it in the page
+/// view (one before, the rest after), indented as in the outline from the
+/// shallowest of them. Just its line when the view does not show it.
+fn until_match_lines(
+    view: &crate::page_view::PageView,
+    nodes: &[AccessibilityNode],
+    id: u32,
+) -> String {
+    let Some(at) = view.entries.iter().position(|entry| entry.id == id) else {
+        return nodes
+            .iter()
+            .find(|node| node.index == id)
+            .map(crate::outline::render_line)
+            .unwrap_or_default();
+    };
+    let start = at.saturating_sub(1);
+    let end = (start + SCROLL_UNTIL_NEIGHBOURS + 1).min(view.entries.len());
+    let shown = &view.entries[start..end];
+    let base = shown
+        .iter()
+        .map(|entry| entry.depth)
+        .min()
+        .unwrap_or_default();
+    shown
+        .iter()
+        .map(|entry| format!("{}{}", "  ".repeat(entry.depth - base), entry.line))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// The wheel direction that moves `bounds` toward `area`, `None` when its
@@ -8330,13 +8473,30 @@ mod tests {
 
     #[test]
     fn scroll_until_steps_stay_within_most_of_the_visible_extent() {
-        // 600 px visible: 60 % is 360 px, six 53 px clicks; one page is five.
-        assert_eq!(until_step_clicks(Some(600), 5), 5);
-        // A 250 px list box: 150 px, two clicks.
-        assert_eq!(until_step_clicks(Some(250), 5), 2);
-        assert_eq!(until_step_clicks(Some(40), 5), 1);
-        assert_eq!(until_step_clicks(None, 5), 5);
-        assert_eq!(until_step_clicks(Some(0), 0), 1);
+        let size = |extent, click_px, max_clicks| UntilStepSize {
+            extent,
+            click_px,
+            measured: true,
+            max_clicks,
+        };
+        // 600 px visible: 90 % is 540 px, ten 53 px clicks, unless `pages`
+        // asked for fewer.
+        assert_eq!(size(Some(600), 53.0, None).clicks(), 10);
+        assert_eq!(size(Some(600), 53.0, Some(5)).clicks(), 5);
+        // Measured 120 px clicks: four clicks still stay under 90 %.
+        assert_eq!(size(Some(600), 120.0, None).clicks(), 4);
+        // A 100 px list box: one click; nothing known: the default.
+        assert_eq!(size(Some(100), 53.0, None).clicks(), 1);
+        assert_eq!(size(Some(40), 53.0, Some(5)).clicks(), 1);
+        assert_eq!(size(None, 53.0, Some(7)).clicks(), 7);
+        assert_eq!(size(None, 53.0, None).clicks(), SCROLL_UNTIL_DEFAULT_CLICKS);
+        assert_eq!(size(Some(0), 53.0, Some(0)).clicks(), 1);
+        // Before a step measured a click, 60 % on the 53 px guess.
+        let guess = UntilStepSize {
+            measured: false,
+            ..size(Some(600), 53.0, None)
+        };
+        assert_eq!(guess.clicks(), 6);
         let area = Bounds {
             x: 0,
             y: 100,
@@ -8355,6 +8515,86 @@ mod tests {
         );
         assert_eq!(direction_toward(&row(20), &area), Some(ScrollDirection::Up));
         assert_eq!(direction_toward(&row(300), &area), None);
+    }
+
+    #[test]
+    fn scroll_until_measures_how_far_a_wheel_click_moves_rows() {
+        let row = |label: &str, y: i32| {
+            let mut row = node(
+                0,
+                Some(Bounds {
+                    x: 0,
+                    y,
+                    width: 900,
+                    height: 40,
+                }),
+            );
+            row.role = "list item".to_string();
+            row.name = Some(label.to_string());
+            row
+        };
+        // Ten clicks moved the rows 1,200 px up: 120 px a click.
+        let before = [
+            row("#1010", 1_000),
+            row("#1011", 1_040),
+            row("#1012", 1_080),
+        ];
+        let after = [row("#1011", -160), row("#1012", -120), row("#1040", 1_000)];
+        assert_eq!(measured_click_px(&before, &after, 10, false), Some(120.0));
+        // A label that repeats in a read is not matched; a sticky header
+        // that stayed put does not count.
+        let mut header = row("Pedidos", 100);
+        header.role = "heading".to_string();
+        let before_dup = [row("#1011", 1_040), row("#1011", 1_080), header.clone()];
+        let after_dup = [row("#1011", -160), header];
+        assert_eq!(measured_click_px(&before_dup, &after_dup, 10, false), None);
+        // No row in common, or none moved: nothing measured.
+        assert_eq!(
+            measured_click_px(&before, &[row("#1100", 0)], 10, false),
+            None
+        );
+        assert_eq!(measured_click_px(&before, &before, 10, false), None);
+    }
+
+    #[test]
+    fn scroll_until_prints_the_match_with_a_few_neighbours() {
+        let element = |index: u32, parent: Option<u32>, role: &str, name: &str| {
+            let mut element = node(index, None);
+            element.parent_index = parent;
+            element.role = role.to_string();
+            element.name = Some(name.to_string());
+            element
+        };
+        let mut nodes = vec![element(1, None, "list", "Pedidos")];
+        for (row, number) in [(2, 1376), (4, 1377), (6, 1378)] {
+            nodes.push(element(row, Some(1), "list item", &format!("#{number}")));
+            nodes.push(element(
+                row + 1,
+                Some(row),
+                "push button",
+                &format!("Arquivar pedido #{number}"),
+            ));
+        }
+        nodes.push(element(8, Some(1), "list item", "#1379"));
+        let view = crate::page_view::page_view(&nodes, Default::default());
+        let printed = until_match_lines(&view, &nodes, 5);
+        let lines: Vec<&str> = printed.lines().collect();
+        // The row before, the match, then two lines after it: no outline.
+        assert_eq!(lines.len(), 1 + SCROLL_UNTIL_NEIGHBOURS);
+        assert!(
+            lines[0].starts_with("[4] ") && lines[0].contains("#1377"),
+            "{printed}"
+        );
+        assert!(lines[1].starts_with("  [5] ") && lines[1].contains("Arquivar pedido #1377"));
+        assert!(lines[3].contains("Arquivar pedido #1378"), "{printed}");
+        assert!(
+            !printed.contains("Pedidos") && !printed.contains("#1379"),
+            "{printed}"
+        );
+        // Near the end of the view there are fewer neighbours.
+        assert_eq!(until_match_lines(&view, &nodes, 8).lines().count(), 2);
+        // A match the view does not show still prints its own line.
+        assert!(until_match_lines(&Default::default(), &nodes, 5).contains("#1377"));
     }
 
     #[test]
