@@ -44,3 +44,34 @@ per variant (baseline and final alternating episode by episode):
 Per episode: MCP calls, screenshots returned, input tokens, MCP-side latency per call
 (`mcp_proxy.py`), tool errors. Confirmatory pass with `claude-sonnet-5-5` on the final variant
 only, to show no regression for Claude-based bots.
+
+---
+
+# Hard suite and final comparison (pre-registered 2026-10-29, before any run on the hard suite)
+
+The easy suite above is passed 100% by the baseline, so it only measures speed. The owner raised
+the bar: 2x on the easy suite is the floor; a hard suite measures what breaks bots in real life.
+
+## Hard suite
+
+- 12 tasks in `tasks_hard.py` (pages under `apps/hard/`), each with a checker that reads posted
+  page state; proven by `selftest_hard.mjs` + `check_selftest_hard.py` to accept the happy path
+  and reject `{}` and realistic wrong outcomes. Committed before any agent episode on it.
+- Timeout 300 s per episode (`--timeout 300`).
+- **Headline metric: success rate** = successful episodes / episodes. Second: throughput
+  (successful episodes per agent-minute), computed as for the easy suite.
+- **Bar:** success rate(final) >= success rate(baseline) + 30 percentage points, and no hard task
+  that passes for the baseline (strict majority of its episodes) fails for the final.
+
+## Final comparison conditions (both suites)
+
+- Chrome started exactly as the bots' `~/.local/bin/chrome-perfil` starts it (`--user-data-dir`
+  throwaway profile, `--no-first-run`, `--no-default-browser-check`, the URL) plus the fix
+  `--force-renderer-accessibility` (`run.py --chrome-mode bots`), on `:98`.
+- Terra (`gpt-6.1-terra`, effort low): baseline vs final interleaved, 3 reps per task, both suites.
+  Easy-suite bar unchanged from above (>= 2x throughput, success not lower, no pass->fail);
+  hard-suite bar as above.
+- Claude Sonnet 5.5 (`claude-sonnet-5-5`, effort medium, isolated config dir): baseline vs final
+  interleaved, 2 reps per task, both suites. Reported, not part of the bar.
+- Flag dependence (reported, not part of the bar): baseline and final on the easy suite with the
+  bots' current flags (`--chrome-mode bots-noa11y`, no accessibility flag), 2 reps.
