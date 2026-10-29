@@ -1,0 +1,23 @@
+{"t": 1793294209.5330756, "method": "initialize", "tool": null, "args": null, "ms": 23.5, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793294209.537775, "method": "tools/list", "tool": null, "args": null, "ms": 4.3, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793294218.3424623, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 535.5, "bytes": 157426, "images": 1, "is_error": false}
+{"t": 1793294220.6540985, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Joana Ribeiro"}, "ms": 23.9, "bytes": 657, "images": 0, "is_error": false}
+{"t": 1793294220.679169, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "joana.ribeiro@example.com"}, "ms": 23.5, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793294220.7044313, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(31) 98765-4321"}, "ms": 23.7, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793294220.8098192, "method": "tools/call", "tool": "click", "args": {"element_index": 112}, "ms": 103.8, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793294223.1469676, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 16.4, "bytes": 693, "images": 0, "is_error": false}
+{"t": 1793294223.1635323, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 15.2, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793294223.268435, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 103.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793294223.3567555, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 86.8, "bytes": 866, "images": 0, "is_error": false}
+{"t": 1793294223.3740542, "method": "tools/call", "tool": "press_key", "args": {"key": "tab"}, "ms": 15.4, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793294223.5376, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 162.2, "bytes": 890, "images": 0, "is_error": false}
+{"t": 1793294223.5544565, "method": "tools/call", "tool": "press_key", "args": {"key": "tab"}, "ms": 15.5, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793294223.654423, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 99.0, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793294223.7591736, "method": "tools/call", "tool": "click", "args": {"x": 766, "y": 730}, "ms": 103.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793294223.8637857, "method": "tools/call", "tool": "click", "args": {"x": 682, "y": 773}, "ms": 103.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793294225.4730954, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 292.6, "bytes": 14633, "images": 0, "is_error": false}
+{"t": 1793294227.3499985, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 660}, "ms": 104.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793294227.8787382, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 527.1, "bytes": 158795, "images": 1, "is_error": false}
+{"t": 1793294230.1553397, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 109, "action": "select"}, "ms": 25.3, "bytes": 596, "images": 0, "is_error": false}
+{"t": 1793294230.26108, "method": "tools/call", "tool": "click", "args": {"x": 727, "y": 823}, "ms": 104.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793294230.651256, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 388.6, "bytes": 14879, "images": 0, "is_error": false}

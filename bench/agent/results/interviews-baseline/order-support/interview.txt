@@ -1,0 +1,14 @@
+task=order-support ok=True (ok) wall=62s mcp_calls=38 screenshots=1
+tools: get_app_state click get_app_state click get_app_state set_value set_value click set_value click type_text click type_text click type_text get_app_state press_key type_text press_key type_text press_key type_text get_app_state press_key type_text press_key get_app_state click press_key get_app_state click press_key type_text press_key type_text get_app_state click get_app_state
+
+1. **The accented message slowed me down.** Typing “não” dropped the “ã”; I had to find and copy the word from a Google translation result. I verified the fields before submitting.
+
+2. **Wasted calls:** Three `set_value` calls failed because the fields did not expose the required interface. The `Ctrl+Shift+U` Unicode attempt inserted `00e3` instead of “ã”. I also requested overly broad tool descriptions and an unscoped initial tree.
+
+3. **I relied on the accessibility outline and element indices.** The outline exposed the tracking code, form labels, selected category, field values, and success status; indices made actions straightforward without guessing coordinates. I would drop the initial screenshot for this task: the outline contained what I needed. The outline did not make it clear that the fields could not be set through `set_value`, and typing results did not verify their contents.
+
+4. **A reliable Unicode text-entry tool** would have helped most. It would take an element index and text, replace or append as requested, and return the actual field value after entry.
+
+5. **The typing result was misleading in practice:** it reported successful dispatch for “Pedido não chegou”, but the field contained “Pedido no chegou”. The warning that contents were unverified was accurate, though easy to underestimate.
+
+6. **Response speed was fine; output volume was the main cost.** The initial tool discovery and full desktop tree produced far more text than needed. Scoped outlines and filtered tool descriptions would have been faster to read.

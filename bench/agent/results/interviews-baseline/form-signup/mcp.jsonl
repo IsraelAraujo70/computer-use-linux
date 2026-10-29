@@ -1,0 +1,25 @@
+{"t": 1793291528.3978615, "method": "initialize", "tool": null, "args": null, "ms": 24.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793291528.403956, "method": "tools/list", "tool": null, "args": null, "ms": 5.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793291535.2776077, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 597.0, "bytes": 158006, "images": 1, "is_error": false}
+{"t": 1793291543.0777304, "method": "tools/call", "tool": "set_value", "args": {"name": "Nome completo", "role": "entry", "value": "Joana Ribeiro"}, "ms": 24.5, "bytes": 693, "images": 0, "is_error": false}
+{"t": 1793291543.1062524, "method": "tools/call", "tool": "set_value", "args": {"name": "E-mail", "role": "entry", "value": "joana.ribeiro@example.com"}, "ms": 23.4, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793291543.1344833, "method": "tools/call", "tool": "set_value", "args": {"name": "Telefone", "role": "entry", "value": "(31) 98765-4321"}, "ms": 23.6, "bytes": 687, "images": 0, "is_error": false}
+{"t": 1793291543.3459415, "method": "tools/call", "tool": "click", "args": {"name": "Pro", "role": "radio button"}, "ms": 206.6, "bytes": 835, "images": 0, "is_error": false}
+{"t": 1793291543.5613859, "method": "tools/call", "tool": "click", "args": {"name": "Aceito os termos de uso", "role": "check box"}, "ms": 209.5, "bytes": 869, "images": 0, "is_error": false}
+{"t": 1793291543.7722416, "method": "tools/call", "tool": "click", "args": {"name": "Estado", "role": "combo box"}, "ms": 204.6, "bytes": 835, "images": 0, "is_error": false}
+{"t": 1793291547.0712786, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 609.6, "bytes": 147268, "images": 1, "is_error": false}
+{"t": 1793291551.032269, "method": "tools/call", "tool": "click", "args": {"name": "Minas Gerais", "role": "list item"}, "ms": 208.5, "bytes": 1072, "images": 0, "is_error": false}
+{"t": 1793291551.1187775, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 81.3, "bytes": 1260, "images": 0, "is_error": false}
+{"t": 1793291555.0176637, "method": "tools/call", "tool": "type_text", "args": {"text": "Minas Gerais"}, "ms": 368.0, "bytes": 864, "images": 0, "is_error": false}
+{"t": 1793291555.2092738, "method": "tools/call", "tool": "press_key", "args": {"key": "ENTER"}, "ms": 186.8, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793291555.413168, "method": "tools/call", "tool": "click", "args": {"name": "Nome completo", "role": "entry"}, "ms": 200.0, "bytes": 842, "images": 0, "is_error": false}
+{"t": 1793291555.7765925, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 359.5, "bytes": 866, "images": 0, "is_error": false}
+{"t": 1793291555.9825873, "method": "tools/call", "tool": "click", "args": {"name": "E-mail", "role": "entry"}, "ms": 201.9, "bytes": 828, "images": 0, "is_error": false}
+{"t": 1793291556.4248898, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 438.0, "bytes": 890, "images": 0, "is_error": false}
+{"t": 1793291556.6270263, "method": "tools/call", "tool": "click", "args": {"name": "Telefone", "role": "entry"}, "ms": 198.4, "bytes": 832, "images": 0, "is_error": false}
+{"t": 1793291557.0067167, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 375.9, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793291560.4637716, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 638.7, "bytes": 158947, "images": 1, "is_error": false}
+{"t": 1793291565.3152587, "method": "tools/call", "tool": "perform_action", "args": {"name": "Minas Gerais", "role": "list item", "action": "select"}, "ms": 24.6, "bytes": 636, "images": 0, "is_error": false}
+{"t": 1793291565.9274514, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 606.1, "bytes": 155633, "images": 1, "is_error": false}
+{"t": 1793291570.9560373, "method": "tools/call", "tool": "click", "args": {"name": "Criar conta", "role": "button"}, "ms": 24.3, "bytes": 920, "images": 0, "is_error": false}
+{"t": 1793291571.492775, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 529.0, "bytes": 159963, "images": 1, "is_error": false}

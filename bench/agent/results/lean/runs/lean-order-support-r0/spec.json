@@ -1,0 +1,16 @@
+{
+ "run_id": "lean-order-support-r0",
+ "variant": "lean",
+ "binary": "/tmp/agent-cu-bench/bin/lean/computer-use-linux",
+ "task": "order-support",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "timeout": 360,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_a11y": true
+}

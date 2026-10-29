@@ -1,0 +1,52 @@
+{"t": 1793293449.7955594, "method": "initialize", "tool": null, "args": null, "ms": 25.1, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793293449.7998493, "method": "tools/list", "tool": null, "args": null, "ms": 4.0, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793293454.997109, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 583.9, "bytes": 211967, "images": 1, "is_error": false}
+{"t": 1793293456.9695203, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 24.6, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793293457.078099, "method": "tools/call", "tool": "click", "args": {"x": 1050, "y": 600}, "ms": 105.4, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793293459.6144946, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 579.7, "bytes": 184607, "images": 1, "is_error": false}
+{"t": 1793293461.103783, "method": "tools/call", "tool": "click", "args": {"element_index": 73}, "ms": 24.3, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793293463.6861954, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 541.7, "bytes": 214650, "images": 1, "is_error": false}
+{"t": 1793293465.059345, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista"}, "ms": 56.3, "bytes": 855, "images": 0, "is_error": false}
+{"t": 1793293465.085714, "method": "tools/call", "tool": "click", "args": {"element_index": 137}, "ms": 24.1, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793293467.6118104, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 597.5, "bytes": 235527, "images": 1, "is_error": false}
+{"t": 1793293469.5331073, "method": "tools/call", "tool": "click", "args": {"element_index": 206}, "ms": 25.1, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793293469.5361085, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "18 de novembro de 2026"}, "ms": 1.0, "bytes": 1096, "images": 0, "is_error": false}
+{"t": 1793293469.6416316, "method": "tools/call", "tool": "click", "args": {"x": 760, "y": 700}, "ms": 103.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293469.6721141, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 28.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793293469.7104108, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 36.7, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793293472.62093, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 610.1, "bytes": 212801, "images": 1, "is_error": false}
+{"t": 1793293475.6676476, "method": "tools/call", "tool": "click", "args": {"element_index": 137}, "ms": 25.4, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793293476.2146015, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "name": "18 de novembro de 2026"}, "ms": 545.1, "bytes": 500, "images": 0, "is_error": false}
+{"t": 1793293478.0479083, "method": "tools/call", "tool": "click", "args": {"element_index": 237}, "ms": 24.5, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793293478.0773203, "method": "tools/call", "tool": "set_value", "args": {"role": "combo box", "name": "Hora de in\u00edcio", "value": "14:30"}, "ms": 24.2, "bytes": 690, "images": 0, "is_error": false}
+{"t": 1793293478.1023326, "method": "tools/call", "tool": "set_value", "args": {"role": "combo box", "name": "Hora de t\u00e9rmino", "value": "15:30"}, "ms": 23.2, "bytes": 692, "images": 0, "is_error": false}
+{"t": 1793293479.769091, "method": "tools/call", "tool": "click", "args": {"x": 745, "y": 699}, "ms": 104.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293479.7997031, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 29.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793293479.8371654, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 35.9, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793293479.855182, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab"}, "ms": 15.8, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793293481.629053, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "combo box"}, "ms": 520.2, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793293484.7107792, "method": "tools/call", "tool": "click", "args": {"x": 745, "y": 699}, "ms": 103.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293484.7290502, "method": "tools/call", "tool": "press_key", "args": {"key": "End"}, "ms": 16.3, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793293484.7459414, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.2, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.7628303, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.3, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.779745, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.6, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.796514, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.4, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.813875, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 16.1, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.8317137, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.8, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.8483527, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.5, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.865153, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.4, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.8811808, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 14.9, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.8976648, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.2, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293484.933899, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 35.0, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793293485.0390797, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 699}, "ms": 103.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293485.0557745, "method": "tools/call", "tool": "press_key", "args": {"key": "End"}, "ms": 15.2, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793293485.071738, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 14.9, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293485.0883338, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 15.4, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293485.1044898, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 14.9, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293485.1202476, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 14.8, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293485.1361241, "method": "tools/call", "tool": "press_key", "args": {"key": "Backspace"}, "ms": 14.8, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793293485.1720583, "method": "tools/call", "tool": "type_text", "args": {"text": "15:30"}, "ms": 35.0, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793293485.1885102, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab"}, "ms": 15.2, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793293485.6056223, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "combo box"}, "ms": 415.7, "bytes": 690, "images": 0, "is_error": false}
+{"t": 1793293487.5815313, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Salvar"}, "ms": 24.2, "bytes": 910, "images": 0, "is_error": false}
+{"t": 1793293488.1565979, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "text": "14:30 Dentista", "timeout_ms": 5000}, "ms": 573.8, "bytes": 560, "images": 0, "is_error": false}

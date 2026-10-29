@@ -1,0 +1,16 @@
+{"t": 1793294253.15399, "method": "initialize", "tool": null, "args": null, "ms": 26.0, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793294253.1596062, "method": "tools/list", "tool": null, "args": null, "ms": 5.2, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793294262.025792, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 531.9, "bytes": 172921, "images": 1, "is_error": false}
+{"t": 1793294264.1750526, "method": "tools/call", "tool": "click", "args": {"element_index": 78}, "ms": 104.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793294264.5231802, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 346.3, "bytes": 15655, "images": 0, "is_error": false}
+{"t": 1793294267.019686, "method": "tools/call", "tool": "click", "args": {"element_index": 75}, "ms": 103.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793294267.4440508, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 422.8, "bytes": 17857, "images": 0, "is_error": false}
+{"t": 1793294268.8165267, "method": "tools/call", "tool": "click", "args": {"element_index": 102}, "ms": 24.7, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793294269.2144315, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 395.9, "bytes": 18098, "images": 0, "is_error": false}
+{"t": 1793294271.003908, "method": "tools/call", "tool": "click", "args": {"element_index": 107}, "ms": 104.0, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793294271.3941832, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 388.7, "bytes": 18178, "images": 0, "is_error": false}
+{"t": 1793294273.136101, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 103.5, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793294273.2412558, "method": "tools/call", "tool": "click", "args": {"name": "Notifica\u00e7\u00f5es no navegador", "role": "check box"}, "ms": 103.5, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793294273.6024795, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 359.7, "bytes": 18123, "images": 0, "is_error": false}
+{"t": 1793294275.1794424, "method": "tools/call", "tool": "click", "args": {"element_index": 88}, "ms": 23.9, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793294275.5542502, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Configura\u00e7\u00f5es", "role": "dialog", "condition": "disappears", "timeout_ms": 5000}, "ms": 372.8, "bytes": 340, "images": 0, "is_error": false}

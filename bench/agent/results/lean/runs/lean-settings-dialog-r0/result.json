@@ -1,0 +1,57 @@
+{
+ "run_id": "lean-settings-dialog-r0",
+ "variant": "lean",
+ "task": "settings-dialog",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 27.88,
+ "agent_tool_calls": 19,
+ "agent_tool_errors": 0,
+ "mcp_calls": 19,
+ "mcp_ms_total": 4311.0,
+ "mcp_bytes_total": 439736,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "wait_for",
+  "click",
+  "wait_for",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "get_app_state",
+  "get_app_state",
+  "click",
+  "press_key",
+  "press_key",
+  "get_app_state",
+  "click",
+  "wait_for"
+ ],
+ "tools_list_bytes": 47480,
+ "tokens": {
+  "input": 376293,
+  "cached": 334592,
+  "output": 775
+ },
+ "final": "Salvei a frequência semanal e ativei as notificações no navegador.",
+ "state": {
+  "saved": {
+   "language": "pt-BR",
+   "display_name": "Israel",
+   "email_digest": true,
+   "frequency": "weekly",
+   "browser_notifications": true
+  }
+ }
+}

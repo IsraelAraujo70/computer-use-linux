@@ -1,0 +1,23 @@
+{"t": 1793293405.4272668, "method": "initialize", "tool": null, "args": null, "ms": 25.7, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793293405.4327943, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793293413.4811113, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 688.2, "bytes": 547189, "images": 1, "is_error": false}
+{"t": 1793293418.628467, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 104.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793293418.7119927, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 80.9, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793293418.7287135, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 15.2, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793293421.376676, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 505.8, "bytes": 53477, "images": 0, "is_error": false}
+{"t": 1793293423.362923, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 105.4, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793293423.4679615, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 103.5, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793293423.5740423, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 104.3, "bytes": 837, "images": 0, "is_error": false}
+{"t": 1793293426.156725, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 567.7, "bytes": 54392, "images": 0, "is_error": false}
+{"t": 1793293428.916183, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 104.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793293428.9414232, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 23.7, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793293429.0089226, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 65.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793293431.6460986, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 684.8, "bytes": 53850, "images": 0, "is_error": false}
+{"t": 1793293433.7619574, "method": "tools/call", "tool": "click", "args": {"element_index": 259}, "ms": 104.5, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793293433.8279378, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 1, "x": 1000, "y": 800}, "ms": 64.5, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793293437.7655609, "method": "tools/call", "tool": "click", "args": {"name": "Selecionar: Sua fatura de outubro chegou", "role": "check box"}, "ms": 104.3, "bytes": 904, "images": 0, "is_error": false}
+{"t": 1793293437.8707778, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 103.7, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793293438.3825982, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 510.2, "bytes": 54942, "images": 0, "is_error": false}
+{"t": 1793293442.9846985, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 103.7, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793293443.0097072, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 23.5, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793293443.5229535, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 511.5, "bytes": 54308, "images": 0, "is_error": false}

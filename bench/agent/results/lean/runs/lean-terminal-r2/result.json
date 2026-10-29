@@ -1,0 +1,33 @@
+{
+ "run_id": "lean-terminal-r2",
+ "variant": "lean",
+ "task": "terminal",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 15.2,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1052.2,
+ "mcp_bytes_total": 157744,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "type_text",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 47480,
+ "tokens": {
+  "input": 176931,
+  "cached": 139648,
+  "output": 302
+ },
+ "final": "Created `/tmp/agent-cu-bench/term/nota.txt` with the requested content.",
+ "state": {}
+}

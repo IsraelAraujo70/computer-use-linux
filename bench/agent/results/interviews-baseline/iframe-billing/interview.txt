@@ -1,0 +1,9 @@
+task=iframe-billing ok=True (ok) wall=27s mcp_calls=24 screenshots=3
+tools: get_app_state set_value set_value set_value set_value click list_windows click type_text click type_text click type_text click type_text click press_key press_key press_key get_app_state click type_text click get_app_state
+
+1. I had to guess how to select MG and whether typing had reached the iframe fields. The first CEP entry did not stick; I discovered that in the next screenshot.
+2. The four `set_value` calls failed because the fields did not expose the required interfaces. Clicking the MG menu item by index also did not select it. I made both attempts based on the accessibility outline.
+3. I relied on the outline to identify fields and verify their values, and on screenshots to see the form and confirm the selected state. Coordinates and keyboard input completed the form. I would drop the failed index-based selection and `set_value` attempts. The outline showed controls but did not make clear that those actions would fail; screenshots did not provide directly actionable elements.
+4. A form-filling tool accepting field labels and values, including select options, that fills them and returns the actual values read back plus any failures.
+5. The typing results warned that focus was on a non-editable section, although street, number, and city were entered successfully. The outline also advertised a select action for MG, but clicking its index did not select it.
+6. Responses were quick, but the initial tool discovery returned a large truncated description, and the full accessibility outlines contained much unrelated browser chrome.

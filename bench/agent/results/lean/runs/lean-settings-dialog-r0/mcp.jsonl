@@ -1,0 +1,21 @@
+{"t": 1793293119.6466477, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793293119.6523058, "method": "tools/list", "tool": null, "args": null, "ms": 5.1, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793293125.2244976, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 460.8, "bytes": 172921, "images": 1, "is_error": false}
+{"t": 1793293126.9053721, "method": "tools/call", "tool": "click", "args": {"element_index": 78}, "ms": 104.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793293127.2453399, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Configura\u00e7\u00f5es", "condition": "appears"}, "ms": 338.4, "bytes": 939, "images": 0, "is_error": false}
+{"t": 1793293130.8307028, "method": "tools/call", "tool": "click", "args": {"element_index": 75}, "ms": 103.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793293131.2050893, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Notifica\u00e7\u00f5es", "condition": "appears"}, "ms": 372.2, "bytes": 639, "images": 0, "is_error": false}
+{"t": 1793293131.5898716, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 383.4, "bytes": 17857, "images": 0, "is_error": false}
+{"t": 1793293132.9685998, "method": "tools/call", "tool": "click", "args": {"element_index": 102}, "ms": 25.2, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793293133.3974962, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 426.8, "bytes": 18098, "images": 0, "is_error": false}
+{"t": 1793293135.5127656, "method": "tools/call", "tool": "click", "args": {"element_index": 107}, "ms": 103.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793293135.6191828, "method": "tools/call", "tool": "click", "args": {"name": "Semanal", "role": "menu item"}, "ms": 104.8, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793293135.726068, "method": "tools/call", "tool": "click", "args": {"name": "Notifica\u00e7\u00f5es no navegador", "role": "check box"}, "ms": 104.6, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793293136.1551113, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 427.3, "bytes": 18123, "images": 0, "is_error": false}
+{"t": 1793293138.2327142, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 422.4, "bytes": 184511, "images": 1, "is_error": false}
+{"t": 1793293140.375406, "method": "tools/call", "tool": "click", "args": {"name": "Frequ\u00eancia", "role": "combo box"}, "ms": 104.9, "bytes": 846, "images": 0, "is_error": false}
+{"t": 1793293140.3932042, "method": "tools/call", "tool": "press_key", "args": {"key": "Down", "app_name_or_bundle_identifier": "chrome"}, "ms": 16.3, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793293140.4109674, "method": "tools/call", "tool": "press_key", "args": {"key": "Return", "app_name_or_bundle_identifier": "chrome"}, "ms": 16.2, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793293140.890679, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 478.3, "bytes": 18127, "images": 0, "is_error": false}
+{"t": 1793293142.3876631, "method": "tools/call", "tool": "click", "args": {"name": "Salvar", "role": "button"}, "ms": 24.0, "bytes": 910, "images": 0, "is_error": false}
+{"t": 1793293142.6825728, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Configura\u00e7\u00f5es", "role": "dialog", "condition": "disappears"}, "ms": 293.6, "bytes": 340, "images": 0, "is_error": false}

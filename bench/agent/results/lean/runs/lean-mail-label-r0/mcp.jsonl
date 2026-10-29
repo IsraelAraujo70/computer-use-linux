@@ -1,0 +1,23 @@
+{"t": 1793292859.2603621, "method": "initialize", "tool": null, "args": null, "ms": 24.2, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793292859.2651875, "method": "tools/list", "tool": null, "args": null, "ms": 4.5, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793292866.5302918, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 748.7, "bytes": 547189, "images": 1, "is_error": false}
+{"t": 1793292869.5442493, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 103.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793292869.566213, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora", "app_id": "chrome"}, "ms": 20.4, "bytes": 847, "images": 0, "is_error": false}
+{"t": 1793292871.003322, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 81.9, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793292871.6257713, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 620.5, "bytes": 53477, "images": 0, "is_error": false}
+{"t": 1793292875.5299711, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 15.7, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793292876.1855266, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 654.3, "bytes": 53477, "images": 0, "is_error": false}
+{"t": 1793292878.6726434, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 104.2, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793292878.7780113, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 103.6, "bytes": 1032, "images": 0, "is_error": false}
+{"t": 1793292878.8839478, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 104.3, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793292879.41053, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 524.8, "bytes": 54392, "images": 0, "is_error": false}
+{"t": 1793292881.3650916, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 103.7, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793292881.431089, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 64.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793292882.1081607, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 675.5, "bytes": 54254, "images": 0, "is_error": false}
+{"t": 1793292883.8487723, "method": "tools/call", "tool": "click", "args": {"name": "Selecionar: Comprovante de transfer\u00eancia", "role": "check box"}, "ms": 104.0, "bytes": 906, "images": 0, "is_error": false}
+{"t": 1793292884.4196565, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 569.2, "bytes": 54246, "images": 0, "is_error": false}
+{"t": 1793292886.8729513, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 3, "x": 1000, "y": 500}, "ms": 186.7, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793292887.4127555, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 537.9, "bytes": 54418, "images": 0, "is_error": false}
+{"t": 1793292889.0708866, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 104.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793292889.0965261, "method": "tools/call", "tool": "click", "args": {"element_index": 126}, "ms": 23.8, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793292889.6632268, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 564.5, "bytes": 54308, "images": 0, "is_error": false}

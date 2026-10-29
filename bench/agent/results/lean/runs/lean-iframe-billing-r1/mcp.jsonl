@@ -1,0 +1,25 @@
+{"t": 1793293679.2998223, "method": "initialize", "tool": null, "args": null, "ms": 24.8, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793293679.304261, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793293686.2302213, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 578.0, "bytes": 186114, "images": 1, "is_error": false}
+{"t": 1793293688.480717, "method": "tools/call", "tool": "set_value", "args": {"element_index": 117, "value": "30130-010"}, "ms": 24.2, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793293688.5060349, "method": "tools/call", "tool": "set_value", "args": {"element_index": 119, "value": "Avenida Afonso Pena"}, "ms": 23.2, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793293688.531251, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "1500"}, "ms": 23.7, "bytes": 641, "images": 0, "is_error": false}
+{"t": 1793293688.5564628, "method": "tools/call", "tool": "set_value", "args": {"element_index": 123, "value": "Belo Horizonte"}, "ms": 23.4, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793293688.661749, "method": "tools/call", "tool": "click", "args": {"element_index": 154}, "ms": 103.3, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793293691.3266335, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 104.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793293691.3898497, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010"}, "ms": 61.5, "bytes": 857, "images": 0, "is_error": false}
+{"t": 1793293691.4950225, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 535}, "ms": 103.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293691.6229918, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena"}, "ms": 126.1, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793293691.7281067, "method": "tools/call", "tool": "click", "args": {"x": 420, "y": 624}, "ms": 103.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293691.7591572, "method": "tools/call", "tool": "type_text", "args": {"text": "1500"}, "ms": 29.5, "bytes": 848, "images": 0, "is_error": false}
+{"t": 1793293691.864677, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 624}, "ms": 103.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293691.9606762, "method": "tools/call", "tool": "type_text", "args": {"text": "Belo Horizonte"}, "ms": 93.9, "bytes": 868, "images": 0, "is_error": false}
+{"t": 1793293692.06581, "method": "tools/call", "tool": "click", "args": {"x": 1050, "y": 624}, "ms": 103.5, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793293692.0830748, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 15.5, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793293692.0994358, "method": "tools/call", "tool": "press_key", "args": {"key": "g"}, "ms": 15.1, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793293692.1162696, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 15.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793293692.5146923, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 397.2, "bytes": 21161, "images": 0, "is_error": false}
+{"t": 1793293694.3443131, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 104.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293694.4070792, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010"}, "ms": 60.9, "bytes": 858, "images": 0, "is_error": false}
+{"t": 1793293694.5118222, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 685}, "ms": 103.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293694.9545665, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 441.0, "bytes": 187553, "images": 1, "is_error": false}

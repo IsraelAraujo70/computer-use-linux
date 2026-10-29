@@ -1,0 +1,47 @@
+{"t": 1793293495.792232, "method": "initialize", "tool": null, "args": null, "ms": 23.1, "bytes": 1394, "images": 0, "is_error": false}
+{"t": 1793293495.7969584, "method": "tools/list", "tool": null, "args": null, "ms": 4.4, "bytes": 47480, "images": 0, "is_error": false}
+{"t": 1793293502.9587517, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 656.3, "bytes": 157426, "images": 1, "is_error": false}
+{"t": 1793293505.57608, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Joana Ribeiro"}, "ms": 24.4, "bytes": 657, "images": 0, "is_error": false}
+{"t": 1793293505.6009958, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "joana.ribeiro@example.com"}, "ms": 23.2, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793293505.6255147, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(31) 98765-4321"}, "ms": 23.2, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793293505.7305758, "method": "tools/call", "tool": "click", "args": {"element_index": 112}, "ms": 103.5, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793293507.685293, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 497.7, "bytes": 147028, "images": 1, "is_error": false}
+{"t": 1793293510.870745, "method": "tools/call", "tool": "click", "args": {"element_index": 109}, "ms": 104.5, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793293510.9769552, "method": "tools/call", "tool": "click", "args": {"element_index": 72}, "ms": 104.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793293511.0676472, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 88.6, "bytes": 866, "images": 0, "is_error": false}
+{"t": 1793293511.1732764, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 103.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293511.3411324, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 166.0, "bytes": 890, "images": 0, "is_error": false}
+{"t": 1793293511.446569, "method": "tools/call", "tool": "click", "args": {"element_index": 76}, "ms": 103.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293511.5498161, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 101.3, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793293511.6567454, "method": "tools/call", "tool": "click", "args": {"element_index": 90}, "ms": 105.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293511.762105, "method": "tools/call", "tool": "click", "args": {"element_index": 78}, "ms": 103.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293513.9997, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 434.8, "bytes": 14589, "images": 0, "is_error": false}
+{"t": 1793293516.2458856, "method": "tools/call", "tool": "click", "args": {"element_index": 86}, "ms": 103.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293516.3285022, "method": "tools/call", "tool": "type_text", "args": {"text": "Minas Gerais"}, "ms": 81.2, "bytes": 864, "images": 0, "is_error": false}
+{"t": 1793293517.9830172, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 15.9, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793293518.087818, "method": "tools/call", "tool": "click", "args": {"role": "radio button", "name": "Pro"}, "ms": 103.4, "bytes": 836, "images": 0, "is_error": false}
+{"t": 1793293518.40007, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 310.9, "bytes": 14593, "images": 0, "is_error": false}
+{"t": 1793293521.7346663, "method": "tools/call", "tool": "click", "args": {"x": 765, "y": 730}, "ms": 103.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293521.840468, "method": "tools/call", "tool": "click", "args": {"element_index": 86}, "ms": 104.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293521.8575857, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 15.5, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793293521.874585, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 15.7, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793293521.891104, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 15.5, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793293521.9079885, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 15.8, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793293521.9250083, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 15.9, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793293522.2742617, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 347.2, "bytes": 14617, "images": 0, "is_error": false}
+{"t": 1793293524.4175134, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 659}, "ms": 104.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293524.5445342, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 900, "y": 850}, "ms": 125.3, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793293524.989005, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 442.9, "bytes": 161981, "images": 1, "is_error": false}
+{"t": 1793293528.7100177, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 1, "x": 900, "y": 800}, "ms": 64.9, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793293529.2186773, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 506.9, "bytes": 163543, "images": 1, "is_error": false}
+{"t": 1793293531.6584573, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 0.3, "x": 900, "y": 800}, "ms": 28.0, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793293532.1816034, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 521.9, "bytes": 161793, "images": 1, "is_error": false}
+{"t": 1793293536.108695, "method": "tools/call", "tool": "click", "args": {"x": 735, "y": 853}, "ms": 105.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293536.2139976, "method": "tools/call", "tool": "click", "args": {"x": 725, "y": 823}, "ms": 103.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293536.7194216, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 503.8, "bytes": 158671, "images": 1, "is_error": false}
+{"t": 1793293540.4898329, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 659}, "ms": 104.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293541.0209033, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 529.4, "bytes": 161983, "images": 1, "is_error": false}
+{"t": 1793293544.2574928, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 782}, "ms": 104.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793293544.6137757, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false}, "ms": 354.9, "bytes": 14879, "images": 0, "is_error": false}
+{"t": 1793293547.1718154, "method": "tools/call", "tool": "click", "args": {"element_index": 93}, "ms": 24.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793293547.5515182, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Conta criada", "condition": "appears"}, "ms": 377.7, "bytes": 558, "images": 0, "is_error": false}

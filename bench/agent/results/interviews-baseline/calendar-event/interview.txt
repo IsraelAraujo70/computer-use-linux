@@ -1,0 +1,14 @@
+task=calendar-event ok=True (ok) wall=86s mcp_calls=26 screenshots=5
+tools: get_app_state click get_app_state click get_app_state click get_app_state set_value click get_app_state click get_app_state click click list_windows type_text click get_app_state click get_app_state press_key type_text press_key get_app_state click get_app_state
+
+1. The date and time controls took the most effort. I guessed that clicking the calendar cell would create an event, but it did nothing. Setting the title through accessibility also appeared not to stick, so I typed it instead.
+
+2. The click on November 18’s calendar cell was wasted. So was the click on the off-screen 14:30 list item. I also fetched several full outlines when I only needed the dialog controls.
+
+3. I relied mainly on the accessibility outline and element indices to navigate and verify the result. Screenshots helped me understand the date picker and time dropdown, but I could have used fewer. The outline exposed off-screen options without making their visibility obvious; screenshots showed the layout but not all control names or values.
+
+4. A **set form field** tool would help most: given a field index or role/name and a value, it would enter the value as a user would, trigger the app’s change handling, and return the verified displayed value.
+
+5. The off-screen click returned `ok: true` even though its warning said the input landed on no visible pixel. The title’s `set_value` call also did not leave a visible value, which made its outcome unclear.
+
+6. Individual calls were fast, but full accessibility outlines were long and repetitive. Filtered dialog and field output would have reduced reading time.

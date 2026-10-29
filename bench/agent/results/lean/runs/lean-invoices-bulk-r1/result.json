@@ -1,0 +1,52 @@
+{
+ "run_id": "lean-invoices-bulk-r1",
+ "variant": "lean",
+ "task": "invoices-bulk",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 37.35,
+ "agent_tool_calls": 16,
+ "agent_tool_errors": 0,
+ "mcp_calls": 16,
+ "mcp_ms_total": 5667.9,
+ "mcp_bytes_total": 436321,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "scroll",
+  "scroll",
+  "click",
+  "find_elements",
+  "click",
+  "find_elements",
+  "scroll",
+  "find_elements",
+  "click",
+  "get_app_state",
+  "click",
+  "wait_for"
+ ],
+ "tools_list_bytes": 47480,
+ "tokens": {
+  "input": 505466,
+  "cached": 451328,
+  "output": 636
+ },
+ "final": "Archived the three overdue invoices for Acme Ltda.",
+ "state": {
+  "archived": [
+   "NF-1003",
+   "NF-1016",
+   "NF-1028"
+  ]
+ }
+}

@@ -1,0 +1,67 @@
+{
+ "run_id": "lean-calendar-event-r0",
+ "variant": "lean",
+ "task": "calendar-event",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 46.54,
+ "agent_tool_calls": 28,
+ "agent_tool_errors": 0,
+ "mcp_calls": 28,
+ "mcp_ms_total": 6464.5,
+ "mcp_bytes_total": 1537724,
+ "screenshots": 7,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "type_text",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "get_app_state",
+  "click",
+  "find_elements",
+  "click",
+  "set_value",
+  "set_value",
+  "get_app_state",
+  "click",
+  "press_key",
+  "type_text",
+  "click",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "click",
+  "find_elements"
+ ],
+ "tools_list_bytes": 47480,
+ "tokens": {
+  "input": 623267,
+  "cached": 529920,
+  "output": 956
+ },
+ "final": "Criei o evento “Dentista” em 18 de novembro de 2026, às 14h30.",
+ "state": {
+  "events": [
+   {
+    "title": "Dentista",
+    "date": "2026-11-18",
+    "start": "14:30",
+    "end": "15:30"
+   }
+  ]
+ }
+}
