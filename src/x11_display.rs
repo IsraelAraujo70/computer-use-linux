@@ -10,8 +10,7 @@
 //! `GetImage` returns device pixels, the same space xdotool/XTEST and these
 //! window origins use, with no toolkit scaling layer (issue #155).
 //!
-//! Callers must gate on [`is_native_x11_session`] first, so XWayland under a
-//! Wayland compositor is never used.
+//! Callers must gate on [`is_native_x11_session`] first.
 
 use anyhow::{anyhow, bail, Context, Result};
 use std::{
@@ -22,9 +21,7 @@ use std::{
     time::{Duration, Instant},
 };
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{
-    AtomEnum, ConnectionExt as _, ImageFormat, ImageOrder, VisualClass, Window,
-};
+use x11rb::protocol::xproto::{ConnectionExt as _, ImageFormat, ImageOrder, VisualClass, Window};
 use x11rb::{
     reexports::x11rb_protocol::{
         parse_display::{parse_display, ConnectAddress},
@@ -41,9 +38,8 @@ pub(crate) const X11_CAPTURE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// True when this looks like a plain X11 session.
 ///
-/// Requires an X `DISPLAY` and either an explicit `x11` session type or the
-/// absence of a Wayland display, so we never hijack XWayland under a Wayland
-/// compositor (where a native backend should answer instead).
+/// Requires an X `DISPLAY` and either an explicit `x11` session type or, when
+/// the session type is unset, no `WAYLAND_DISPLAY`.
 pub(crate) fn is_native_x11_session() -> bool {
     if env_nonempty("DISPLAY").is_none() {
         return false;
@@ -226,15 +222,6 @@ pub(crate) struct RootImage {
     pub rgb: Vec<u8>,
 }
 
-/// `_NET_FRAME_EXTENTS`: decoration widths the WM adds around the client area.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct FrameExtents {
-    pub left: u32,
-    pub right: u32,
-    pub top: u32,
-    pub bottom: u32,
-}
-
 impl X11Display {
     /// Connect to the display named by `DISPLAY`, authenticating with
     /// `XAUTHORITY` or `~/.Xauthority` the same way Xlib clients do.
@@ -310,6 +297,15 @@ impl X11Display {
         )
     }
 
+    /// Root window size in pixels: the space of screenshots and XTEST input.
+    pub(crate) fn root_size(&self) -> (u32, u32) {
+        let screen = &self.conn.setup().roots[self.screen];
+        (
+            u32::from(screen.width_in_pixels),
+            u32::from(screen.height_in_pixels),
+        )
+    }
+
     /// Capture the whole root window with one `GetImage` request.
     pub(crate) fn capture_root(&self) -> Result<RootImage> {
         let setup = self.conn.setup();
@@ -379,53 +375,6 @@ impl X11Display {
             })
             .collect()
     }
-
-    /// The WM's `_NET_FRAME_EXTENTS` for `window`, or `None` when the WM does
-    /// not publish it.
-    pub(crate) fn frame_extents(&self, window: Window) -> Result<Option<FrameExtents>> {
-        let atom = self
-            .conn
-            .intern_atom(true, b"_NET_FRAME_EXTENTS")?
-            .reply()
-            .context("failed to intern _NET_FRAME_EXTENTS")?
-            .atom;
-        if atom == x11rb::NONE {
-            return Ok(None);
-        }
-        let reply = self
-            .conn
-            .get_property(false, window, atom, AtomEnum::CARDINAL, 0, 4)?
-            .reply()
-            .context("failed to read _NET_FRAME_EXTENTS")?;
-        Ok(parse_frame_extents(
-            reply.value32().map(|values| values.collect::<Vec<_>>()),
-        ))
-    }
-}
-
-fn parse_frame_extents(values: Option<Vec<u32>>) -> Option<FrameExtents> {
-    match values.as_deref() {
-        Some(&[left, right, top, bottom]) => Some(FrameExtents {
-            left,
-            right,
-            top,
-            bottom,
-        }),
-        _ => None,
-    }
-}
-
-/// Frame (outer) origin from a client origin and the WM's extents. With the
-/// default NorthWest gravity this is the point `wmctrl -e 0,x,y,...` places.
-pub(crate) fn frame_origin(client_origin: (i32, i32), extents: FrameExtents) -> (i32, i32) {
-    (
-        client_origin
-            .0
-            .saturating_sub(i32::try_from(extents.left).unwrap_or(i32::MAX)),
-        client_origin
-            .1
-            .saturating_sub(i32::try_from(extents.top).unwrap_or(i32::MAX)),
-    )
 }
 
 /// How the server packs one ZPixmap scanline, from the connection setup and
@@ -511,7 +460,7 @@ mod tests {
             env::set_var("DISPLAY", format!("127.0.0.1:{}", port - 6000));
             env::set_var("XAUTHORITY", "/dev/null");
             let server = std::thread::spawn(move || {
-                for index in 0..6 {
+                for index in 0..5 {
                     let (mut peer, _) = listener.accept().unwrap();
                     let mut header = [0; 12];
                     peer.read_exact(&mut header).unwrap();
@@ -559,15 +508,8 @@ mod tests {
                             .is_err()
                     );
                 }
-                // All reply consumers share the deadline, including geometry,
+                // All reply consumers share the deadline, including the
                 // screenshot and the pipelined per-window origin queries.
-                assert!(
-                    with_x11_display(Duration::from_millis(70), |display| display
-                        .frame_extents(1))
-                    .await
-                    .unwrap()
-                    .is_err()
-                );
                 assert!(
                     with_x11_display(Duration::from_millis(70), |display| display.capture_root())
                         .await
@@ -726,39 +668,5 @@ mod tests {
             ..BGRX
         };
         assert!(zpixmap_to_rgb(&[0; 4], 1, 1, &one_bit).is_err());
-    }
-
-    #[test]
-    fn frame_extents_need_exactly_four_cardinals() {
-        assert_eq!(
-            parse_frame_extents(Some(vec![1, 1, 22, 5])),
-            Some(FrameExtents {
-                left: 1,
-                right: 1,
-                top: 22,
-                bottom: 5
-            })
-        );
-        assert_eq!(parse_frame_extents(None), None);
-        assert_eq!(parse_frame_extents(Some(vec![1, 1, 22])), None);
-        assert_eq!(parse_frame_extents(Some(vec![])), None);
-    }
-
-    #[test]
-    fn frame_origin_subtracts_left_and_top_extents() {
-        // openbox measurement: client at 301,222 with extents 1,1,22,5 was
-        // placed by `wmctrl -e 0,300,200,...`.
-        let extents = FrameExtents {
-            left: 1,
-            right: 1,
-            top: 22,
-            bottom: 5,
-        };
-        assert_eq!(frame_origin((301, 222), extents), (300, 200));
-        assert_eq!(
-            frame_origin((0, 0), FrameExtents::default()),
-            (0, 0),
-            "an undecorated window's frame is its client area"
-        );
     }
 }

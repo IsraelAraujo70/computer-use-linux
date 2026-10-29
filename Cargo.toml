@@ -4,25 +4,17 @@ version = "0.7.17"
 edition = "2021"
 authors = ["Avi Fenesh <avifenesh@users.noreply.github.com>"]
 license = "MIT"
-description = "Linux desktop control over MCP — AT-SPI accessibility tree, multi-compositor window targeting (GNOME, KWin, Hyprland, i3, COSMIC), screencast portal screenshots, and ydotool input synthesis. Wayland-first, X11 best-effort."
+description = "Desktop control over MCP for a virtual X11 display (Xvfb + i3): AT-SPI accessibility tree, i3/EWMH window targeting, X11 screenshots, and xdotool input."
 homepage = "https://github.com/agent-sh/computer-use-linux"
 repository = "https://github.com/agent-sh/computer-use-linux"
 documentation = "https://github.com/agent-sh/computer-use-linux#readme"
 readme = "README.md"
-keywords = ["mcp", "computer-use", "accessibility", "gnome", "wayland"]
+keywords = ["mcp", "computer-use", "accessibility", "x11", "i3"]
 categories = ["accessibility", "command-line-utilities", "os::linux-apis"]
 
 [[bin]]
 name = "computer-use-linux"
 path = "src/main.rs"
-
-[[bin]]
-name = "computer-use-linux-cosmic"
-path = "src/bin/computer-use-linux-cosmic.rs"
-
-[[bin]]
-name = "computer-use-linux-indicator"
-path = "src/bin/computer-use-linux-indicator/main.rs"
 
 [dependencies]
 mimalloc = { version = "0.1", default-features = false }
@@ -36,8 +28,6 @@ anyhow = "1.0.102"
 atspi = { version = "0.29.0", default-features = false, features = ["proxies", "wrappers", "tokio"] }
 atspi-connection = { version = "0.13.0", default-features = false, features = ["wrappers"] }
 base64 = "0.22.1"
-evdev = "0.13.2"
-cosmic-protocols = { version = "0.2.0", default-features = false, features = ["client"] }
 futures-util = "0.3.32"
 getrandom = "0.4.2"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
@@ -47,19 +37,10 @@ schemars = "1.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 sha2 = "0.11.0"
-skrifa = { version = "0.42", default-features = false, features = ["std"] }
-# The indicator overlay: layer-shell surfaces drawn on the CPU into shm buffers.
-smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["calloop"] }
-tiny-skia = { version = "0.12.0", default-features = false, features = ["std", "simd"] }
 tokio = { version = "1.51.1", features = ["io-util", "macros", "net", "process", "rt", "signal", "sync", "time"] }
-wayland-client = "0.31.11"
-wayland-protocols = { version = "0.32.9", features = ["client", "staging"] }
-wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
-# Pure-Rust X11 client (no libxcb). Native X11 sessions only: absolute window
+# Pure-Rust X11 client (no libxcb): root-window screenshots and absolute window
 # origins for the EWMH backend (wmctrl -lG counts the frame offset twice, #157).
 x11rb = "0.14"
-xkbcommon-dl = "0.4.2"
-xkeysym = "0.2.1"
 zbus = "5.14.0"
 
 [profile.dev]

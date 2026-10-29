@@ -55,7 +55,7 @@ pub async fn recognize(
     command.args(["stdin", "stdout", "--psm", "3", "-l", &lang, "tsv"]);
     let output = command_runner::output_with_stdin(command, "run tesseract", OCR_TIMEOUT, png)
         .await
-        .context("tesseract is required for OCR (pacman -S tesseract tesseract-data-eng)")?;
+        .context("tesseract is required for OCR; install tesseract-ocr")?;
     if !output.status.success() {
         bail!(
             "tesseract failed: {}",

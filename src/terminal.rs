@@ -216,7 +216,7 @@ fn process_depth(pid: u32, ancestor_pid: u32, by_pid: &HashMap<u32, &ProcessInfo
 }
 
 fn looks_like_terminal_window(window: &WindowInfo) -> bool {
-    terminal_paste_shortcut(window).is_some()
+    is_known_terminal_identity(window)
         || [window.app_id.as_deref(), window.wm_class.as_deref()]
             .into_iter()
             .flatten()
@@ -227,29 +227,16 @@ fn looks_like_terminal_window(window: &WindowInfo) -> bool {
             .is_some_and(terminal_detection_hint_matches)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TerminalPasteShortcut {
-    CtrlShiftV,
-    ShiftInsert,
-}
-
-pub(crate) fn terminal_paste_shortcut(window: &WindowInfo) -> Option<TerminalPasteShortcut> {
+/// Exact app_id or wm_class match against known terminal emulators.
+fn is_known_terminal_identity(window: &WindowInfo) -> bool {
     [window.app_id.as_deref(), window.wm_class.as_deref()]
         .into_iter()
         .flatten()
-        .find_map(terminal_identity_paste_shortcut)
-}
-
-fn terminal_identity_paste_shortcut(value: &str) -> Option<TerminalPasteShortcut> {
-    let identity = value.trim().to_ascii_lowercase();
-    let identity = identity.strip_suffix(".desktop").unwrap_or(&identity);
-    if SHIFT_INSERT_TERMINAL_IDENTITIES.contains(&identity) {
-        Some(TerminalPasteShortcut::ShiftInsert)
-    } else if CTRL_SHIFT_V_TERMINAL_IDENTITIES.contains(&identity) {
-        Some(TerminalPasteShortcut::CtrlShiftV)
-    } else {
-        None
-    }
+        .any(|value| {
+            let identity = value.trim().to_ascii_lowercase();
+            let identity = identity.strip_suffix(".desktop").unwrap_or(&identity);
+            KNOWN_TERMINAL_IDENTITIES.contains(&identity)
+        })
 }
 
 fn terminal_detection_hint_matches(value: &str) -> bool {
@@ -259,7 +246,7 @@ fn terminal_detection_hint_matches(value: &str) -> bool {
         .any(|needle| value.contains(needle))
 }
 
-const CTRL_SHIFT_V_TERMINAL_IDENTITIES: &[&str] = &[
+const KNOWN_TERMINAL_IDENTITIES: &[&str] = &[
     "alacritty",
     "com.gexperts.tilix",
     "com.mitchellh.ghostty",
@@ -291,9 +278,6 @@ const CTRL_SHIFT_V_TERMINAL_IDENTITIES: &[&str] = &[
     "wezterm-gui",
     "xfce4-terminal",
     "yakuake",
-];
-
-const SHIFT_INSERT_TERMINAL_IDENTITIES: &[&str] = &[
     "koi8rxterm",
     "rxvt",
     "rxvt-unicode",
@@ -404,7 +388,7 @@ fn path_to_string(path: PathBuf) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::windows::{WindowBounds, GNOME_SHELL_EXTENSION_BACKEND};
+    use crate::windows::{WindowBounds, I3_BACKEND};
 
     fn terminal_window(window_id: u64, pid: u32) -> WindowInfo {
         WindowInfo {
@@ -422,8 +406,8 @@ mod tests {
             workspace: Some(0),
             focused: false,
             hidden: false,
-            client_type: Some("wayland".to_string()),
-            backend: GNOME_SHELL_EXTENSION_BACKEND.to_string(),
+            client_type: Some("x11".to_string()),
+            backend: I3_BACKEND.to_string(),
             terminal: None,
         }
     }
@@ -492,12 +476,12 @@ mod tests {
     }
 
     #[test]
-    fn terminal_paste_identity_matching_is_exact() {
+    fn terminal_identity_matching_is_exact() {
         let mut window = terminal_window(11, 100);
         window.app_id = Some("com.example.footnotes".to_string());
         window.wm_class = Some("kitty-helper".to_string());
 
-        assert_eq!(terminal_paste_shortcut(&window), None);
+        assert!(!is_known_terminal_identity(&window));
     }
 
     #[test]
@@ -517,40 +501,33 @@ mod tests {
     }
 
     #[test]
-    fn terminal_paste_maps_common_terminal_identities() {
-        for (identity, expected) in [
-            ("org.kde.konsole", TerminalPasteShortcut::CtrlShiftV),
-            ("org.gnome.Terminal", TerminalPasteShortcut::CtrlShiftV),
-            ("org.gnome.Ptyxis", TerminalPasteShortcut::CtrlShiftV),
-            ("kgx", TerminalPasteShortcut::CtrlShiftV),
-            ("uxterm", TerminalPasteShortcut::ShiftInsert),
-            ("xterm", TerminalPasteShortcut::ShiftInsert),
-            ("xfce4-terminal", TerminalPasteShortcut::CtrlShiftV),
-            (
-                "org.codeberg.dnkl.foot.desktop",
-                TerminalPasteShortcut::CtrlShiftV,
-            ),
+    fn recognizes_common_terminal_identities() {
+        for identity in [
+            "org.kde.konsole",
+            "org.gnome.Terminal",
+            "org.gnome.Ptyxis",
+            "kgx",
+            "uxterm",
+            "xterm",
+            "xfce4-terminal",
+            "org.codeberg.dnkl.foot.desktop",
         ] {
             let mut window = terminal_window(11, 100);
             window.app_id = Some(identity.to_string());
             window.wm_class = None;
-            assert_eq!(
-                terminal_paste_shortcut(&window),
-                Some(expected),
+            assert!(
+                is_known_terminal_identity(&window),
                 "did not recognize {identity}"
             );
         }
     }
 
     #[test]
-    fn terminal_paste_accepts_known_wm_class_but_not_pty_metadata_alone() {
+    fn terminal_identity_accepts_known_wm_class_but_not_pty_metadata_alone() {
         let mut window = terminal_window(11, 100);
         window.app_id = None;
         window.wm_class = Some("qterminal".to_string());
-        assert_eq!(
-            terminal_paste_shortcut(&window),
-            Some(TerminalPasteShortcut::CtrlShiftV)
-        );
+        assert!(is_known_terminal_identity(&window));
 
         window.wm_class = None;
         window.terminal = Some(TerminalWindowContext {
@@ -566,7 +543,7 @@ mod tests {
             confidence: "high".to_string(),
             match_reason: "test".to_string(),
         });
-        assert_eq!(terminal_paste_shortcut(&window), None);
+        assert!(!is_known_terminal_identity(&window));
     }
 
     #[test]
@@ -584,14 +561,11 @@ mod tests {
         enrich_terminal_windows_with_processes(&mut windows, &processes);
 
         assert_eq!(windows[0].terminal.as_ref().unwrap().tty, "/dev/pts/0");
-        assert_eq!(
-            terminal_paste_shortcut(&windows[0]),
-            Some(TerminalPasteShortcut::ShiftInsert)
-        );
+        assert!(is_known_terminal_identity(&windows[0]));
     }
 
     #[test]
-    fn pty_metadata_does_not_imply_a_terminal_paste_capability() {
+    fn pty_metadata_does_not_imply_a_known_terminal_identity() {
         let mut window = terminal_window(11, 100);
         window.title = Some("xterm integration test".to_string());
         window.app_id = Some("example-ide".to_string());
@@ -605,7 +579,7 @@ mod tests {
         enrich_terminal_windows_with_processes(&mut windows, &processes);
 
         assert!(windows[0].terminal.is_some());
-        assert_eq!(terminal_paste_shortcut(&windows[0]), None);
+        assert!(!is_known_terminal_identity(&windows[0]));
     }
 
     #[test]

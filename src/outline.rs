@@ -41,8 +41,8 @@ pub enum TreeFormat {
 
 /// Renders nodes as indented lines, one per element, in snapshot order.
 ///
-/// With a `viewport` (the window size; AT-SPI extents on Wayland are
-/// window-relative), elements whose bounds lie wholly outside it, such as
+/// With a `viewport` (the window size), elements whose bounds lie wholly
+/// outside `0..width` by `0..height`, such as
 /// content scrolled away, are left out and counted in a closing line.
 pub fn render_outline(nodes: &[AccessibilityNode], viewport: Option<(u32, u32)>) -> String {
     let mut out = String::new();

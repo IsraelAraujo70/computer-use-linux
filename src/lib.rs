@@ -1,19 +1,11 @@
-mod abs_pointer;
-mod accessibility_guard;
 #[path = "atspi_tree.rs"]
 mod atspi_tree_impl;
 mod cli;
 mod command_runner;
-mod cosmic_helper;
 #[path = "diagnostics.rs"]
 mod diagnostics_impl;
-mod gnome_extension;
-mod identity;
-pub mod indicator;
-mod keyboard_keymap;
 mod ocr;
 mod outline;
-mod remote_desktop;
 #[path = "screenshot.rs"]
 mod screenshot_impl;
 mod server;
@@ -21,14 +13,13 @@ mod terminal;
 mod windowing;
 mod windows;
 mod x11_display;
-mod ydotool;
 
 pub mod atspi_tree {
     pub(crate) use crate::atspi_tree_impl::{
-        accessibility_chrome_context, focused_element_summary_in_app, list_accessible_apps,
-        object_ref_owner_pid, perform_action, perform_named_action, probe_focused_element,
-        set_element_value, snapshot_accessibility_tree, snapshot_limits, AccessibleAppSummary,
-        FocusProbe, FocusedElementSummary, ValueSetInvocation, UNKNOWN_ROLE,
+        accessibility_chrome_context, list_accessible_apps, object_ref_owner_pid, perform_action,
+        perform_named_action, probe_focused_element, set_element_value,
+        snapshot_accessibility_tree, snapshot_limits, AccessibleAppSummary, FocusProbe,
+        FocusedElementSummary, ValueSetInvocation,
     };
     pub use crate::atspi_tree_impl::{
         snapshot_tree, AccessibilityAction, AccessibilityNode, AccessibilityText,
@@ -38,12 +29,8 @@ pub mod atspi_tree {
 
 pub mod diagnostics {
     pub use crate::diagnostics_impl::{
-        doctor_report, hydrate_session_bus_env, AccessibilityReport, CapabilityMap, Check,
-        DoctorReport, InputReport, PlatformReport, PortalReport, PreferredBackends,
-        ReadinessReport, ScreenshotCaptureStatus, WindowingReport,
-    };
-    pub(crate) use crate::diagnostics_impl::{
-        setup_accessibility_report, wtype_compatible_wayland_desktop, SetupReport,
+        doctor_report, hydrate_session_bus_env, Check, DoctorReport, ReadinessReport,
+        ScreenshotCaptureStatus,
     };
 }
 

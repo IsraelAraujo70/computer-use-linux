@@ -441,18 +441,6 @@ pub(crate) async fn probe_focused_element(target_pid: Option<u32>) -> Result<Foc
     focused_element_probe(target_pid, target_pid.is_some()).await
 }
 
-/// The focused element in the app that owns `target_pid`, for callers that
-/// only need an answer when one exists. Every non-`Found` probe result maps to
-/// `None`; see [`probe_focused_element`] for the distinctions.
-pub(crate) async fn focused_element_summary_in_app(
-    target_pid: u32,
-) -> Result<Option<FocusedElementSummary>> {
-    Ok(match focused_element_probe(Some(target_pid), true).await? {
-        FocusProbe::Found(summary) => Some(summary),
-        _ => None,
-    })
-}
-
 async fn focused_element_probe(
     target_pid: Option<u32>,
     require_scoped: bool,

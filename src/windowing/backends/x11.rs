@@ -1,11 +1,8 @@
 //! Generic X11 / EWMH window backend.
 //!
-//! Unlike the compositor-specific backends (GNOME Shell, KWin, Hyprland, i3),
-//! this one talks plain [EWMH]/[ICCCM] through `wmctrl` + `xprop`, so it works
-//! on any reasonably standards-compliant X11 window manager that does not have
-//! a dedicated backend — Cinnamon/Muffin, MATE/Marco, Xfce/xfwm4, Openbox, etc.
-//! It is intentionally registered last so a session-native backend always wins
-//! when one is present.
+//! Unlike the i3 backend, this one talks plain [EWMH]/[ICCCM] through
+//! `wmctrl` + `xprop`, so it works on any standards-compliant X11 window
+//! manager. It is registered after i3, so i3 answers first when it runs.
 //!
 //! Window origins come from the X server, not from `wmctrl -lG`, whose x/y
 //! count the client's offset in its parent twice (#157). Width and height
@@ -19,18 +16,16 @@ use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
 use crate::x11_display::{
-    frame_origin, is_native_x11_session as is_x11_session, with_x11_display, X11_QUERY_TIMEOUT,
+    is_native_x11_session as is_x11_session, with_x11_display, X11_QUERY_TIMEOUT,
 };
 use anyhow::{bail, Result};
 use std::env;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use tokio::process::Command as TokioCommand;
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 pub const X11_BACKEND: &str = "x11";
-const GEOMETRY_VERIFY_ATTEMPTS: usize = 11;
-const GEOMETRY_VERIFY_DELAY: Duration = Duration::from_millis(50);
 const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub(crate) fn can_exact_focus() -> bool {
@@ -39,7 +34,7 @@ pub(crate) fn can_exact_focus() -> bool {
 
 pub fn probe() -> BackendProbe {
     if !is_x11_session() {
-        return probe_fail("no X11 session (needs DISPLAY on an X11, not Wayland, session)");
+        return probe_fail("no X display: export DISPLAY=:N and XDG_SESSION_TYPE=x11");
     }
     let mut command = wmctrl();
     command.args(["-l", "-p", "-G", "-x"]);
@@ -58,7 +53,6 @@ pub fn probe() -> BackendProbe {
                 id: X11_BACKEND,
                 ok: true,
                 can_list_windows: true,
-                can_focus_apps: can_focus,
                 can_focus_windows: can_focus,
                 detail: if can_focus {
                     "wmctrl listed X11/EWMH windows".to_string()
@@ -80,7 +74,6 @@ fn probe_fail(detail: &str) -> BackendProbe {
         id: X11_BACKEND,
         ok: false,
         can_list_windows: false,
-        can_focus_apps: false,
         can_focus_windows: false,
         detail: detail.to_string(),
     }
@@ -96,10 +89,9 @@ pub(crate) async fn list_windows_for_exact_focus() -> Result<Vec<WindowInfo>> {
 
 async fn list_windows_with_focus_query(require_focus_query: bool) -> Result<Vec<WindowInfo>> {
     // Guard the session too, not just probe(): registry::list_windows() tries
-    // each backend directly, so without this a Wayland session with no native
-    // backend would fall through here and return XWayland-only windows.
+    // each backend directly.
     if !is_x11_session() {
-        bail!("not an X11 session (needs DISPLAY on an X11, not Wayland, session)");
+        bail!("no X display: export DISPLAY=:N and XDG_SESSION_TYPE=x11");
     }
     let mut command = wmctrl_async();
     command.args(["-l", "-p", "-G", "-x"]);
@@ -151,169 +143,6 @@ pub(crate) fn apply_client_origins(windows: &mut [WindowInfo], origins: &[Option
 pub async fn activate_window(window_id: u64) -> Result<()> {
     let id = window_id_arg(window_id);
     run_wmctrl(&["-i", "-a", id.as_str()], "activate window", window_id).await
-}
-
-pub async fn move_window(window_id: u64, x: i32, y: i32) -> Result<String> {
-    unmaximize(window_id).await?;
-    let id = window_id_arg(window_id);
-    // wmctrl -e is `gravity,x,y,width,height`; the trailing -1,-1 keep the size.
-    // wmctrl also reads -1 in the x/y fields as "preserve current position", so a
-    // literal -1 target would be dropped — nudge it to -2 so the move still lands.
-    let geometry = format!("0,{},{},-1,-1", wmctrl_move_coord(x), wmctrl_move_coord(y));
-    run_wmctrl(
-        &["-i", "-r", id.as_str(), "-e", geometry.as_str()],
-        "move window",
-        window_id,
-    )
-    .await?;
-    let expected = (wmctrl_move_coord(x), wmctrl_move_coord(y));
-    // `-e 0,x,y` uses the window's gravity; the default NorthWest places the
-    // frame's outer corner at x,y, so compare the frame origin, not the client.
-    let (geometry, exact) =
-        wait_for_window_geometry(window_id, |geometry| frame_at_position(geometry, expected))
-            .await?;
-    if exact {
-        Ok(format!("Moved window to ({x}, {y}) via X11/EWMH (wmctrl)."))
-    } else {
-        Ok(format!(
-            "Requested move to ({x}, {y}) via X11/EWMH; the window manager reported frame position {}.",
-            geometry
-                .frame_origin
-                .map_or_else(|| "unknown".to_string(), |(fx, fy)| format!("({fx}, {fy})"))
-        ))
-    }
-}
-
-/// `wmctrl -e` treats -1 in any field as "keep current value", so a literal -1
-/// coordinate is silently ignored. Map it to -2 so the window actually moves
-/// (a 1px difference at the screen edge is harmless).
-fn wmctrl_move_coord(value: i32) -> i32 {
-    if value == -1 {
-        -2
-    } else {
-        value
-    }
-}
-
-pub async fn resize_window(window_id: u64, width: i32, height: i32) -> Result<String> {
-    // wmctrl -e reads -1 (and rejects <= 0) as "preserve current value" per
-    // field, so a non-positive size would silently leave a dimension unchanged
-    // while reporting success. Reject it up front.
-    if width <= 0 || height <= 0 {
-        bail!("resize requires positive width and height (got {width}x{height})");
-    }
-    unmaximize(window_id).await?;
-    let id = window_id_arg(window_id);
-    let geometry = format!("0,-1,-1,{width},{height}");
-    run_wmctrl(
-        &["-i", "-r", id.as_str(), "-e", geometry.as_str()],
-        "resize window",
-        window_id,
-    )
-    .await?;
-    let (geometry, exact) = wait_for_window_geometry(window_id, |geometry| {
-        bounds_at_size(&geometry.bounds, width as u32, height as u32)
-    })
-    .await?;
-    let bounds = geometry.bounds;
-    if exact {
-        Ok(format!(
-            "Resized window to {width}x{height} via X11/EWMH (wmctrl)."
-        ))
-    } else {
-        Ok(format!(
-            "Requested resize to {width}x{height} via X11/EWMH; the window manager reported {}x{}.",
-            bounds.width, bounds.height
-        ))
-    }
-}
-
-/// Client-area bounds plus the frame origin derived from `_NET_FRAME_EXTENTS`.
-#[derive(Debug, Clone)]
-struct X11Geometry {
-    bounds: WindowBounds,
-    frame_origin: Option<(i32, i32)>,
-}
-
-async fn wait_for_window_geometry(
-    window_id: u64,
-    matches: impl Fn(&X11Geometry) -> bool,
-) -> Result<(X11Geometry, bool)> {
-    let mut last_bounds = None;
-    for attempt in 0..GEOMETRY_VERIFY_ATTEMPTS {
-        if let Some(bounds) = query_window_geometry(window_id).await {
-            if matches(&bounds) {
-                return Ok((bounds, true));
-            }
-            last_bounds = Some(bounds);
-        }
-        if attempt + 1 < GEOMETRY_VERIFY_ATTEMPTS {
-            sleep(GEOMETRY_VERIFY_DELAY).await;
-        }
-    }
-    match last_bounds {
-        Some(bounds) => Ok((bounds, false)),
-        None => {
-            bail!("X11/EWMH window 0x{window_id:x} could not be queried after the geometry request")
-        }
-    }
-}
-
-async fn query_window_geometry(window_id: u64) -> Option<X11Geometry> {
-    let mut command = wmctrl_async();
-    command.args(["-l", "-p", "-G", "-x"]);
-    let output = command_runner::output(command, "query X11 window geometry")
-        .await
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let window = parse_wmctrl_windows(&String::from_utf8_lossy(&output.stdout), None)
-        .into_iter()
-        .find(|window| window.window_id == window_id)?;
-    let id = x11_window_id(&window);
-    let mut bounds = window.bounds?;
-    let (client_origin, extents) = with_x11_display(X11_QUERY_TIMEOUT, move |display| {
-        let origin = display.client_origins(&[id]).into_iter().next().flatten();
-        let extents = display.frame_extents(id).ok().flatten();
-        (origin, extents)
-    })
-    .await
-    .unwrap_or((None, None));
-    bounds.x = client_origin.map(|(x, _)| x);
-    bounds.y = client_origin.map(|(_, y)| y);
-    Some(X11Geometry {
-        bounds,
-        // No _NET_FRAME_EXTENTS means no decorations the WM will tell us about;
-        // the frame is then the client area.
-        frame_origin: client_origin.map(|origin| frame_origin(origin, extents.unwrap_or_default())),
-    })
-}
-
-fn frame_at_position(geometry: &X11Geometry, expected: (i32, i32)) -> bool {
-    geometry.frame_origin == Some(expected)
-}
-
-fn bounds_at_size(bounds: &WindowBounds, width: u32, height: u32) -> bool {
-    bounds.width == width && bounds.height == height
-}
-
-/// EWMH move/resize only take effect on unmaximized windows, so drop the
-/// maximized state first (mirrors the GNOME extension backend behaviour).
-async fn unmaximize(window_id: u64) -> Result<()> {
-    let id = window_id_arg(window_id);
-    run_wmctrl(
-        &[
-            "-i",
-            "-r",
-            id.as_str(),
-            "-b",
-            "remove,maximized_vert,maximized_horz",
-        ],
-        "unmaximize window",
-        window_id,
-    )
-    .await
 }
 
 async fn run_wmctrl(args: &[&str], action: &str, window_id: u64) -> Result<()> {
@@ -562,41 +391,6 @@ mod tests {
         assert!(claude.focused);
         assert_eq!(claude.workspace, None);
         assert_eq!(claude.pid, None);
-    }
-
-    #[test]
-    fn move_coord_avoids_wmctrl_preserve_sentinel() {
-        assert_eq!(wmctrl_move_coord(-1), -2);
-        assert_eq!(wmctrl_move_coord(0), 0);
-        assert_eq!(wmctrl_move_coord(-40), -40);
-        assert_eq!(wmctrl_move_coord(1920), 1920);
-    }
-
-    #[test]
-    fn geometry_matchers_require_the_requested_values() {
-        let bounds = WindowBounds {
-            x: Some(10),
-            y: Some(20),
-            width: 800,
-            height: 600,
-        };
-        assert!(bounds_at_size(&bounds, 800, 600));
-        assert!(!bounds_at_size(&bounds, 801, 600));
-
-        let geometry = X11Geometry {
-            bounds,
-            frame_origin: Some((9, -2)),
-        };
-        assert!(frame_at_position(&geometry, (9, -2)));
-        assert!(
-            !frame_at_position(&geometry, (10, 20)),
-            "the client origin is not the requested frame position"
-        );
-        let unknown = X11Geometry {
-            frame_origin: None,
-            ..geometry
-        };
-        assert!(!frame_at_position(&unknown, (9, -2)));
     }
 
     #[test]
