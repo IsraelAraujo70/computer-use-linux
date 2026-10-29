@@ -1265,7 +1265,7 @@ impl ComputerUseLinux {
                 Err(message) => (field.describe(), FieldOutcome::failed(message)),
             };
             ok_count += usize::from(outcome.ok);
-            lines.push(form_field_line(&label, &outcome));
+            lines.push(form_field_line(&label, &outcome, &field.value));
         }
         Json(ActionOutput {
             ok: ok_count == params.fields.len(),
@@ -2061,6 +2061,14 @@ impl ComputerUseLinux {
                 crate::outline::element_label(&node),
                 crate::outline::truncate(&shown, 200)
             ));
+            if crate::fields::compare_read_back(read_back.as_deref(), &params.text)
+                == crate::fields::ReadBack::Formatted
+            {
+                output.message.push_str(&format!(
+                    " That matches the typed text (the field formatted it as \"{}\").",
+                    crate::outline::truncate(&shown, 200)
+                ));
+            }
         } else if focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), true).await;
             output = with_notes(output, notes);
@@ -3144,14 +3152,21 @@ struct FillFormParams {
     fields: Vec<FormField>,
 }
 
-/// One `fill_form` result line: `label: ok value="…"` or `label: FAILED …`.
-fn form_field_line(label: &str, outcome: &FieldOutcome) -> String {
+/// One `fill_form` result line: `label: ok value="…"` (noting a value its
+/// input mask reformatted) or `label: FAILED …`.
+fn form_field_line(label: &str, outcome: &FieldOutcome, requested: &str) -> String {
     let value = outcome
         .value
         .as_deref()
         .map(|value| format!(" value=\"{value}\""))
         .unwrap_or_default();
-    if outcome.ok {
+    let formatted = outcome.value.as_deref().filter(|shown| {
+        crate::fields::compare_read_back(Some(shown), requested)
+            == crate::fields::ReadBack::Formatted
+    });
+    if let (true, Some(shown)) = (outcome.ok, formatted) {
+        format!("{label}: ok value=\"{requested}\" (the field formatted it as \"{shown}\")")
+    } else if outcome.ok {
         format!("{label}: ok{value}")
     } else {
         format!("{label}: FAILED{value} error: {}", outcome.message)
@@ -4439,9 +4454,13 @@ impl ComputerUseLinux {
         requested: &str,
     ) -> FieldOutcome {
         let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+        let formatted = crate::fields::compare_read_back(read_back.as_deref(), requested)
+            == crate::fields::ReadBack::Formatted;
         FieldOutcome {
             ok,
-            message: if ok {
+            message: if ok && formatted {
+                format!("set {label} value=\"{requested}\" (the field formatted it as \"{shown}\")")
+            } else if ok {
                 format!("set {label} value=\"{shown}\"")
             } else {
                 format!("{label} now holds \"{shown}\", not the requested \"{requested}\"")
@@ -8853,7 +8872,7 @@ mod field_entry_tests {
             message: String::new(),
         };
         assert_eq!(
-            form_field_line("[3] entry \"Nome\"", &ok),
+            form_field_line("[3] entry \"Nome\"", &ok, "Joana"),
             "[3] entry \"Nome\": ok value=\"Joana\""
         );
         let failed = FieldOutcome {
@@ -8862,8 +8881,17 @@ mod field_entry_tests {
             message: "could not focus".into(),
         };
         assert_eq!(
-            form_field_line("[4] entry", &failed),
+            form_field_line("[4] entry", &failed, "Joana"),
             "[4] entry: FAILED value=\"\" error: could not focus"
+        );
+        let masked = FieldOutcome {
+            ok: true,
+            value: Some("4111 1111 1111 1111".into()),
+            message: String::new(),
+        };
+        assert_eq!(
+            form_field_line("[5] entry \"Cartão\"", &masked, "4111111111111111"),
+            "[5] entry \"Cartão\": ok value=\"4111111111111111\" (the field formatted it as \"4111 1111 1111 1111\")"
         );
     }
 }

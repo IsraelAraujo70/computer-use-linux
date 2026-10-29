@@ -153,10 +153,95 @@ fn comparable(value: &str) -> String {
     clean(Some(value)).unwrap_or_default().to_lowercase()
 }
 
-/// Whether a field's read-back text is the requested value, ignoring
-/// whitespace runs (and U+FFFC markers) but not case.
+/// How a field's read-back text compares with the value entered into it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReadBack {
+    /// The same text, up to Unicode composition and whitespace runs.
+    Same,
+    /// The same characters once whitespace and `MASK_CHARS` are dropped:
+    /// an input mask formatted the value (`4111 1111 1111 1111`).
+    Formatted,
+    Different,
+}
+
+/// Separators input masks put between digits: card and phone numbers,
+/// dates, times, CEP and CPF. Whitespace counts too.
+const MASK_CHARS: [char; 7] = ['-', '/', '.', '(', ')', '+', ':'];
+
+/// Compares a field's read-back text with the requested value. Case and
+/// accents always count: "nao" is not "não".
+pub(crate) fn compare_read_back(actual: Option<&str>, expected: &str) -> ReadBack {
+    let actual = clean(Some(&compose_latin(actual.unwrap_or_default()))).unwrap_or_default();
+    let expected = clean(Some(&compose_latin(expected))).unwrap_or_default();
+    if actual == expected {
+        return ReadBack::Same;
+    }
+    let unmasked = |text: &str| -> String {
+        text.chars()
+            .filter(|ch| !ch.is_whitespace() && !MASK_CHARS.contains(ch))
+            .collect()
+    };
+    let core = unmasked(&expected);
+    if !core.is_empty() && core == unmasked(&actual) {
+        ReadBack::Formatted
+    } else {
+        ReadBack::Different
+    }
+}
+
+/// Whether a field's read-back text is the requested value, as entered or
+/// as its input mask formatted it (see `compare_read_back`).
 pub(crate) fn values_match(actual: Option<&str>, expected: &str) -> bool {
-    clean(actual).unwrap_or_default() == clean(Some(expected)).unwrap_or_default()
+    compare_read_back(actual, expected) != ReadBack::Different
+}
+
+/// Precomposed Latin letters by combining mark: `(mark, bases, composed)`,
+/// position for position. Covers Latin-1 and Latin Extended-A, the part of
+/// NFC that pasted or IME-typed Western text needs.
+const LATIN_COMPOSITIONS: [(char, &str, &str); 13] = [
+    ('\u{300}', "AEIOUaeiou", "ÀÈÌÒÙàèìòù"),
+    (
+        '\u{301}',
+        "AEIOUYaeiouyCcLlNnRrSsZz",
+        "ÁÉÍÓÚÝáéíóúýĆćĹĺŃńŔŕŚśŹź",
+    ),
+    (
+        '\u{302}',
+        "AEIOUaeiouCcGgHhJjSsWwYy",
+        "ÂÊÎÔÛâêîôûĈĉĜĝĤĥĴĵŜŝŴŵŶŷ",
+    ),
+    ('\u{303}', "ANOanoIiUu", "ÃÑÕãñõĨĩŨũ"),
+    ('\u{304}', "AaEeIiOoUu", "ĀāĒēĪīŌōŪū"),
+    ('\u{306}', "AaEeGgIiOoUu", "ĂăĔĕĞğĬĭŎŏŬŭ"),
+    ('\u{307}', "CcEeGgIZz", "ĊċĖėĠġİŻż"),
+    ('\u{308}', "AEIOUaeiouyY", "ÄËÏÖÜäëïöüÿŸ"),
+    ('\u{30a}', "AaUu", "ÅåŮů"),
+    ('\u{30b}', "OoUu", "ŐőŰű"),
+    ('\u{30c}', "CcDdEeLlNnRrSsTtZz", "ČčĎďĚěĽľŇňŘřŠšŤťŽž"),
+    ('\u{327}', "CcGgKkLlNnRrSsTt", "ÇçĢģĶķĻļŅņŖŗŞşŢţ"),
+    ('\u{328}', "AaEeIiUu", "ĄąĘęĮįŲų"),
+];
+
+/// NFC for Latin text: a letter followed by a combining mark becomes the
+/// precomposed letter `LATIN_COMPOSITIONS` lists; anything else is kept.
+fn compose_latin(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for ch in text.chars() {
+        let composed = out.chars().last().and_then(|base| {
+            let (_, bases, composed) =
+                LATIN_COMPOSITIONS.iter().find(|(mark, _, _)| *mark == ch)?;
+            let position = bases.chars().position(|candidate| candidate == base)?;
+            composed.chars().nth(position)
+        });
+        match composed {
+            Some(composed) => {
+                out.pop();
+                out.push(composed);
+            }
+            None => out.push(ch),
+        }
+    }
+    out
 }
 
 /// Whether `xdotool type` can enter the text as-is. XTEST on Xvfb drops
@@ -396,6 +481,59 @@ mod tests {
         assert!(!values_match(
             Some("recebido, obrigado."),
             "Recebido, obrigado."
+        ));
+    }
+
+    #[test]
+    fn read_back_accepts_what_an_input_mask_made_of_the_value() {
+        for (shown, entered) in [
+            ("4111 1111 1111 1111", "4111111111111111"),
+            ("(11) 91234-5678", "11912345678"),
+            ("+55 (11) 91234-5678", "5511912345678"),
+            ("30130-010", "30130010"),
+            ("12/28", "1228"),
+            ("123.456.789-09", "12345678909"),
+            ("4111111111111111", "4111 1111 1111 1111"),
+        ] {
+            assert_eq!(
+                compare_read_back(Some(shown), entered),
+                ReadBack::Formatted,
+                "{shown} for {entered}"
+            );
+        }
+        assert_eq!(compare_read_back(Some("12/28"), "12/28"), ReadBack::Same);
+        // A decomposed accent (e + U+0301) is the same text as a precomposed one.
+        assert_eq!(
+            compare_read_back(
+                Some("Jose\u{301} Conceic\u{327}a\u{303}o"),
+                "José Conceição"
+            ),
+            ReadBack::Same
+        );
+    }
+
+    #[test]
+    fn read_back_still_fails_on_a_different_value() {
+        for (shown, entered) in [
+            ("4111 1111 1111 111", "4111111111111111"),
+            ("4111 1111 1111 11112", "4111111111111111"),
+            ("(11) 91234-5678x", "11912345678"),
+            ("30130-01O", "30130010"),
+            ("nao", "não"),
+            ("Nao chegou", "não chegou"),
+            ("Recebido obrigado", "recebido obrigado"),
+            ("", "-"),
+        ] {
+            assert_eq!(
+                compare_read_back(Some(shown), entered),
+                ReadBack::Different,
+                "{shown} for {entered}"
+            );
+        }
+        assert!(!values_match(Some("nao"), "não"));
+        assert!(values_match(
+            Some("4111 1111 1111 1111"),
+            "4111111111111111"
         ));
     }
 
