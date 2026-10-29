@@ -1532,20 +1532,99 @@ impl ComputerUseLinux {
 
     async fn drag(&self, Parameters(params): Parameters<DragParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params));
+        let failed = |message: String| {
+            Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "drag".to_string(),
+                message,
+                received: received.clone(),
+            })
+        };
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
-        let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-            run_xdotool_drag(params.start_x, params.start_y, params.end_x, params.end_y).await
-        })
-        .await;
+        let start = match self
+            .drag_end(
+                params.from_element_index,
+                params.start_x,
+                params.start_y,
+                "start",
+            )
+            .await
+        {
+            Ok(end) => end,
+            Err(message) => return failed(message),
+        };
+        let end = match self
+            .drag_end(params.to_element_index, params.end_x, params.end_y, "end")
+            .await
+        {
+            Ok(end) => end,
+            Err(message) => return failed(message),
+        };
+        for (x, y) in [start.1, end.1] {
+            if let Some(note) = self.off_screen_note_for_point(x, y).await {
+                return failed(format!("{note} Nothing was dragged."));
+            }
+        }
+        let (from, to) = (start.1, end.1);
+        let (input_guard, result) =
+            run_cancellation_safe_input(
+                input_guard,
+                async move { run_xdotool_drag(from, to).await },
+            )
+            .await;
         let _input_guard = input_guard;
-        let mut output = action_result("drag", result, received);
+        let mut output = action_result("drag", result, received.clone());
         if output.ok {
-            output.message = format!(
-                "dragged {},{} to {},{} (xdotool)",
-                params.start_x, params.start_y, params.end_x, params.end_y
-            );
+            output.message = format!("dragged {} to {} (xdotool, stepped)", start.0, end.0);
         }
         Json(output)
+    }
+
+    /// One end of a drag: an element's centre (it must be on the visible
+    /// page) or a screen point, with how the result names it.
+    async fn drag_end(
+        &self,
+        element_index: Option<u32>,
+        x: Option<i32>,
+        y: Option<i32>,
+        which: &str,
+    ) -> std::result::Result<(String, (i32, i32)), String> {
+        match (element_index, x.zip(y)) {
+            (Some(id), _) => self
+                .visible_element_center(Some(id), &ElementSelector::default())
+                .await
+                .map(|(label, point)| (format!("{label} @{},{}", point.0, point.1), point)),
+            (None, Some(point)) => Ok((format!("{},{}", point.0, point.1), point)),
+            (None, None) => Err(format!(
+                "Pass the drag {which} as {}_element_index or as {which}_x and {which}_y.",
+                if which == "start" { "from" } else { "to" }
+            )),
+        }
+    }
+
+    /// The centre of the element an action names, by id or selector. An
+    /// element whose centre is not on the visible page is refused with the
+    /// call that brings it into view, since input there would land elsewhere.
+    async fn visible_element_center(
+        &self,
+        element_index: Option<u32>,
+        selector: &ElementSelector<'_>,
+    ) -> std::result::Result<(String, (i32, i32)), String> {
+        self.ensure_resolvable(element_index, selector, ElementResolvePurpose::Click)
+            .await?;
+        let node =
+            self.resolve_cached_node(element_index, selector, ElementResolvePurpose::Click)?;
+        let label = crate::outline::element_label(&node);
+        if let Some(center) = node.bounds.as_ref().and_then(bounds_center) {
+            if self.point_visible_for(&node, center).await {
+                return Ok((label, center));
+            }
+        }
+        Err(format!(
+            "{label} is outside the visible window; scroll it into view with scroll(element_index={}) and retry",
+            node.index
+        ))
     }
 
     async fn press_key(
@@ -1683,7 +1762,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "drag",
-        description = "Drag with the left button from start_x,start_y to end_x,end_y (screen coordinates). Reports what changed.",
+        description = "Drag with the left button from an element (from_element_index) or start_x,start_y to an element (to_element_index) or end_x,end_y, in small steps so HTML5 drag and drop starts. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -3011,15 +3090,25 @@ impl ScrollParams {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct DragParams {
     /// false skips the report of what changed (default true).
     #[serde(default)]
     observe: Option<bool>,
-    start_x: i32,
-    start_y: i32,
-    end_x: i32,
-    end_y: i32,
+    /// Element id `[n]` to drag from (its centre), instead of start_x/start_y.
+    #[serde(default)]
+    from_element_index: Option<u32>,
+    /// Element id `[n]` to drop on (its centre), instead of end_x/end_y.
+    #[serde(default)]
+    to_element_index: Option<u32>,
+    #[serde(default)]
+    start_x: Option<i32>,
+    #[serde(default)]
+    start_y: Option<i32>,
+    #[serde(default)]
+    end_x: Option<i32>,
+    #[serde(default)]
+    end_y: Option<i32>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -5794,12 +5883,10 @@ async fn run_xdotool_program(
 /// Press, move and release the left button. The release is retried alone
 /// when the chained command fails, so a failure never leaves it held.
 async fn run_xdotool_drag(
-    start_x: i32,
-    start_y: i32,
-    end_x: i32,
-    end_y: i32,
+    start: (i32, i32),
+    end: (i32, i32),
 ) -> std::result::Result<Vec<Output>, String> {
-    let args = xdotool_drag_args((start_x, start_y), (end_x, end_y));
+    let args = xdotool_drag_args(start, end);
     match run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await {
         Ok(output) => Ok(vec![output]),
         Err(error) => {
@@ -5818,29 +5905,45 @@ async fn run_xdotool_drag(
     }
 }
 
-/// Pauses between steps let toolkits see a press, a motion and a release.
+/// Moves on the way to the drop point, after the opening nudges.
+const DRAG_STEPS: i32 = 8;
+
+/// A drag the way a hand makes one, in one xdotool command (about 1.1 s).
+/// Chrome starts an HTML5 drag only after the pointer moves past a threshold
+/// while held and then keeps moving: a press, one jump and a release starts
+/// nothing (measured on Xvfb). So: press, two small nudges 0.1 s apart,
+/// `DRAG_STEPS` moves toward the target 0.05 s apart, then a pause on the
+/// target before the release so dragover handlers run.
 fn xdotool_drag_args(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    [
-        "mousemove",
-        "--",
-        &start.0.to_string(),
-        &start.1.to_string(),
-        "mousedown",
-        "1",
-        "sleep",
-        "0.05",
-        "mousemove",
-        "--",
-        &end.0.to_string(),
-        &end.1.to_string(),
-        "sleep",
-        "0.05",
-        "mouseup",
-        "1",
-    ]
-    .into_iter()
-    .map(str::to_string)
-    .collect()
+    fn move_to(args: &mut Vec<String>, (x, y): (i32, i32)) {
+        args.extend(["mousemove", "--"].map(str::to_string));
+        args.extend([x.to_string(), y.to_string()]);
+    }
+    fn pause(args: &mut Vec<String>, seconds: &str) {
+        args.extend(["sleep", seconds].map(str::to_string));
+    }
+    let mut args = Vec::new();
+    move_to(&mut args, start);
+    args.extend(["mousedown", "1"].map(str::to_string));
+    pause(&mut args, "0.1");
+    let nudged = (start.0 + 30, start.1 + 15);
+    for point in [(start.0 + 10, start.1 + 5), nudged] {
+        move_to(&mut args, point);
+        pause(&mut args, "0.1");
+    }
+    for index in 1..=DRAG_STEPS {
+        let toward = |from: i32, to: i32| from + (to - from) * index / (DRAG_STEPS + 1);
+        move_to(
+            &mut args,
+            (toward(nudged.0, end.0), toward(nudged.1, end.1)),
+        );
+        pause(&mut args, "0.05");
+    }
+    pause(&mut args, "0.2");
+    move_to(&mut args, end);
+    pause(&mut args, "0.2");
+    args.extend(["mouseup", "1"].map(str::to_string));
+    args
 }
 
 /// Default per-character delay for `xdotool type`, in milliseconds (xdotool's
@@ -6119,10 +6222,13 @@ mod tests {
         let commands = std::fs::read_to_string(&log).unwrap_or_default();
         assert_eq!(
             commands,
-            "xdotool mousemove -- 5536 700 click --repeat 1 1\n\
-             xdotool mousemove -- 5536 700 click --delay 12 --repeat 5 5\n\
-             xdotool mousemove -- 100 100 mousedown 1 sleep 0.05 mousemove -- 200 200 sleep 0.05 mouseup 1\n\
-             xdotool click --delay 12 --repeat 5 5\n"
+            format!(
+                "xdotool mousemove -- 5536 700 click --repeat 1 1\n\
+                 xdotool mousemove -- 5536 700 click --delay 12 --repeat 5 5\n\
+                 xdotool {}\n\
+                 xdotool click --delay 12 --repeat 5 5\n",
+                xdotool_drag_args((100, 100), (200, 200)).join(" ")
+            )
         );
     }
 
@@ -6140,11 +6246,11 @@ mod tests {
             serde_json::from_value(serde_json::json!({"x":5536,"y":700,"direction":"down"}))
                 .unwrap();
         let drag = DragParams {
-            observe: None,
-            start_x: 100,
-            start_y: 100,
-            end_x: 200,
-            end_y: 200,
+            start_x: Some(100),
+            start_y: Some(100),
+            end_x: Some(200),
+            end_y: Some(200),
+            ..Default::default()
         };
         let results = [
             backend.click(Parameters(click)).await.0,
@@ -7251,6 +7357,83 @@ mod tests {
                 "3".to_string(),
                 "3".to_string(),
             ])
+        );
+    }
+
+    #[test]
+    fn drag_presses_nudges_steps_and_pauses_before_release() {
+        let args = xdotool_drag_args((100, 100), (400, 205)).join(" ");
+        assert_eq!(
+            args,
+            "mousemove -- 100 100 mousedown 1 sleep 0.1 \
+             mousemove -- 110 105 sleep 0.1 mousemove -- 130 115 sleep 0.1 \
+             mousemove -- 160 125 sleep 0.05 mousemove -- 190 135 sleep 0.05 \
+             mousemove -- 220 145 sleep 0.05 mousemove -- 250 155 sleep 0.05 \
+             mousemove -- 280 165 sleep 0.05 mousemove -- 310 175 sleep 0.05 \
+             mousemove -- 340 185 sleep 0.05 mousemove -- 370 195 sleep 0.05 \
+             sleep 0.2 mousemove -- 400 205 sleep 0.2 mouseup 1"
+        );
+    }
+
+    #[tokio::test]
+    async fn drag_needs_both_ends() {
+        let backend = ComputerUseLinux::default();
+        let result = backend
+            .drag(Parameters(DragParams {
+                start_x: Some(1),
+                start_y: Some(1),
+                ..Default::default()
+            }))
+            .await
+            .0;
+        assert!(!result.ok);
+        assert!(
+            result
+                .message
+                .contains("to_element_index or as end_x and end_y"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[tokio::test]
+    async fn drag_refuses_an_element_outside_the_visible_page() {
+        let backend = ComputerUseLinux::default();
+        let mut frame = node(
+            1,
+            Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            }),
+        );
+        frame.role = "frame".to_string();
+        let mut below = node(
+            2,
+            Some(Bounds {
+                x: 10,
+                y: 900,
+                width: 50,
+                height: 20,
+            }),
+        );
+        below.parent_index = Some(1);
+        backend.cache_nodes(&[frame, below]);
+        let result = backend
+            .drag(Parameters(DragParams {
+                from_element_index: Some(2),
+                end_x: Some(5),
+                end_y: Some(5),
+                ..Default::default()
+            }))
+            .await
+            .0;
+        assert!(!result.ok);
+        assert!(
+            result.message.contains("scroll(element_index=2)"),
+            "{}",
+            result.message
         );
     }
 
