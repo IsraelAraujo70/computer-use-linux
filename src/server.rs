@@ -2088,11 +2088,8 @@ impl ComputerUseLinux {
                 received: received.clone(),
             })
         };
-        let focus = match self.focus_target_for_input(&params.window_target()).await {
-            Ok(focus) => focus,
-            Err(message) => return failed(message),
-        };
-        let target = if params.element_index.is_some() || !params.selector().is_empty() {
+        let window_target = params.window_target();
+        let element = if params.element_index.is_some() || !params.selector().is_empty() {
             if let Err(message) = self
                 .ensure_resolvable(
                     params.element_index,
@@ -2108,20 +2105,59 @@ impl ComputerUseLinux {
                 &params.selector(),
                 ElementResolvePurpose::SetValue,
             ) {
-                Ok(node) => {
-                    let label = crate::outline::element_label(&node);
-                    if let Some(refusal) =
-                        crate::fields::line_break_refusal(&node, &label, &params.text, true)
-                    {
-                        return failed(refusal);
-                    }
-                    if let Err(message) = self.focus_element(&node, &label).await {
-                        return failed(message);
-                    }
-                    Some(node)
-                }
+                Ok(node) => Some(node),
                 Err(message) => return failed(message),
             }
+        } else {
+            None
+        };
+        // A window target and an element in another app cannot both be
+        // honoured: refuse before focus moves anywhere.
+        if let (Some(node), true) = (element.as_ref(), window_target.has_target()) {
+            let window_pid = match window_target.pid {
+                Some(pid) => Some(pid),
+                None => list_windows().await.ok().and_then(|windows| {
+                    resolve_window_target(&windows, &window_target)
+                        .ok()
+                        .and_then(|window| window.pid)
+                }),
+            };
+            if let Err(message) = self.check_node_target(node, window_pid).await {
+                return failed(conflicting_targets_message(&message));
+            }
+        }
+        let focus = match self.focus_target_for_input(&window_target).await {
+            Ok(focus) => focus,
+            Err(message) => return failed(message),
+        };
+        let target = if let Some(node) = element {
+            if let Err(message) = self
+                .check_node_target(&node, focus_target_pid(focus.as_ref()))
+                .await
+            {
+                return failed(conflicting_targets_message(&message));
+            }
+            let label = crate::outline::element_label(&node);
+            if let Some(refusal) =
+                crate::fields::line_break_refusal(&node, &label, &params.text, true)
+            {
+                return failed(refusal);
+            }
+            if let Err(message) = self.focus_element(&node, &label).await {
+                return failed(message);
+            }
+            if let Some(focus) = focus.as_ref() {
+                let now = focused_window().await.ok().flatten();
+                if let Some(drift) = focus_drift(
+                    &focus.requested_window,
+                    window_target.requires_exact_focus(),
+                    now.as_ref(),
+                    &label,
+                ) {
+                    return failed(drift);
+                }
+            }
+            Some(node)
         } else {
             if let Some(refusal) = self
                 .focused_line_break_refusal(focus.as_ref(), &params.text)
@@ -3467,7 +3503,7 @@ struct PressKeyParams {
     title: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct TypeTextParams {
     /// false skips the report of what changed (default true).
     #[serde(default)]
@@ -6697,6 +6733,50 @@ fn window_in_the_way(
             "{under} is at {x},{y} and does not name its process, so it cannot be confirmed to be the window of {label} (pid {owner_pid})"
         )),
     }
+}
+
+/// A type_text refusal for a window target and an element of another app.
+fn conflicting_targets_message(mismatch: &str) -> String {
+    format!(
+        "Nothing was typed: the window target and the element are in different apps. {mismatch} Or drop the window target and type by element only."
+    )
+}
+
+/// Why typing must stop after focusing `label`: focus left the requested
+/// window (or, for an app-level target, its app). `None` while it is there.
+fn focus_drift(
+    requested: &WindowInfo,
+    exact: bool,
+    focused: Option<&WindowInfo>,
+    label: &str,
+) -> Option<String> {
+    let stayed = focused.is_some_and(|focused| {
+        if exact {
+            focused.window_id == requested.window_id
+        } else {
+            focused.window_id == requested.window_id
+                || (requested.pid.is_some() && focused.pid == requested.pid)
+        }
+    });
+    if stayed {
+        return None;
+    }
+    let now = focused.map_or_else(
+        || "no window".to_string(),
+        |focused| {
+            format!(
+                "window_id {} (pid {})",
+                focused.window_id,
+                focused
+                    .pid
+                    .map_or_else(|| "unknown".to_string(), |pid| pid.to_string())
+            )
+        },
+    );
+    Some(format!(
+        "Nothing was typed: focusing {label} moved focus to {now}, away from the target window_id {}.",
+        requested.window_id
+    ))
 }
 
 fn node_target_mismatch_message(element_index: u32, owner_pid: u32, target_pid: u32) -> String {
@@ -10083,6 +10163,58 @@ mod node_target_scope_tests {
             .await
             .is_ok());
         assert!(backend.check_node_target(&node, None).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn type_text_refuses_a_window_and_an_element_of_different_apps_before_focus() {
+        let backend = ComputerUseLinux::default();
+        let mut node = cached_node(2, ":1.9/org/a11y/atspi/accessible/42");
+        node.role = "entry".to_string();
+        node.states.push("editable".to_string());
+        backend.cache_snapshot(std::slice::from_ref(&node), Some(111));
+
+        let result = backend
+            .dispatch_type_text(TypeTextParams {
+                text: "x".to_string(),
+                element_index: Some(2),
+                pid: Some(222),
+                ..Default::default()
+            })
+            .await
+            .0;
+        assert!(!result.ok);
+        // Refused by the target check, not by a failed focus attempt.
+        assert!(
+            result.message.contains("in different apps")
+                && result.message.contains("not the target pid 222"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn typing_stops_when_focusing_the_element_left_the_target_window() {
+        let window = |window_id: u64, pid: u32| WindowInfo {
+            window_id,
+            title: None,
+            app_id: None,
+            wm_class: None,
+            pid: Some(pid),
+            bounds: None,
+            workspace: None,
+            focused: true,
+            hidden: false,
+            client_type: None,
+            backend: "test".to_string(),
+            terminal: None,
+        };
+        let requested = window(10, 1);
+        assert!(focus_drift(&requested, true, Some(&window(10, 1)), "[2]").is_none());
+        let drift = focus_drift(&requested, true, Some(&window(11, 1)), "[2]").unwrap();
+        assert!(drift.contains("window_id 11 (pid 1)"), "{drift}");
+        assert!(focus_drift(&requested, false, Some(&window(11, 1)), "[2]").is_none());
+        assert!(focus_drift(&requested, false, Some(&window(12, 2)), "[2]").is_some());
+        assert!(focus_drift(&requested, true, None, "[2]").is_some());
     }
 
     #[tokio::test]
