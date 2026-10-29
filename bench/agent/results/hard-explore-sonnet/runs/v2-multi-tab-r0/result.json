@@ -1,0 +1,39 @@
+{
+ "run_id": "v2-multi-tab-r0",
+ "variant": "v2",
+ "task": "multi-tab",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 13.35,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2585.1,
+ "mcp_bytes_total": 4719,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "press_key",
+  "set_value",
+  "click"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 65953,
+  "cached": 62464,
+  "output": 417
+ },
+ "final": "Paguei o boleto do Condomínio Solar. Copiei a linha digitável da aba do boleto para o formulário e cliquei em Pagar. A página mostrou \"Pagamento agendado\".",
+ "state": {
+  "paid": {
+   "code": "34191.79001 01043.510047 91020.150008 1 96610000012345"
+  }
+ }
+}

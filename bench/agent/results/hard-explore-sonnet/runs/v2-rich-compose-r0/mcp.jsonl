@@ -1,0 +1,16 @@
+{"t": 1793310783.528147, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310783.5351913, "method": "tools/list", "tool": null, "args": null, "ms": 2.9, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310785.3581958, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 209.7, "bytes": 2077, "images": 0, "is_error": false}
+{"t": 1793310790.3822575, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 74, "value": "ana.souza@example.com"}, {"element_index": 75, "value": "Relat\u00f3rio de outubro"}, {"element_index": 80, "value": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}]}, "ms": 3749.1, "bytes": 953, "images": 0, "is_error": true}
+{"t": 1793310792.0712457, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 415.9, "bytes": 368, "images": 0, "is_error": false}
+{"t": 1793310792.5502698, "method": "tools/call", "tool": "type_text", "args": {"text": "ana.souza@example.com"}, "ms": 472.6, "bytes": 319, "images": 0, "is_error": false}
+{"t": 1793310792.6037257, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 47.5, "bytes": 174079, "images": 1, "is_error": false}
+{"t": 1793310794.8890092, "method": "tools/call", "tool": "click", "args": {"x": 1580, "y": 900}, "ms": 421.2, "bytes": 524, "images": 0, "is_error": false}
+{"t": 1793310795.2362528, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+a"}, "ms": 341.6, "bytes": 187, "images": 0, "is_error": false}
+{"t": 1793310795.8037944, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 561.6, "bytes": 525, "images": 0, "is_error": false}
+{"t": 1793310795.8803766, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 800}, "ms": 70.7, "bytes": 70283, "images": 1, "is_error": false}
+{"t": 1793310797.5853598, "method": "tools/call", "tool": "ocr", "args": {"region": {"x": 1274, "y": 778, "width": 620, "height": 240}}, "ms": 45.7, "bytes": 504, "images": 0, "is_error": false}
+{"t": 1793310800.1189125, "method": "tools/call", "tool": "click", "args": {"x": 1500, "y": 790}, "ms": 601.0, "bytes": 190, "images": 0, "is_error": false}
+{"t": 1793310800.4795911, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol\u00e1, Ana!"}, "ms": 354.7, "bytes": 383, "images": 0, "is_error": false}
+{"t": 1793310800.5481477, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 800}, "ms": 62.8, "bytes": 69191, "images": 1, "is_error": false}
+{"t": 1793310801.8737493, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 307.9, "bytes": 395, "images": 0, "is_error": false}

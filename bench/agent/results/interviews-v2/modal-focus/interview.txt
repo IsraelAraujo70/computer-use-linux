@@ -1,0 +1,9 @@
+task=modal-focus ok=True (ok) wall=18s mcp_calls=6 screenshots=0
+tools: get_app_state fill_form click get_app_state click click
+
+- **Slowdown and guessing:** The first send click failed because the newsletter dialog had appeared and invalidated the cached button action. I refreshed the page state, dismissed the offer, and clicked the new button index. I didn’t need to guess coordinates.
+- **Wasted or repeated calls:** Listing all matching tool descriptions produced far more output than needed. The failed click was wasted, and the second state read was needed to diagnose it.
+- **Tree, elements and screenshots:** I relied on the accessibility outline and element indexes. They showed the form, field values, offer dialog and success message; the stale index didn’t reveal why the first click failed. I didn’t use screenshots and would drop them for this task.
+- **Most useful improvement:** When a click fails because the page changed, return the current blocking dialog and its actionable elements alongside the error. Input: the attempted element index; output: the failure reason and current relevant outline.
+- **Confusing output:** “Cached AT-SPI action name is no longer available” didn’t say that a modal was blocking the form. The tool description’s instruction to confirm before sending also conflicted with the user’s explicit instruction to send without questions.
+- **Speed:** Calls were fast; the main overhead was reading the oversized tool-discovery output and recovering from the stale action.

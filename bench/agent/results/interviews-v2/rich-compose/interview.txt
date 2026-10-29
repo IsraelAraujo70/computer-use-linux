@@ -1,0 +1,14 @@
+task=rich-compose ok=False (body_lines=['Segue o relatório de outubro.'] (want ['Olá, Ana!', 'Segue o relatório de outubro.'])) wall=26s mcp_calls=10 screenshots=0
+tools: get_app_state fill_form get_app_state click type_text press_key click press_key type_text click
+
+1. The recipient field was a combo box, so I had to switch from filling it to typing the address and pressing Enter. The body field’s readback was empty even after text appeared, so I could not verify the full two-line body from the outline.
+
+2. The initial tool discovery returned far more descriptions than needed. The `fill_form` call failed for the recipient and reported failure for the body; I then re-entered the body. I also looked up the `press_key` schema separately.
+
+3. I relied on the accessibility outline to find fields and on element indices to act. I would skip screenshots for locating these controls, though one might have helped inspect the body. The outline did not expose the first body line or its full value; index actions did not resolve that readback problem.
+
+4. A rich-text readback tool would help most: given an element index, return its complete plain text with line breaks preserved. That would let me verify the exact two-line body before sending.
+
+5. The body field’s failure reported an empty value while the outline showed the second line. That made it unclear whether the text had been entered correctly. The send result did clearly report “Mensagem enviada.”
+
+6. The calls were quick overall. The main overhead was reading the oversized tool-discovery output and recovering from the misleading body readback.

@@ -1,0 +1,9 @@
+task=virtual-list ok=True (ok) wall=23s mcp_calls=3 screenshots=0
+tools: get_app_state scroll click
+
+1. **Slowdown:** The list was virtualized, so the target was not in the initial outline. Scrolling to it took 24 scrolls. I did not need to guess coordinates, the button, or whether the action worked.
+2. **Wasted calls:** The tool-discovery call returned descriptions for many irrelevant tools. I made it to find the available `cu` tools; no action calls were repeated.
+3. **Methods:** I relied on the accessibility outline and clicked the button by index. The initial outline did not include distant virtualized rows, but scrolling found the exact named button. I did not use screenshots; I would drop them for this task because the outline provided the needed labels and confirmation.
+4. **Most useful change:** A tool to find an item in a virtualized list directly. Inputs: list index and target role/name. Return: the matching element index, its row text, and whether it is visible.
+5. **Confusion:** The scroll result reported the target as found after 24 scrolls, but did not explain why that many were needed. The tool descriptions also repeated the same long guidance for every tool.
+6. **Speed:** The scroll call took about nine seconds. Its full outline and the repeated tool descriptions produced much more output than needed.

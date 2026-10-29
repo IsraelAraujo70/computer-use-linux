@@ -1,0 +1,43 @@
+{
+ "run_id": "v2-recover-error-r0",
+ "variant": "v2",
+ "task": "recover-error",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 11.85,
+ "agent_tool_calls": 7,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 2094.3,
+ "mcp_bytes_total": 4929,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "get_app_state",
+  "click",
+  "wait_for",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 78951,
+  "cached": 75362,
+  "output": 618
+ },
+ "final": "Mudei o Telefone para (11) 91234-5678 e salvei. O primeiro salvamento deu erro, então cliquei em \"Salvar alterações\" de novo e a página mostrou \"Alterações salvas\". Os outros campos continuam como estavam.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

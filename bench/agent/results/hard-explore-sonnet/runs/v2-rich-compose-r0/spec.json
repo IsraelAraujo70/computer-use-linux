@@ -1,0 +1,17 @@
+{
+ "run_id": "v2-rich-compose-r0",
+ "variant": "v2",
+ "binary": "/tmp/agent-cu-bench/bin/v2/computer-use-linux",
+ "task": "rich-compose",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "timeout": 300,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "claude_home": "/tmp/agent-cu-bench/claude-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_mode": "bots"
+}

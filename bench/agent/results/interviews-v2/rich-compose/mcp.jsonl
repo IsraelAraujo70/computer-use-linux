@@ -1,0 +1,12 @@
+{"t": 1793310559.683778, "method": "initialize", "tool": null, "args": null, "ms": 25.5, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310559.6866343, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310565.3923304, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 208.3, "bytes": 2077, "images": 0, "is_error": false}
+{"t": 1793310570.5524836, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 74, "value": "ana.souza@example.com"}, {"element_index": 75, "value": "Relat\u00f3rio de outubro"}, {"element_index": 80, "value": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}]}, "ms": 3830.5, "bytes": 953, "images": 0, "is_error": true}
+{"t": 1793310572.1513634, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 108.7, "bytes": 2280, "images": 0, "is_error": false}
+{"t": 1793310574.1617823, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 417.0, "bytes": 368, "images": 0, "is_error": false}
+{"t": 1793310574.6491706, "method": "tools/call", "tool": "type_text", "args": {"text": "ana.souza@example.com"}, "ms": 482.3, "bytes": 319, "images": 0, "is_error": false}
+{"t": 1793310577.6096632, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 352.1, "bytes": 430, "images": 0, "is_error": false}
+{"t": 1793310578.0389595, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 423.7, "bytes": 386, "images": 0, "is_error": false}
+{"t": 1793310578.3970118, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 352.6, "bytes": 187, "images": 0, "is_error": false}
+{"t": 1793310578.79843, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 395.8, "bytes": 526, "images": 0, "is_error": false}
+{"t": 1793310582.06121, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 309.1, "bytes": 395, "images": 0, "is_error": false}

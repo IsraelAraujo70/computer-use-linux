@@ -1,0 +1,5 @@
+{"t": 1793310880.1994255, "method": "initialize", "tool": null, "args": null, "ms": 22.2, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310880.205159, "method": "tools/list", "tool": null, "args": null, "ms": 2.1, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310882.5350606, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": true}, "ms": 249.5, "bytes": 177124, "images": 1, "is_error": false}
+{"t": 1793310885.150597, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 364, "end_x": 1580, "end_y": 560}, "ms": 1409.5, "bytes": 297, "images": 0, "is_error": false}
+{"t": 1793310886.2100122, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 600}, "ms": 60.0, "bytes": 43002, "images": 1, "is_error": false}

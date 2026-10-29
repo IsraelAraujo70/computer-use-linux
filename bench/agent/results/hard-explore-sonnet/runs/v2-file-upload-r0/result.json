@@ -1,0 +1,39 @@
+{
+ "run_id": "v2-file-upload-r0",
+ "variant": "v2",
+ "task": "file-upload",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 9.29,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1154.7,
+ "mcp_bytes_total": 1851,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "drop_files",
+  "click"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 49687,
+  "cached": 47692,
+  "output": 309
+ },
+ "final": "Selecionei `comprovante-outubro.pdf` no campo Comprovante e cliquei em Enviar. A página mostrou a confirmação \"Comprovante 'comprovante-outubro.pdf' enviado\".",
+ "state": {
+  "uploaded": {
+   "name": "comprovante-outubro.pdf",
+   "size": 1783,
+   "sha256": "00efce7d82f0f4cd2077a78b16cb9e3aeb7b1b49af9e3095fa033a84a957c79f"
+  }
+ }
+}

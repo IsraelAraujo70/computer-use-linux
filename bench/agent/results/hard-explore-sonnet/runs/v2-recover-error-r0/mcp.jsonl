@@ -1,0 +1,9 @@
+{"t": 1793310945.2793171, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793310945.2846537, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 21641, "images": 0, "is_error": false}
+{"t": 1793310947.0077686, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 185.3, "bytes": 1052, "images": 0, "is_error": false}
+{"t": 1793310948.7489982, "method": "tools/call", "tool": "set_value", "args": {"element_index": 60, "value": "(11) 91234-5678"}, "ms": 534.4, "bytes": 377, "images": 0, "is_error": false}
+{"t": 1793310949.0585258, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 303.7, "bytes": 425, "images": 0, "is_error": false}
+{"t": 1793310950.4362347, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 116.6, "bytes": 1143, "images": 0, "is_error": false}
+{"t": 1793310952.024177, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 307.5, "bytes": 337, "images": 0, "is_error": false}
+{"t": 1793310952.6160429, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Salvar altera\u00e7\u00f5es", "timeout_ms": 5000}, "ms": 559.4, "bytes": 479, "images": 0, "is_error": false}
+{"t": 1793310953.6879687, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 87.4, "bytes": 1116, "images": 0, "is_error": false}

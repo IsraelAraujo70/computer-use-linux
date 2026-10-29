@@ -1,0 +1,9 @@
+task=recover-error ok=True (ok) wall=33s mcp_calls=7 screenshots=0
+tools: get_app_state set_value click wait_for click wait_for get_app_state
+
+1. The first save failed, so I retried. I didn’t need to guess the field, button, or coordinates.
+2. The initial tool discovery returned far more descriptions than needed. After retrying, I waited for a notification, but the success message was a status bar, so that wait timed out.
+3. The accessibility outline identified the fields, their values, and the save button; it also showed the final success message. I acted by element index and used no coordinates. I’d drop screenshots for this task because the outline had everything needed. The outline alone couldn’t prove the save until the result appeared.
+4. A save-result wait that accepts an action and returns the next success or failure message, regardless of accessibility role, would have helped most. Inputs: button index and timeout; output: result text, role, and current field values.
+5. Waiting for a “notification” was misleading in practice: the failure used that role, while success used “statusbar.”
+6. Calls were fast except for the unnecessary 10-second wait. Tool discovery also produced a large, truncated output.

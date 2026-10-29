@@ -1,0 +1,44 @@
+{
+ "run_id": "v2-drag-drop-r0",
+ "variant": "v2",
+ "task": "drag-drop",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 9.04,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1719.0,
+ "mcp_bytes_total": 220423,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "drag",
+  "screenshot"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 59464,
+  "cached": 54053,
+  "output": 323
+ },
+ "final": "Movi o card \"Revisar contrato\" de \"A fazer\" para \"Concluído\"; os outros cards continuam onde estavam.",
+ "state": {
+  "columns": {
+   "k1": "done",
+   "k2": "todo",
+   "k3": "todo",
+   "k4": "doing",
+   "k5": "doing",
+   "k6": "doing",
+   "k7": "done",
+   "k8": "done"
+  }
+ }
+}

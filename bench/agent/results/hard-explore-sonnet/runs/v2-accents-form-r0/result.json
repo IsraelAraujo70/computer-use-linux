@@ -1,0 +1,39 @@
+{
+ "run_id": "v2-accents-form-r0",
+ "variant": "v2",
+ "task": "accents-form",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 10.44,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1754.4,
+ "mcp_bytes_total": 2374,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 21641,
+ "tokens": {
+  "input": 50664,
+  "cached": 37407,
+  "output": 337
+ },
+ "final": "Preenchi Nome completo, Cidade e Observações com os textos exatos, acentos e símbolos incluídos, e cliquei em Salvar. A página mostrou \"Cliente salvo\".",
+ "state": {
+  "saved": {
+   "name": "João Conceição Araújo",
+   "city": "São Paulo",
+   "notes": "Preço: 1.234,56 € — ótimo! Über façade 😀 ação ênfase"
+  }
+ }
+}
