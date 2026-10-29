@@ -1311,12 +1311,7 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        let mut output = action_result_with_focus(
-            "press_key",
-            result.map(|output| vec![output]),
-            received,
-            focus.clone(),
-        );
+        let mut output = action_result("press_key", result.map(|output| vec![output]), received);
         if output.ok && focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), false).await;
             output = with_notes(output, notes);
@@ -1396,12 +1391,7 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        let mut output = action_result_with_focus(
-            "type_text",
-            result.map(|output| vec![output]),
-            received,
-            focus.clone(),
-        );
+        let mut output = action_result("type_text", result.map(|output| vec![output]), received);
         if output.ok && focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), true).await;
             output = with_notes(output, notes);
@@ -3872,32 +3862,6 @@ fn action_result(
             received,
         },
     }
-}
-
-fn action_result_with_focus(
-    action: &str,
-    result: std::result::Result<Vec<Output>, String>,
-    received: Option<serde_json::Value>,
-    focus: Option<WindowFocusResult>,
-) -> ActionOutput {
-    with_focus_context(action_result(action, result, received), focus)
-}
-
-fn with_focus_context(mut output: ActionOutput, focus: Option<WindowFocusResult>) -> ActionOutput {
-    if output.ok {
-        if let Some(focus) = focus {
-            let verification = if focus.exact_window_focused {
-                "exact window-focus"
-            } else {
-                "app-level focus"
-            };
-            output.message = format!(
-                "{} Target window_id {} was focused with {verification} verification before input.",
-                output.message, focus.requested_window.window_id,
-            );
-        }
-    }
-    output
 }
 
 /// Exact window focus alone cannot rule out lost input. Only a complete,

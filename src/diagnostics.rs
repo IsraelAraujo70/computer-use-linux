@@ -575,7 +575,12 @@ fn user_id() -> Option<String> {
 }
 
 fn command_path_check(command: &str) -> Check {
-    command_check("sh", &["-c", &format!("command -v {command}")])
+    let check = command_check("sh", &["-c", &format!("command -v {command}")]);
+    if check.ok {
+        check
+    } else {
+        Check::fail(format!("{command} not found on PATH"))
+    }
 }
 
 fn atspi_bus_address_check() -> Check {
