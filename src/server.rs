@@ -66,10 +66,15 @@ struct Rescan {
     scope: SnapshotScope,
 }
 
+// Settle timing after an action. The tree counts as settled once two
+// consecutive reads agree, so an action that changes nothing returns after
+// SETTLE_FIRST_WAIT + SETTLE_POLL plus two tree reads (was 120 + 150 ms,
+// most of a 0.45-0.65 s click). Each read takes tens of milliseconds
+// itself, so shorter gaps mostly add reads, not speed.
 /// Wait after an action before the first read, so the app has handled it.
-const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(120);
+const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(60);
 /// Gap between reads while waiting for the tree to stop changing.
-const SETTLE_POLL: Duration = Duration::from_millis(150);
+const SETTLE_POLL: Duration = Duration::from_millis(90);
 /// Longest wait for the tree to settle after an action.
 const SETTLE_LIMIT: Duration = Duration::from_secs(2);
 
