@@ -18,10 +18,13 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream},
     os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
     os::unix::net::UnixStream,
+    sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{ConnectionExt as _, ImageFormat, ImageOrder, VisualClass, Window};
+use x11rb::protocol::xproto::{
+    Atom, AtomEnum, ConnectionExt as _, ImageFormat, ImageOrder, VisualClass, Window,
+};
 use x11rb::{
     reexports::x11rb_protocol::{
         parse_display::{parse_display, ConnectAddress},
@@ -75,10 +78,38 @@ where
 
 /// The deadline is enforced in the transport itself, including handshake and
 /// every reply. Timing out a JoinHandle would leave its blocking task alive.
-struct DeadlineStream {
+/// A long-lived connection moves it with [`X11Display::set_deadline`].
+pub(crate) struct DeadlineStream {
     inner: DefaultStream,
-    deadline: Instant,
+    /// When the stream was made; the deadline is stored relative to it.
+    base: Instant,
+    deadline_nanos: AtomicU64,
 }
+
+impl DeadlineStream {
+    fn new(inner: DefaultStream, deadline: Instant) -> Self {
+        let stream = Self {
+            inner,
+            base: Instant::now(),
+            deadline_nanos: AtomicU64::new(0),
+        };
+        stream.set_deadline(deadline);
+        stream
+    }
+
+    fn deadline(&self) -> Instant {
+        self.base + Duration::from_nanos(self.deadline_nanos.load(Ordering::Acquire))
+    }
+
+    fn set_deadline(&self, deadline: Instant) {
+        let nanos = deadline.saturating_duration_since(self.base).as_nanos();
+        self.deadline_nanos
+            .store(u64::try_from(nanos).unwrap_or(u64::MAX), Ordering::Release);
+    }
+}
+
+/// An X connection whose every round trip fails once its deadline passes.
+pub(crate) type X11Connection = RustConnection<DeadlineStream>;
 
 fn remaining(deadline: Instant) -> io::Result<Duration> {
     deadline
@@ -117,14 +148,14 @@ fn poll_until(fd: RawFd, mode: PollMode, deadline: Instant) -> io::Result<()> {
 
 impl Stream for DeadlineStream {
     fn poll(&self, mode: PollMode) -> io::Result<()> {
-        poll_until(self.inner.as_raw_fd(), mode, self.deadline)
+        poll_until(self.inner.as_raw_fd(), mode, self.deadline())
     }
     fn read(&self, buf: &mut [u8], fds: &mut Vec<RawFdContainer>) -> io::Result<usize> {
-        remaining(self.deadline)?;
+        remaining(self.deadline())?;
         self.inner.read(buf, fds)
     }
     fn write(&self, buf: &[u8], fds: &mut Vec<RawFdContainer>) -> io::Result<usize> {
-        remaining(self.deadline)?;
+        remaining(self.deadline())?;
         self.inner.write(buf, fds)
     }
 }
@@ -210,9 +241,32 @@ fn tcp_addresses(host: &str, port: u16, deadline: Instant) -> Result<Vec<SocketA
 }
 
 pub(crate) struct X11Display {
-    conn: RustConnection<DeadlineStream>,
+    conn: X11Connection,
     root: Window,
     screen: usize,
+}
+
+/// The window that takes input at a root point, as far as the X server says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct WindowAtPoint {
+    pub window: Window,
+    /// Its `_NET_WM_PID`, when it names its process.
+    pub pid: Option<u32>,
+    /// Its `_NET_WM_NAME`, else `WM_NAME`.
+    pub title: Option<String>,
+}
+
+impl std::fmt::Display for WindowAtPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "window 0x{:x}", self.window)?;
+        if let Some(title) = self.title.as_deref().filter(|title| !title.is_empty()) {
+            write!(f, " \"{title}\"")?;
+        }
+        if let Some(pid) = self.pid {
+            write!(f, " (pid {pid})")?;
+        }
+        Ok(())
+    }
 }
 
 /// Root-window pixels as tightly packed RGB8.
@@ -229,12 +283,15 @@ impl X11Display {
         Self::connect_until(Instant::now() + X11_QUERY_TIMEOUT)
     }
 
-    fn connect_until(deadline: Instant) -> Result<Self> {
+    /// Connect to the display named by `DISPLAY`; the handshake and every
+    /// later round trip fail once `deadline` passes.
+    pub(crate) fn connect_until(deadline: Instant) -> Result<Self> {
         let display = env::var("DISPLAY").context("DISPLAY is not set")?;
         Self::connect_named(&display, deadline)
     }
 
-    fn connect_named(display: &str, deadline: Instant) -> Result<Self> {
+    /// Connect to `display` (`host:number.screen` syntax) under `deadline`.
+    pub(crate) fn connect_named(display: &str, deadline: Instant) -> Result<Self> {
         let parsed = parse_display(Some(display))?;
         let screen = usize::from(parsed.screen);
         let mut last_error = anyhow!("no X11 connection addresses");
@@ -273,7 +330,7 @@ impl X11Display {
             .unwrap_or(None)
             .unwrap_or_default();
         let conn = RustConnection::connect_to_stream_with_auth_info(
-            DeadlineStream { inner, deadline },
+            DeadlineStream::new(inner, deadline),
             screen,
             auth_name,
             auth_data,
@@ -286,6 +343,37 @@ impl X11Display {
             .context("X server reported no screen for DISPLAY")?
             .root;
         Ok(Self { conn, root, screen })
+    }
+
+    /// The connection, for protocol work this module has no method for.
+    pub(crate) fn connection(&self) -> &X11Connection {
+        &self.conn
+    }
+
+    /// The root window of the `DISPLAY` screen.
+    pub(crate) fn root(&self) -> Window {
+        self.root
+    }
+
+    /// Moves the deadline every later round trip must meet, for a
+    /// connection that outlives one query (a drag, a held clipboard).
+    pub(crate) fn set_deadline(&self, deadline: Instant) {
+        self.conn.stream().set_deadline(deadline);
+    }
+
+    /// Whether the deadline has passed, so a failed round trip timed out.
+    pub(crate) fn deadline_passed(&self) -> bool {
+        remaining(self.conn.stream().deadline()).is_err()
+    }
+
+    /// Adds why `error` happened when the deadline passed: the X server did
+    /// not answer `what` in time.
+    pub(crate) fn explain_timeout(&self, error: anyhow::Error, what: &str) -> anyhow::Error {
+        if self.deadline_passed() {
+            error.context(format!("the X server did not answer {what} in time"))
+        } else {
+            error
+        }
     }
 
     /// `DISPLAY` screen size and root depth, for doctor.
@@ -360,6 +448,63 @@ impl X11Display {
             height: u32::from(height),
             rgb,
         })
+    }
+
+    /// The window at root point `(x, y)`: walking down the stack of mapped
+    /// windows containing the point, the deepest one with `_NET_WM_PID`
+    /// (the app's client window, not the window manager's frame), else the
+    /// deepest window there. `None` when only the root is there.
+    pub(crate) fn window_at(&self, (x, y): (i16, i16)) -> Result<Option<WindowAtPoint>> {
+        let atom =
+            |name: &[u8]| -> Result<Atom> { Ok(self.conn.intern_atom(false, name)?.reply()?.atom) };
+        let pid_atom = atom(b"_NET_WM_PID")?;
+        let mut window = self.root;
+        let mut deepest = None;
+        let mut owned = None;
+        for _ in 0..32 {
+            let child = self
+                .conn
+                .translate_coordinates(self.root, window, x, y)?
+                .reply()?
+                .child;
+            if child == x11rb::NONE {
+                break;
+            }
+            let pid = self
+                .conn
+                .get_property(false, child, pid_atom, AtomEnum::CARDINAL, 0, 1)?
+                .reply()?
+                .value32()
+                .and_then(|mut values| values.next());
+            if pid.is_some() {
+                owned = Some((child, pid));
+            }
+            deepest = Some(child);
+            window = child;
+        }
+        let Some((window, pid)) = owned.or(deepest.map(|window| (window, None))) else {
+            return Ok(None);
+        };
+        Ok(Some(WindowAtPoint {
+            window,
+            pid,
+            title: self.title(window)?,
+        }))
+    }
+
+    /// A window's `_NET_WM_NAME`, else its `WM_NAME`.
+    fn title(&self, window: Window) -> Result<Option<String>> {
+        let net_wm_name = self.conn.intern_atom(false, b"_NET_WM_NAME")?.reply()?.atom;
+        for property in [net_wm_name, AtomEnum::WM_NAME.into()] {
+            let reply = self
+                .conn
+                .get_property(false, window, property, AtomEnum::ANY, 0, 256)?
+                .reply()?;
+            if !reply.value.is_empty() {
+                return Ok(Some(String::from_utf8_lossy(&reply.value).into_owned()));
+            }
+        }
+        Ok(None)
     }
 
     /// Absolute root-window origin of each window's client area, the value
@@ -451,9 +596,64 @@ fn channel_to_u8(pixel: u32, mask: u32) -> u8 {
     }
 }
 
+/// A fake X server for deadline tests: it accepts one client, completes the
+/// handshake, then never answers a request. Returns its display name.
+#[cfg(test)]
+pub(crate) fn stalled_x_server() -> String {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use x11rb::protocol::xproto::{Screen, Setup};
+    use x11rb::reexports::x11rb_protocol::x11_utils::Serialize;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    assert!(port >= 6000);
+    std::thread::spawn(move || {
+        let Ok((mut peer, _)) = listener.accept() else {
+            return;
+        };
+        let mut header = [0; 12];
+        peer.read_exact(&mut header).unwrap();
+        let name = u16::from_ne_bytes([header[6], header[7]]) as usize;
+        let data = u16::from_ne_bytes([header[8], header[9]]) as usize;
+        let mut auth = vec![0; name.div_ceil(4) * 4 + data.div_ceil(4) * 4];
+        peer.read_exact(&mut auth).unwrap();
+        let mut setup = Setup {
+            status: 1,
+            protocol_major_version: 11,
+            resource_id_base: 0x02000000,
+            resource_id_mask: 0x001fffff,
+            maximum_request_length: u16::MAX,
+            roots: vec![Screen {
+                root: 1,
+                width_in_pixels: 16,
+                height_in_pixels: 16,
+                ..Screen::default()
+            }],
+            ..Setup::default()
+        };
+        setup.length = ((setup.serialize().len() - 8) / 4) as u16;
+        peer.write_all(&setup.serialize()).unwrap();
+        let mut requests = Vec::new();
+        let _ = peer.read_to_end(&mut requests);
+    });
+    format!("127.0.0.1:{}", port - 6000)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_moved_deadline_bounds_later_round_trips() {
+        let display =
+            X11Display::connect_named(&stalled_x_server(), Instant::now() + Duration::from_secs(5))
+                .unwrap();
+        let started = Instant::now();
+        display.set_deadline(started + Duration::from_millis(100));
+        assert!(!display.can_read_root());
+        assert!(started.elapsed() < Duration::from_secs(1));
+    }
 
     #[test]
     fn stalled_servers_release_queries_and_runtime() {

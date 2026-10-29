@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "23eef6e3c502cd9b088dd194e6bf13de2cf60d922370a1872cdd862c79850a33";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "da77ab62a69d0dd773bb5cba9fdbb90a21c6f36c4a08f32a9c8542bc989c652c";
+export const GENERATED_TOOL_CATALOG_HASH = "200f31dbd77ee03cf9cbc88fa418859356f9b490d3e7f0337f19a73824add70f";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "aa2c9e77d83efac1833094b2dbab8700e0b798493497ba058cf854f0ad200571";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -1203,7 +1203,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted; \"\\n\" starts a new line in text areas and rich-text editors, single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
+    "description": "Set a field and read it back: text for text fields (\"\" clears; non-ASCII and multi-line text is pasted in one piece, so \"\\n\" is a line break in text areas and rich-text editors and never presses Enter; single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {

@@ -1672,9 +1672,11 @@ impl ComputerUseLinux {
         }
     }
 
-    /// The centre of the element an action names, by id or selector. An
-    /// element whose centre is not on the visible page is refused with the
-    /// call that brings it into view, since input there would land elsewhere.
+    /// The centre of the element an action names, by id or selector, from
+    /// its current bounds. An element whose centre is not on the visible
+    /// page is refused with the call that brings it into view, and one whose
+    /// centre is covered by another app's window is refused naming that
+    /// window, since input there would land elsewhere.
     async fn visible_element_center(
         &self,
         element_index: Option<u32>,
@@ -1685,15 +1687,79 @@ impl ComputerUseLinux {
         let node =
             self.resolve_cached_node(element_index, selector, ElementResolvePurpose::Click)?;
         let label = crate::outline::element_label(&node);
-        if let Some(center) = node.bounds.as_ref().and_then(bounds_center) {
-            if self.point_visible_for(&node, center).await {
-                return Ok((label, center));
-            }
+        let outside = || {
+            format!(
+                "{label} is outside the visible window; scroll it into view with scroll(element_index={}) and retry",
+                node.index
+            )
+        };
+        let cached_center = node.bounds.as_ref().and_then(bounds_center);
+        if !matches!(cached_center, Some(center) if self.point_visible_for(&node, center).await) {
+            return Err(outside());
         }
-        Err(format!(
-            "{label} is outside the visible window; scroll it into view with scroll(element_index={}) and retry",
-            node.index
-        ))
+        // The window may have moved since the snapshot: act on the bounds
+        // the element has now.
+        let mut fresh = crate::atspi_tree::read_element(&node.object_ref)
+            .await
+            .map_err(|error| {
+                format!(
+                    "{label} could not be reread ({}); call get_app_state and retry",
+                    first_line(&format!("{error:#}"))
+                )
+            })?;
+        fresh.index = node.index;
+        let center = fresh
+            .bounds
+            .as_ref()
+            .and_then(bounds_center)
+            .ok_or_else(outside)?;
+        if !self.point_visible_for(&fresh, center).await {
+            return Err(outside());
+        }
+        self.check_window_at(&node, &label, center).await?;
+        Ok((label, center))
+    }
+
+    /// Refuses pointer input at `point` for an element unless the X11 window
+    /// there belongs to the element's app (`window_in_the_way`). Skipped off
+    /// native X11, where the X server does not see every window.
+    async fn check_window_at(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        (x, y): (i32, i32),
+    ) -> std::result::Result<(), String> {
+        if !crate::x11_display::is_native_x11_session() {
+            return Ok(());
+        }
+        let owner_pid = match object_ref_owner_pid(&node.object_ref).await {
+            Ok(Some(pid)) => Some(pid),
+            _ => self
+                .last_snapshot
+                .lock()
+                .ok()
+                .and_then(|snapshot| snapshot.pid),
+        };
+        let point = (
+            i16::try_from(x).map_err(|_| format!("{x},{y} is off the X screen"))?,
+            i16::try_from(y).map_err(|_| format!("{x},{y} is off the X screen"))?,
+        );
+        let under = crate::x11_display::with_x11_display(
+            crate::x11_display::X11_QUERY_TIMEOUT,
+            move |display| display.window_at(point),
+        )
+        .await
+        .and_then(|result| result)
+        .map_err(|error| {
+            format!(
+                "could not ask the X server which window is under {x},{y}: {}",
+                first_line(&format!("{error:#}"))
+            )
+        })?;
+        match window_in_the_way(label, (x, y), owner_pid, under.as_ref()) {
+            Some(message) => Err(message),
+            None => Ok(()),
+        }
     }
 
     async fn drop_files(
@@ -1754,18 +1820,17 @@ impl ComputerUseLinux {
         };
         let steps = outcome.log.join("; ");
         eprintln!("drop_files at {},{}: {steps}", point.0, point.1);
-        if outcome.succeeded() {
-            Json(ActionOutput {
+        match outcome.failure() {
+            None => Json(ActionOutput {
                 ok: true,
                 implemented: true,
                 action: "drop_files".to_string(),
                 message: format!("dropped {count} file(s) onto {label} (XDND: {steps})"),
                 received,
-            })
-        } else {
-            failed(format!(
-                "the drop onto {label} was not taken (XDND: {steps}); drop onto the file input or drop zone itself"
-            ))
+            }),
+            Some(reason) => failed(format!(
+                "the drop onto {label} was not taken: {reason} (XDND: {steps}); drop onto the file input or drop zone itself"
+            )),
         }
     }
 
@@ -1850,7 +1915,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "set_value",
-        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted; \"\\n\" starts a new line in text areas and rich-text editors, single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
+        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII and multi-line text is pasted in one piece, so \"\\n\" is a line break in text areas and rich-text editors and never presses Enter; single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -2023,11 +2088,8 @@ impl ComputerUseLinux {
                 received: received.clone(),
             })
         };
-        let focus = match self.focus_target_for_input(&params.window_target()).await {
-            Ok(focus) => focus,
-            Err(message) => return failed(message),
-        };
-        let target = if params.element_index.is_some() || !params.selector().is_empty() {
+        let window_target = params.window_target();
+        let element = if params.element_index.is_some() || !params.selector().is_empty() {
             if let Err(message) = self
                 .ensure_resolvable(
                     params.element_index,
@@ -2043,20 +2105,59 @@ impl ComputerUseLinux {
                 &params.selector(),
                 ElementResolvePurpose::SetValue,
             ) {
-                Ok(node) => {
-                    let label = crate::outline::element_label(&node);
-                    if let Some(refusal) =
-                        crate::fields::line_break_refusal(&node, &label, &params.text, true)
-                    {
-                        return failed(refusal);
-                    }
-                    if let Err(message) = self.focus_element(&node, &label).await {
-                        return failed(message);
-                    }
-                    Some(node)
-                }
+                Ok(node) => Some(node),
                 Err(message) => return failed(message),
             }
+        } else {
+            None
+        };
+        // A window target and an element in another app cannot both be
+        // honoured: refuse before focus moves anywhere.
+        if let (Some(node), true) = (element.as_ref(), window_target.has_target()) {
+            let window_pid = match window_target.pid {
+                Some(pid) => Some(pid),
+                None => list_windows().await.ok().and_then(|windows| {
+                    resolve_window_target(&windows, &window_target)
+                        .ok()
+                        .and_then(|window| window.pid)
+                }),
+            };
+            if let Err(message) = self.check_node_target(node, window_pid).await {
+                return failed(conflicting_targets_message(&message));
+            }
+        }
+        let focus = match self.focus_target_for_input(&window_target).await {
+            Ok(focus) => focus,
+            Err(message) => return failed(message),
+        };
+        let target = if let Some(node) = element {
+            if let Err(message) = self
+                .check_node_target(&node, focus_target_pid(focus.as_ref()))
+                .await
+            {
+                return failed(conflicting_targets_message(&message));
+            }
+            let label = crate::outline::element_label(&node);
+            if let Some(refusal) =
+                crate::fields::line_break_refusal(&node, &label, &params.text, true)
+            {
+                return failed(refusal);
+            }
+            if let Err(message) = self.focus_element(&node, &label).await {
+                return failed(message);
+            }
+            if let Some(focus) = focus.as_ref() {
+                let now = focused_window().await.ok().flatten();
+                if let Some(drift) = focus_drift(
+                    &focus.requested_window,
+                    window_target.requires_exact_focus(),
+                    now.as_ref(),
+                    &label,
+                ) {
+                    return failed(drift);
+                }
+            }
+            Some(node)
         } else {
             if let Some(refusal) = self
                 .focused_line_break_refusal(focus.as_ref(), &params.text)
@@ -2071,6 +2172,13 @@ impl ComputerUseLinux {
             None => focused_window().await.ok().flatten(),
         };
         let paste_chord = paste_chord_for(window.as_ref());
+        // The target's text before typing, to tell whether the text arrived.
+        let before = match target.as_ref() {
+            Some(node) => read_field(&node.object_ref)
+                .await
+                .and_then(|(_, text)| text),
+            None => None,
+        };
         let text = params.text.clone();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
             enter_text(&text, paste_chord).await.map(|()| Vec::new())
@@ -2082,32 +2190,56 @@ impl ComputerUseLinux {
             return Json(output);
         }
         output.message = if crate::fields::typeable_ascii(&params.text) {
-            "Typed through xdotool (X11 XTEST).".to_string()
+            "Sent through xdotool (X11 XTEST).".to_string()
         } else {
-            format!("Pasted through the X11 clipboard ({paste_chord}).")
+            format!("Paste sent through the X11 clipboard ({paste_chord}).")
         };
         if let Some(node) = target {
+            let label = crate::outline::element_label(&node);
             sleep(Duration::from_millis(100)).await;
             let read_back = read_field(&node.object_ref)
                 .await
                 .and_then(|(_, text)| text);
             let shown = crate::fields::shown_text(read_back.as_deref());
-            output.message.push_str(&format!(
-                " {} now holds \"{}\".",
-                crate::outline::element_label(&node),
-                crate::outline::truncate(&shown, 200)
-            ));
-            if crate::fields::compare_read_back(read_back.as_deref(), &params.text)
-                == crate::fields::ReadBack::Formatted
-            {
-                output.message.push_str(&format!(
-                    " That matches the typed text (the field formatted it as \"{}\").",
-                    crate::outline::truncate(&shown, 200)
-                ));
+            let holds = crate::outline::truncate(&shown, 200);
+            match typed_delivery(before.as_deref(), read_back.as_deref(), &params.text) {
+                Delivery::Arrived => {
+                    output
+                        .message
+                        .push_str(&format!(" {label} now holds \"{holds}\"."));
+                    if crate::fields::compare_read_back(read_back.as_deref(), &params.text)
+                        == crate::fields::ReadBack::Formatted
+                    {
+                        output.message.push_str(&format!(
+                            " That matches the typed text (the field formatted it as \"{holds}\")."
+                        ));
+                    }
+                }
+                Delivery::Unchanged => {
+                    output.ok = false;
+                    output.message = format!(
+                        "The text did not arrive: {label} still holds \"{holds}\" after the input was sent. Check what has focus (a dialog?) and retry, or use set_value."
+                    );
+                }
+                Delivery::Unverified if read_back.is_none() => {
+                    output.message.push_str(&format!(
+                        " Dispatched; delivery not verified: {label} exposes no text to read back."
+                    ));
+                }
+                Delivery::Unverified => {
+                    output.message.push_str(&format!(
+                        " Dispatched; delivery not verified: Enter may have submitted {label}, which now holds \"{holds}\"."
+                    ));
+                }
             }
-        } else if focus.is_some() {
-            let notes = self.input_landing_notes(focus.as_ref(), true).await;
-            output = with_notes(output, notes);
+        } else {
+            output
+                .message
+                .push_str(" Dispatched; delivery not verified (no element was targeted).");
+            if focus.is_some() {
+                let notes = self.input_landing_notes(focus.as_ref(), true).await;
+                output = with_notes(output, notes);
+            }
         }
         Json(output)
     }
@@ -3402,7 +3534,7 @@ struct PressKeyParams {
     title: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct TypeTextParams {
     /// false skips the report of what changed (default true).
     #[serde(default)]
@@ -4634,7 +4766,7 @@ impl ComputerUseLinux {
         let entered = if value.is_empty() {
             send_key_chord("BackSpace").await
         } else {
-            enter_text(value, "ctrl+v").await
+            insert_text(value).await
         };
         if let Err(message) = entered {
             return FieldOutcome::failed(message);
@@ -4649,7 +4781,11 @@ impl ComputerUseLinux {
             }
         })
         .await;
-        let (matched, read_back) = fresh.unwrap_or((false, None));
+        let Some((matched, read_back)) = fresh else {
+            return FieldOutcome::failed(format!(
+                "the value was sent to {label}, but its text cannot be read back, so delivery is not verified; check it with get_app_state"
+            ));
+        };
         if password {
             let count = read_back.map_or(0, |text| text.chars().count());
             return FieldOutcome {
@@ -5660,12 +5796,13 @@ async fn send_key_chord(chord: &str) -> Result<(), String> {
     run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await.map(|_| ())
 }
 
-/// Types printable ASCII with `xdotool type`; anything else is pasted from
-/// an X11 CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or
-/// Ctrl+Shift+V in terminals), since XTEST drops non-ASCII text on Xvfb.
-/// Pasted text goes line by line with Return in between, as typing does:
-/// a newline inside a paste is inert in shells with bracketed paste, and
-/// Return starts a line in text areas and rich-text editors.
+/// Types text the way type_text promises, newlines as the Return key:
+/// printable ASCII with `xdotool type`; anything else is pasted from an X11
+/// CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or Ctrl+Shift+V
+/// in terminals), since XTEST drops non-ASCII text on Xvfb. Pasted text
+/// goes line by line with Return in between, as typing does: a newline
+/// inside a paste is inert in shells with bracketed paste. set_value
+/// enters values literally instead (`insert_text`).
 async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
     if crate::fields::typeable_ascii(text) {
         let delay_ms = xdotool_type_delay_ms();
@@ -5688,6 +5825,36 @@ async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Enters `value` into the focused field as literal text, as set_value and
+/// fill_form promise: printable ASCII on one line is typed, and anything
+/// else, line breaks included, goes in as one clipboard paste, so no Return
+/// key is pressed (Enter sends a message in chat editors). Chromium text
+/// areas keep the pasted newlines; contenteditable editors turn them into
+/// line breaks.
+async fn insert_text(value: &str) -> Result<(), String> {
+    match literal_insertion(value) {
+        Insertion::Type => enter_text(value, "ctrl+v").await,
+        Insertion::Paste(text) => paste_text(&text, "ctrl+v", false).await,
+    }
+}
+
+/// How `insert_text` enters a value.
+#[derive(Debug, PartialEq, Eq)]
+enum Insertion {
+    /// `xdotool type`: one line of printable ASCII, so no key but characters.
+    Type,
+    /// One clipboard paste of this text, CRLF folded to LF.
+    Paste(String),
+}
+
+fn literal_insertion(value: &str) -> Insertion {
+    if crate::fields::typeable_ascii(value) && !value.contains(['\n', '\r']) {
+        Insertion::Type
+    } else {
+        Insertion::Paste(value.replace("\r\n", "\n").replace('\r', "\n"))
+    }
+}
+
 /// How long the clipboard stays owned after a paste was first served.
 const CLIPBOARD_LINGER: Duration = Duration::from_secs(4);
 /// How long a paste followed by more text waits for the app's second read
@@ -5698,7 +5865,10 @@ const PASTE_SECOND_READ_WAIT: Duration = Duration::from_millis(250);
 /// Chromium reads a new clipboard owner once on its own and again when the
 /// paste lands, so with `more` text to follow (whose new owner would answer
 /// a late read) it waits up to `PASTE_SECOND_READ_WAIT` for that second
-/// read; apps that read once just cost the wait.
+/// read; apps that read once just cost the wait. No read at all means the
+/// paste did not land; a read does not mean it did (Chromium and clipboard
+/// managers read new owners on their own), so callers judge delivery by
+/// reading the field back.
 async fn paste_text(text: &str, paste_chord: &str, more: bool) -> Result<(), String> {
     let owned = text.to_string();
     let guard = tokio::task::spawn_blocking(move || {
@@ -6602,6 +6772,109 @@ fn focus_probe_feedback(
         FocusProbe::Incomplete => "Focused-element feedback unavailable: the focused element was not reached within the AT-SPI search limits, so the input could not be verified. Its absence here does not mean the input was lost.".to_string(),
         FocusProbe::NoAccessibleApp => "Focused-element feedback unavailable: the target app exposes no AT-SPI tree, so the input could not be verified. Electron apps need --force-renderer-accessibility.".to_string(),
     }
+}
+
+/// Why pointer input at `point` would miss `label`, whose app is
+/// `owner_pid`, given the X11 window there; `None` when that window is the
+/// app's.
+fn window_in_the_way(
+    label: &str,
+    (x, y): (i32, i32),
+    owner_pid: Option<u32>,
+    under: Option<&crate::x11_display::WindowAtPoint>,
+) -> Option<String> {
+    let Some(under) = under else {
+        return Some(format!(
+            "no window is under {x},{y}, where {label} should be; call get_app_state and retry"
+        ));
+    };
+    let Some(owner_pid) = owner_pid else {
+        return Some(format!(
+            "could not tell which app owns {label}, so {under} at {x},{y} cannot be confirmed to be its window"
+        ));
+    };
+    match under.pid {
+        Some(pid) if pid == owner_pid => None,
+        Some(_) => Some(format!(
+            "{under} is in the way of {label} (pid {owner_pid}) at {x},{y}; bring the element's window to the front with activate_window and retry"
+        )),
+        None => Some(format!(
+            "{under} is at {x},{y} and does not name its process, so it cannot be confirmed to be the window of {label} (pid {owner_pid})"
+        )),
+    }
+}
+
+/// What type_text's read-back of its target element says about delivery.
+#[derive(Debug, PartialEq, Eq)]
+enum Delivery {
+    /// The element's text changed.
+    Arrived,
+    /// The element's text is what it was before, though characters were
+    /// sent: they went somewhere else.
+    Unchanged,
+    /// The read-back cannot tell: the element has no text, or only Enter
+    /// was sent, or a trailing Enter may have submitted and cleared it.
+    Unverified,
+}
+
+fn typed_delivery(before: Option<&str>, after: Option<&str>, text: &str) -> Delivery {
+    let Some(after) = after else {
+        return Delivery::Unverified;
+    };
+    let characters = text.trim_end_matches(['\n', '\r']);
+    if characters.is_empty() {
+        return Delivery::Unverified;
+    }
+    let unchanged = crate::fields::shown_text(before) == crate::fields::shown_text(Some(after));
+    match (unchanged, characters.len() < text.len()) {
+        (false, _) => Delivery::Arrived,
+        (true, true) => Delivery::Unverified,
+        (true, false) => Delivery::Unchanged,
+    }
+}
+
+/// A type_text refusal for a window target and an element of another app.
+fn conflicting_targets_message(mismatch: &str) -> String {
+    format!(
+        "Nothing was typed: the window target and the element are in different apps. {mismatch} Or drop the window target and type by element only."
+    )
+}
+
+/// Why typing must stop after focusing `label`: focus left the requested
+/// window (or, for an app-level target, its app). `None` while it is there.
+fn focus_drift(
+    requested: &WindowInfo,
+    exact: bool,
+    focused: Option<&WindowInfo>,
+    label: &str,
+) -> Option<String> {
+    let stayed = focused.is_some_and(|focused| {
+        if exact {
+            focused.window_id == requested.window_id
+        } else {
+            focused.window_id == requested.window_id
+                || (requested.pid.is_some() && focused.pid == requested.pid)
+        }
+    });
+    if stayed {
+        return None;
+    }
+    let now = focused.map_or_else(
+        || "no window".to_string(),
+        |focused| {
+            format!(
+                "window_id {} (pid {})",
+                focused.window_id,
+                focused
+                    .pid
+                    .map_or_else(|| "unknown".to_string(), |pid| pid.to_string())
+            )
+        },
+    );
+    Some(format!(
+        "Nothing was typed: focusing {label} moved focus to {now}, away from the target window_id {}.",
+        requested.window_id
+    ))
 }
 
 fn node_target_mismatch_message(element_index: u32, owner_pid: u32, target_pid: u32) -> String {
@@ -8355,6 +8628,80 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn drag_rereads_the_element_instead_of_trusting_cached_bounds() {
+        let backend = ComputerUseLinux::default();
+        let mut frame = node(
+            1,
+            Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            }),
+        );
+        frame.role = "frame".to_string();
+        let mut card = node(
+            2,
+            Some(Bounds {
+                x: 10,
+                y: 10,
+                width: 50,
+                height: 20,
+            }),
+        );
+        card.parent_index = Some(1);
+        card.object_ref = ":1.9999/org/a11y/atspi/accessible/2".to_string();
+        backend.cache_nodes(&[frame, card]);
+        let result = backend
+            .drag(Parameters(DragParams {
+                from_element_index: Some(2),
+                end_x: Some(5),
+                end_y: Some(5),
+                ..Default::default()
+            }))
+            .await
+            .0;
+        assert!(!result.ok);
+        assert!(
+            result.message.contains("could not be reread"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn input_is_refused_when_another_apps_window_is_at_the_point() {
+        use crate::x11_display::WindowAtPoint;
+        let label = "[4] list \"Done\"";
+        let chrome = WindowAtPoint {
+            window: 0x400001,
+            pid: Some(100),
+            title: Some("Kanban - Chromium".to_string()),
+        };
+        assert_eq!(
+            window_in_the_way(label, (5, 5), Some(100), Some(&chrome)),
+            None
+        );
+        let terminal = WindowAtPoint {
+            window: 0x600001,
+            pid: Some(200),
+            title: Some("xterm".to_string()),
+        };
+        let covered = window_in_the_way(label, (5, 5), Some(100), Some(&terminal)).unwrap();
+        assert!(
+            covered.contains("window 0x600001 \"xterm\" (pid 200) is in the way"),
+            "{covered}"
+        );
+        let anonymous = WindowAtPoint {
+            pid: None,
+            ..terminal
+        };
+        assert!(window_in_the_way(label, (5, 5), Some(100), Some(&anonymous)).is_some());
+        assert!(window_in_the_way(label, (5, 5), None, Some(&chrome)).is_some());
+        assert!(window_in_the_way(label, (5, 5), Some(100), None).is_some());
+    }
+
+    #[tokio::test]
     async fn drag_refuses_an_element_outside_the_visible_page() {
         let backend = ComputerUseLinux::default();
         let mut frame = node(
@@ -9719,6 +10066,24 @@ mod field_entry_tests {
     }
 
     #[test]
+    fn set_value_pastes_multi_line_and_non_ascii_values_in_one_piece() {
+        assert_eq!(
+            literal_insertion("Olá Ana"),
+            Insertion::Paste("Olá Ana".into())
+        );
+        // No Return key: chat editors send on Enter.
+        assert_eq!(
+            literal_insertion("Hi Ana,\r\nsee you"),
+            Insertion::Paste("Hi Ana,\nsee you".into())
+        );
+        assert_eq!(
+            literal_insertion("line\n"),
+            Insertion::Paste("line\n".into())
+        );
+        assert_eq!(literal_insertion("plain text"), Insertion::Type);
+    }
+
+    #[test]
     fn terminals_paste_with_their_own_chord() {
         assert_eq!(paste_chord_for(Some(&window("Alacritty"))), "ctrl+shift+v");
         assert_eq!(
@@ -9914,6 +10279,82 @@ mod node_target_scope_tests {
             .await
             .is_ok());
         assert!(backend.check_node_target(&node, None).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn type_text_refuses_a_window_and_an_element_of_different_apps_before_focus() {
+        let backend = ComputerUseLinux::default();
+        let mut node = cached_node(2, ":1.9/org/a11y/atspi/accessible/42");
+        node.role = "entry".to_string();
+        node.states.push("editable".to_string());
+        backend.cache_snapshot(std::slice::from_ref(&node), Some(111));
+
+        let result = backend
+            .dispatch_type_text(TypeTextParams {
+                text: "x".to_string(),
+                element_index: Some(2),
+                pid: Some(222),
+                ..Default::default()
+            })
+            .await
+            .0;
+        assert!(!result.ok);
+        // Refused by the target check, not by a failed focus attempt.
+        assert!(
+            result.message.contains("in different apps")
+                && result.message.contains("not the target pid 222"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn typed_text_counts_as_delivered_only_when_the_field_changed() {
+        assert_eq!(
+            typed_delivery(Some(""), Some("oi"), "oi"),
+            Delivery::Arrived
+        );
+        assert_eq!(typed_delivery(None, Some("oi"), "oi"), Delivery::Arrived);
+        // A clipboard read alone is no proof: the field did not change.
+        assert_eq!(
+            typed_delivery(Some("draft"), Some("draft"), "ção"),
+            Delivery::Unchanged
+        );
+        assert_eq!(typed_delivery(Some(""), None, "oi"), Delivery::Unverified);
+        // Enter may submit and clear the field.
+        assert_eq!(
+            typed_delivery(Some(""), Some(""), "oi\n"),
+            Delivery::Unverified
+        );
+        assert_eq!(
+            typed_delivery(Some("x"), Some("x"), "\n"),
+            Delivery::Unverified
+        );
+    }
+
+    #[test]
+    fn typing_stops_when_focusing_the_element_left_the_target_window() {
+        let window = |window_id: u64, pid: u32| WindowInfo {
+            window_id,
+            title: None,
+            app_id: None,
+            wm_class: None,
+            pid: Some(pid),
+            bounds: None,
+            workspace: None,
+            focused: true,
+            hidden: false,
+            client_type: None,
+            backend: "test".to_string(),
+            terminal: None,
+        };
+        let requested = window(10, 1);
+        assert!(focus_drift(&requested, true, Some(&window(10, 1)), "[2]").is_none());
+        let drift = focus_drift(&requested, true, Some(&window(11, 1)), "[2]").unwrap();
+        assert!(drift.contains("window_id 11 (pid 1)"), "{drift}");
+        assert!(focus_drift(&requested, false, Some(&window(11, 1)), "[2]").is_none());
+        assert!(focus_drift(&requested, false, Some(&window(12, 2)), "[2]").is_some());
+        assert!(focus_drift(&requested, true, None, "[2]").is_some());
     }
 
     #[tokio::test]

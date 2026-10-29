@@ -9,6 +9,8 @@
 //! data through `XdndSelection` and ends with `XdndFinished`. The source never
 //! sends a second `XdndPosition` before the `XdndStatus` of the first.
 
+use crate::x11_display::{X11Display, X11_QUERY_TIMEOUT};
+use anyhow::Context as _;
 use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
@@ -51,10 +53,28 @@ pub(crate) struct DropOutcome {
 }
 
 impl DropOutcome {
-    /// A drop counts when the target accepted it and then either finished it
-    /// or at least read the files.
+    /// A drop counts when the target accepted it and then finished it with
+    /// accept, or, when no `XdndFinished` came, at least read the files. A
+    /// `XdndFinished` that refuses is a failure even after a read.
     pub(crate) fn succeeded(&self) -> bool {
-        self.accepted && (self.finished.is_some() || self.served)
+        self.accepted
+            && match self.finished {
+                Some(accepted) => accepted,
+                None => self.served,
+            }
+    }
+
+    /// Why the drop failed, for the tool result: `None` when it succeeded.
+    pub(crate) fn failure(&self) -> Option<&'static str> {
+        if self.succeeded() {
+            None
+        } else if self.accepted && self.finished == Some(false) {
+            Some("the page refused the drop")
+        } else if self.accepted {
+            Some("the page accepted the drag but never read the files")
+        } else {
+            Some("the page did not accept the drag")
+        }
     }
 }
 
@@ -217,10 +237,24 @@ fn message_window(conn: &impl Connection, atoms: &Atoms, target: Window) -> Wind
         .unwrap_or(target)
 }
 
-/// Drops the files at root point `point`: warps the pointer there, runs the
-/// XDND exchange as the drag source, and serves the file list. Blocks for at
-/// most `STATUS_TIMEOUT` plus `finish_timeout`; call it off the async runtime.
+/// Drops the files at root point `point` on the `DISPLAY` X server; see
+/// [`drop_files_on`].
 pub(crate) fn drop_files(
+    paths: &[PathBuf],
+    point: (i32, i32),
+    finish_timeout: Duration,
+) -> anyhow::Result<DropOutcome> {
+    let display = std::env::var("DISPLAY").context("DISPLAY is not set")?;
+    drop_files_on(&display, paths, point, finish_timeout)
+}
+
+/// Drops the files at root point `point`: warps the pointer there, runs the
+/// XDND exchange as the drag source, and serves the file list. Every round
+/// trip shares one deadline, so a stuck X server fails the drop after at
+/// most `STATUS_TIMEOUT` plus `finish_timeout` plus twice
+/// `X11_QUERY_TIMEOUT` (setup and cleanup). Call it off the async runtime.
+pub(crate) fn drop_files_on(
+    display_name: &str,
     paths: &[PathBuf],
     point: (i32, i32),
     finish_timeout: Duration,
@@ -231,9 +265,11 @@ pub(crate) fn drop_files(
         "the file list exceeds {MAX_URI_LIST_BYTES} bytes"
     );
     let point = (i16::try_from(point.0)?, i16::try_from(point.1)?);
-    let (conn, screen) = x11rb::connect(None)?;
-    let root = conn.setup().roots[screen].root;
-    let atoms = Atoms::intern(&conn)?;
+    let display = X11Display::connect_named(display_name, Instant::now() + X11_QUERY_TIMEOUT)?;
+    let explain = |error| display.explain_timeout(error, "the drop");
+    let conn = display.connection();
+    let root = display.root();
+    let atoms = Atoms::intern(conn).map_err(explain)?;
     let source = conn.generate_id()?;
     conn.create_window(
         0,
@@ -248,8 +284,11 @@ pub(crate) fn drop_files(
         0,
         &CreateWindowAux::new().event_mask(EventMask::PROPERTY_CHANGE),
     )?
-    .check()?;
-    let result = run_drop(&conn, &atoms, root, source, &list, point, finish_timeout);
+    .check()
+    .map_err(|error| explain(error.into()))?;
+    display.set_deadline(Instant::now() + STATUS_TIMEOUT + finish_timeout + X11_QUERY_TIMEOUT);
+    let result =
+        run_drop(conn, &atoms, root, source, &list, point, finish_timeout).map_err(explain);
     if conn
         .get_selection_owner(atoms.selection)
         .ok()
@@ -533,6 +572,21 @@ mod tests {
     }
 
     #[test]
+    fn a_stalled_x_server_fails_the_drop_instead_of_blocking() {
+        let display = crate::x11_display::stalled_x_server();
+        let started = Instant::now();
+        let error = drop_files_on(
+            &display,
+            &[PathBuf::from("/tmp/a")],
+            (5, 5),
+            Duration::from_millis(100),
+        )
+        .unwrap_err();
+        assert!(format!("{error:#}").contains("did not answer"), "{error:#}");
+        assert!(started.elapsed() < X11_QUERY_TIMEOUT + Duration::from_secs(1));
+    }
+
+    #[test]
     fn a_drop_counts_only_when_accepted_and_finished_or_read() {
         let mut outcome = DropOutcome {
             accepted: true,
@@ -546,5 +600,31 @@ mod tests {
         assert!(outcome.succeeded());
         outcome.accepted = false;
         assert!(!outcome.succeeded());
+    }
+
+    #[test]
+    fn an_explicitly_refused_drop_fails_even_after_the_files_were_read() {
+        let refused = DropOutcome {
+            accepted: true,
+            served: true,
+            finished: Some(false),
+            ..Default::default()
+        };
+        assert!(!refused.succeeded());
+        assert_eq!(refused.failure(), Some("the page refused the drop"));
+        let unread = DropOutcome {
+            accepted: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            unread.failure(),
+            Some("the page accepted the drag but never read the files")
+        );
+        let finished = DropOutcome {
+            accepted: true,
+            finished: Some(true),
+            ..Default::default()
+        };
+        assert_eq!(finished.failure(), None);
     }
 }

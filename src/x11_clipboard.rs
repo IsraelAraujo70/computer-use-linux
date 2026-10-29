@@ -1,5 +1,7 @@
 //! X11 CLIPBOARD owner used to paste text that the keyboard path cannot type.
 
+use crate::x11_display::{X11Display, X11_QUERY_TIMEOUT};
+use anyhow::Context as _;
 use std::{
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -21,15 +23,30 @@ fn latin1(text: &str) -> Vec<u8> {
         .collect()
 }
 
-/// Owns CLIPBOARD and PRIMARY until dropped or the hold duration elapses.
+/// Owns CLIPBOARD and PRIMARY on the `DISPLAY` X server; see
+/// [`hold_clipboard_on`].
 pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<ClipboardGuard> {
     anyhow::ensure!(text.len() <= 256 * 1024, "clipboard text exceeds 256 KB");
-    let (conn, screen) = x11rb::connect(None)?;
+    let display = std::env::var("DISPLAY").context("DISPLAY is not set")?;
+    hold_clipboard_on(&display, text, hold)
+}
+
+/// The atoms a clipboard owner answers with.
+struct Atoms {
+    clipboard: Atom,
+    targets: Atom,
+    utf8: Atom,
+    text: Atom,
+}
+
+/// Creates the owner window and takes CLIPBOARD and PRIMARY with it.
+fn take_ownership(display: &X11Display) -> anyhow::Result<(Window, Atoms)> {
+    let conn = display.connection();
     let window = conn.generate_id()?;
     conn.create_window(
         0,
         window,
-        conn.setup().roots[screen].root,
+        display.root(),
         0,
         0,
         1,
@@ -42,11 +59,13 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
     .check()?;
     let atom =
         |name: &[u8]| -> anyhow::Result<u32> { Ok(conn.intern_atom(false, name)?.reply()?.atom) };
-    let clipboard = atom(b"CLIPBOARD")?;
-    let targets = atom(b"TARGETS")?;
-    let utf8 = atom(b"UTF8_STRING")?;
-    let text_atom = atom(b"TEXT")?;
-    for selection in [clipboard, AtomEnum::PRIMARY.into()] {
+    let atoms = Atoms {
+        clipboard: atom(b"CLIPBOARD")?,
+        targets: atom(b"TARGETS")?,
+        utf8: atom(b"UTF8_STRING")?,
+        text: atom(b"TEXT")?,
+    };
+    for selection in [atoms.clipboard, AtomEnum::PRIMARY.into()] {
         conn.set_selection_owner(window, selection, CURRENT_TIME)?
             .check()?;
         anyhow::ensure!(
@@ -55,6 +74,28 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
         );
     }
     conn.flush()?;
+    Ok((window, atoms))
+}
+
+/// Owns CLIPBOARD and PRIMARY until dropped or the hold duration elapses.
+/// Taking ownership must finish within `X11_QUERY_TIMEOUT`, and serving and
+/// releasing it within `hold` plus `X11_QUERY_TIMEOUT`, so a stuck X server
+/// fails the call or ends the background owner instead of blocking.
+pub(crate) fn hold_clipboard_on(
+    display_name: &str,
+    text: &str,
+    hold: Duration,
+) -> anyhow::Result<ClipboardGuard> {
+    let display = X11Display::connect_named(display_name, Instant::now() + X11_QUERY_TIMEOUT)?;
+    let (window, atoms) = take_ownership(&display)
+        .map_err(|error| display.explain_timeout(error, "the request to own the clipboard"))?;
+    display.set_deadline(Instant::now() + hold + X11_QUERY_TIMEOUT);
+    let Atoms {
+        clipboard,
+        targets,
+        utf8,
+        text: text_atom,
+    } = atoms;
     let stop = Arc::new(AtomicBool::new(false));
     let reads = Arc::new(AtomicUsize::new(0));
     let shutdown = stop.clone();
@@ -62,6 +103,7 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
     let bytes = text.as_bytes().to_vec();
     let fallback = latin1(text);
     let worker = thread::spawn(move || {
+        let conn = display.connection();
         let run = || -> anyhow::Result<()> {
             let deadline = Instant::now() + hold;
             while !shutdown.load(Ordering::Acquire) && Instant::now() < deadline {
@@ -188,6 +230,17 @@ mod tests {
     #[test]
     fn size_limit() {
         assert!(hold_clipboard(&"x".repeat(256 * 1024 + 1), Duration::ZERO).is_err());
+    }
+    #[test]
+    fn a_stalled_x_server_fails_the_paste_instead_of_blocking() {
+        let display = crate::x11_display::stalled_x_server();
+        let started = Instant::now();
+        let error = match hold_clipboard_on(&display, "x", Duration::from_secs(10)) {
+            Ok(_) => panic!("a stalled X server cannot hand over the clipboard"),
+            Err(error) => error,
+        };
+        assert!(format!("{error:#}").contains("did not answer"), "{error:#}");
+        assert!(started.elapsed() < X11_QUERY_TIMEOUT + Duration::from_secs(1));
     }
     #[test]
     #[ignore]
