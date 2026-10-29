@@ -689,6 +689,48 @@ pub(crate) async fn read_element(object_ref_id: &str) -> Result<AccessibilityNod
     Ok(read_node(&proxy, &object_ref, 0, None, 0).await)
 }
 
+/// Fresh read of an element and its descendants, breadth-first, at most
+/// `max_nodes` nodes and `max_depth` levels below it. `index` is each node's
+/// position in the result and `parent_index` its parent's, so `nodes[0]` is
+/// the element and children follow their parents in sibling order.
+pub(crate) async fn read_subtree(
+    object_ref_id: &str,
+    max_nodes: usize,
+    max_depth: u32,
+) -> Result<Vec<AccessibilityNode>> {
+    let conn = connect().await?;
+    let root = object_ref_from_id(object_ref_id)?;
+    let mut queue = VecDeque::from([(root, 0_u32, None)]);
+    let mut nodes = Vec::new();
+    let mut remaining_reads = max_nodes;
+    while let Some((object_ref, depth, parent_index)) = queue.pop_front() {
+        if nodes.len() >= max_nodes {
+            break;
+        }
+        let Ok(proxy) = open_accessible(&conn, &object_ref).await else {
+            continue;
+        };
+        let index = u32::try_from(nodes.len()).unwrap_or(u32::MAX);
+        let node = read_node(&proxy, &object_ref, index, parent_index, depth).await;
+        if depth < max_depth {
+            let budget = max_nodes.saturating_sub(nodes.len() + 1 + queue.len());
+            if let Ok(children) = children_up_to(&proxy, budget, &mut remaining_reads).await {
+                queue.extend(
+                    children
+                        .items
+                        .into_iter()
+                        .map(|child| (child, depth + 1, Some(index))),
+                );
+            }
+        }
+        nodes.push(node);
+    }
+    if nodes.is_empty() {
+        return Err(anyhow!("AT-SPI object {object_ref_id} no longer exists"));
+    }
+    Ok(nodes)
+}
+
 /// Moves keyboard focus to the element through `Component.GrabFocus`.
 /// Returns the toolkit's answer; callers still read the `focused` state back.
 pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {

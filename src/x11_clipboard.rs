@@ -2,7 +2,7 @@
 
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
     thread,
@@ -56,9 +56,9 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
     }
     conn.flush()?;
     let stop = Arc::new(AtomicBool::new(false));
-    let served = Arc::new(AtomicBool::new(false));
+    let reads = Arc::new(AtomicUsize::new(0));
     let shutdown = stop.clone();
-    let answered = served.clone();
+    let answered = reads.clone();
     let bytes = text.as_bytes().to_vec();
     let fallback = latin1(text);
     let worker = thread::spawn(move || {
@@ -117,7 +117,7 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
                         .check()?;
                         conn.flush()?;
                         if is_text {
-                            answered.store(true, Ordering::Release);
+                            answered.fetch_add(1, Ordering::AcqRel);
                         }
                     }
                     None => thread::sleep(Duration::from_millis(5)),
@@ -137,7 +137,7 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
     });
     Ok(ClipboardGuard {
         stop,
-        served,
+        reads,
         worker: Some(worker),
     })
 }
@@ -145,17 +145,23 @@ pub(crate) fn hold_clipboard(text: &str, hold: Duration) -> anyhow::Result<Clipb
 /// Lifetime guard for the background selection owner.
 pub(crate) struct ClipboardGuard {
     stop: Arc<AtomicBool>,
-    served: Arc<AtomicBool>,
+    /// Text requests answered so far.
+    reads: Arc<AtomicUsize>,
     worker: Option<thread::JoinHandle<()>>,
 }
 impl ClipboardGuard {
     /// Waits up to timeout for a text request to be answered.
     pub(crate) fn wait_served(&self, timeout: Duration) -> bool {
+        self.wait_reads(1, timeout)
+    }
+
+    /// Waits up to timeout until `count` text requests have been answered.
+    pub(crate) fn wait_reads(&self, count: usize, timeout: Duration) -> bool {
         let start = Instant::now();
-        while !self.served.load(Ordering::Acquire) && start.elapsed() < timeout {
+        while self.reads.load(Ordering::Acquire) < count && start.elapsed() < timeout {
             thread::sleep(Duration::from_millis(5));
         }
-        self.served.load(Ordering::Acquire)
+        self.reads.load(Ordering::Acquire) >= count
     }
 }
 impl Drop for ClipboardGuard {

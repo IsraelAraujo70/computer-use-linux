@@ -1849,7 +1849,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "set_value",
-        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
+        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted; \"\\n\" starts a new line in text areas and rich-text editors, single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1957,7 +1957,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "type_text",
-        description = "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter. To replace a field's content use set_value. Reports what changed.",
+        description = "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter (a new line in text areas and editors; inside the text of a single-line input it is refused). To replace a field's content use set_value. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -2040,6 +2040,11 @@ impl ComputerUseLinux {
             ) {
                 Ok(node) => {
                     let label = crate::outline::element_label(&node);
+                    if let Some(refusal) =
+                        crate::fields::line_break_refusal(&node, &label, &params.text, true)
+                    {
+                        return failed(refusal);
+                    }
                     if let Err(message) = self.focus_element(&node, &label).await {
                         return failed(message);
                     }
@@ -2048,6 +2053,12 @@ impl ComputerUseLinux {
                 Err(message) => return failed(message),
             }
         } else {
+            if let Some(refusal) = self
+                .focused_line_break_refusal(focus.as_ref(), &params.text)
+                .await
+            {
+                return failed(refusal);
+            }
             None
         };
         let window = match focus.as_ref() {
@@ -2072,11 +2083,10 @@ impl ComputerUseLinux {
         };
         if let Some(node) = target {
             sleep(Duration::from_millis(100)).await;
-            let read_back = crate::atspi_tree::read_element(&node.object_ref)
+            let read_back = read_field(&node.object_ref)
                 .await
-                .ok()
-                .and_then(|fresh| crate::fields::field_text(&fresh));
-            let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+                .and_then(|(_, text)| text);
+            let shown = crate::fields::shown_text(read_back.as_deref());
             output.message.push_str(&format!(
                 " {} now holds \"{}\".",
                 crate::outline::element_label(&node),
@@ -3844,6 +3854,39 @@ impl ComputerUseLinux {
         }
     }
 
+    /// `fields::line_break_refusal` for untargeted typing: when the text has
+    /// a line break before its end, the focused element is read and the text
+    /// refused if it is a single-line field. `None` when the focus cannot be
+    /// read: typing goes ahead as before.
+    async fn focused_line_break_refusal(
+        &self,
+        focus: Option<&WindowFocusResult>,
+        text: &str,
+    ) -> Option<String> {
+        if !text.trim_end_matches(['\n', '\r']).contains(['\n', '\r']) {
+            return None;
+        }
+        let pid = focus.and_then(|focus| {
+            focus
+                .focused_window
+                .as_ref()
+                .and_then(|window| window.pid)
+                .or(focus.requested_window.pid)
+        });
+        let probe = timeout(Duration::from_millis(1500), probe_focused_element(pid))
+            .await
+            .ok()?
+            .ok()?;
+        let FocusProbe::Found(element) = probe else {
+            return None;
+        };
+        let node = crate::atspi_tree::read_element(&element.object_ref)
+            .await
+            .ok()?;
+        let label = crate::outline::element_label(&node);
+        crate::fields::line_break_refusal(&node, &label, text, true)
+    }
+
     /// Notes appended after targeted keyboard input: off-screen window warning
     /// plus focused-element feedback.
     async fn input_landing_notes(
@@ -4459,19 +4502,23 @@ impl ComputerUseLinux {
     /// option choice). `ok` only when the read-back value is the requested one.
     async fn set_field(&self, node: &AccessibilityNode, value: &str) -> FieldOutcome {
         let label = crate::outline::element_label(node);
+        if let Some(refusal) = crate::fields::line_break_refusal(node, &label, value, false) {
+            return FieldOutcome::failed(refusal);
+        }
         if node.supports_editable_text
             || (node.value.is_some() && value.trim().parse::<f64>().is_ok())
         {
             if let Ok(invocation) = set_element_value(&node.object_ref, value).await {
-                let fresh = crate::atspi_tree::read_element(&node.object_ref).await.ok();
+                let (fresh, text) = match read_field(&node.object_ref).await {
+                    Some((fresh, text)) => (Some(fresh), text),
+                    None => (None, None),
+                };
                 let read_back = match invocation {
                     ValueSetInvocation::Numeric { .. } => fresh
                         .as_ref()
                         .and_then(|node| node.value.as_ref())
                         .map(|value| value.current.to_string()),
-                    ValueSetInvocation::EditableText => {
-                        fresh.as_ref().and_then(crate::fields::field_text)
-                    }
+                    ValueSetInvocation::EditableText => text,
                 };
                 let ok = match invocation {
                     ValueSetInvocation::Numeric { value } => fresh
@@ -4511,7 +4558,7 @@ impl ComputerUseLinux {
         read_back: Option<String>,
         requested: &str,
     ) -> FieldOutcome {
-        let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+        let shown = crate::fields::shown_text(read_back.as_deref());
         let formatted = crate::fields::compare_read_back(read_back.as_deref(), requested)
             == crate::fields::ReadBack::Formatted;
         FieldOutcome {
@@ -4549,19 +4596,15 @@ impl ComputerUseLinux {
         }
         let password = node.role.eq_ignore_ascii_case("password text");
         let expected_chars = value.chars().count();
-        let fresh = poll_element(&node.object_ref, FIELD_READBACK_TIMEOUT, |fresh| {
-            let text = crate::fields::field_text(fresh);
+        let fresh = poll_field_text(&node.object_ref, FIELD_READBACK_TIMEOUT, |text| {
             if password {
                 text.map_or(0, |text| text.chars().count()) == expected_chars
             } else {
-                crate::fields::values_match(text.as_deref(), value)
+                crate::fields::values_match(text, value)
             }
         })
         .await;
-        let (matched, read_back) = match fresh {
-            Some((matched, fresh)) => (matched, crate::fields::field_text(&fresh)),
-            None => (false, None),
-        };
+        let (matched, read_back) = fresh.unwrap_or((false, None));
         if password {
             let count = read_back.map_or(0, |text| text.chars().count());
             return FieldOutcome {
@@ -5352,6 +5395,61 @@ async fn poll_element(
     }
 }
 
+/// Most descendants of a rich-text editor read to expand its text.
+const FIELD_SUBTREE_MAX_NODES: usize = 400;
+/// Deepest descendant level of an editor read to expand its text.
+const FIELD_SUBTREE_MAX_DEPTH: u32 = 12;
+
+/// Rereads a field and the text it holds (`fields::field_text`). An editor
+/// whose text has U+FFFC for embedded paragraphs (a Chromium
+/// contenteditable) is read with its descendants and expanded
+/// (`fields::expanded_text`). `None` when the field cannot be read.
+async fn read_field(object_ref: &str) -> Option<(AccessibilityNode, Option<String>)> {
+    let fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
+    let text = crate::fields::field_text(&fresh);
+    if text
+        .as_deref()
+        .is_some_and(|text| text.contains(crate::fields::EMBEDDED_OBJECT))
+    {
+        let expanded = crate::atspi_tree::read_subtree(
+            object_ref,
+            FIELD_SUBTREE_MAX_NODES,
+            FIELD_SUBTREE_MAX_DEPTH,
+        )
+        .await
+        .ok()
+        .and_then(|nodes| crate::fields::expanded_text(&nodes));
+        if expanded.is_some() {
+            return Some((fresh, expanded));
+        }
+    }
+    Some((fresh, text))
+}
+
+/// Rereads a field's text (`read_field`) until `done` holds or `limit`
+/// passes. `None` when the field cannot be read at all; otherwise whether
+/// `done` held, and the last text read.
+async fn poll_field_text(
+    object_ref: &str,
+    limit: Duration,
+    done: impl Fn(Option<&str>) -> bool,
+) -> Option<(bool, Option<String>)> {
+    let started = std::time::Instant::now();
+    let mut last = None;
+    loop {
+        if let Some((_, text)) = read_field(object_ref).await {
+            if done(text.as_deref()) {
+                return Some((true, text));
+            }
+            last = Some(text);
+        }
+        if started.elapsed() >= limit {
+            return last.map(|text| (false, text));
+        }
+        sleep(Duration::from_millis(80)).await;
+    }
+}
+
 /// One left click at a screen point.
 async fn click_point((x, y): (i32, i32)) -> Result<(), String> {
     let args = xdotool_pointer_click_args(x, y, 1, None)
@@ -5373,7 +5471,8 @@ async fn send_key_chord(chord: &str) -> Result<(), String> {
 /// an X11 CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or
 /// Ctrl+Shift+V in terminals), since XTEST drops non-ASCII text on Xvfb.
 /// Pasted text goes line by line with Return in between, as typing does:
-/// a newline inside a paste is inert in shells with bracketed paste.
+/// a newline inside a paste is inert in shells with bracketed paste, and
+/// Return starts a line in text areas and rich-text editors.
 async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
     if crate::fields::typeable_ascii(text) {
         let delay_ms = xdotool_type_delay_ms();
@@ -5385,10 +5484,11 @@ async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
     let text = text.replace("\r\n", "\n");
     let lines: Vec<&str> = text.split('\n').collect();
     for (index, line) in lines.iter().enumerate() {
+        let more = index + 1 < lines.len();
         if !line.is_empty() {
-            paste_text(line, paste_chord).await?;
+            paste_text(line, paste_chord, more).await?;
         }
-        if index + 1 < lines.len() {
+        if more {
             send_key_chord("Return").await?;
         }
     }
@@ -5397,8 +5497,16 @@ async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
 
 /// How long the clipboard stays owned after a paste was first served.
 const CLIPBOARD_LINGER: Duration = Duration::from_secs(4);
+/// How long a paste followed by more text waits for the app's second read
+/// of the clipboard (see `paste_text`).
+const PASTE_SECOND_READ_WAIT: Duration = Duration::from_millis(250);
 
-async fn paste_text(text: &str, paste_chord: &str) -> Result<(), String> {
+/// Pastes one piece of text through a clipboard this process owns.
+/// Chromium reads a new clipboard owner once on its own and again when the
+/// paste lands, so with `more` text to follow (whose new owner would answer
+/// a late read) it waits up to `PASTE_SECOND_READ_WAIT` for that second
+/// read; apps that read once just cost the wait.
+async fn paste_text(text: &str, paste_chord: &str, more: bool) -> Result<(), String> {
     let owned = text.to_string();
     let guard = tokio::task::spawn_blocking(move || {
         crate::x11_clipboard::hold_clipboard(&owned, Duration::from_secs(10))
@@ -5409,6 +5517,11 @@ async fn paste_text(text: &str, paste_chord: &str) -> Result<(), String> {
     let sent = send_key_chord(paste_chord).await;
     let served = tokio::task::spawn_blocking(move || {
         let served = guard.wait_served(Duration::from_secs(2));
+        if served && more {
+            // The first read may be Chromium's own, before the paste: wait
+            // for the paste's read so the next owner cannot answer it.
+            guard.wait_reads(2, PASTE_SECOND_READ_WAIT);
+        }
         // Chromium reads the selection once when ownership changes and again
         // when the paste lands; an owner that is gone by then yields an empty
         // paste, and one that vanishes mid-request stalls the renderer. Keep
