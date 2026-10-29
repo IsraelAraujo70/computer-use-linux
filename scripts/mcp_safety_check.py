@@ -34,6 +34,7 @@ EXPECTED_TOOLS = {
     "type_text",
     "perform_action",
     "set_value",
+    "fill_form",
 }
 SHELL_TOOL = "run_shell"
 
@@ -104,6 +105,7 @@ DESTRUCTIVE_MUTATING_TOOLS = {
     "type_text",
     "perform_action",
     "set_value",
+    "fill_form",
     SHELL_TOOL,
 }
 

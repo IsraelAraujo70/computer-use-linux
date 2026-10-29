@@ -111,6 +111,7 @@ const TOOL_ALIASES: Record<string, string[]> = {
 	click: ["press button", "mouse"],
 	doctor: ["diagnose", "readiness", "health", "setup"],
 	drag: ["mouse drag"],
+	fill_form: ["form", "fill fields", "input value"],
 	focused_window: ["active window", "focus"],
 	get_app_state: ["accessibility", "observe", "snapshot", "screen state"],
 	list_apps: ["applications", "processes"],

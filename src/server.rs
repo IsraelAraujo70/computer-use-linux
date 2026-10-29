@@ -139,11 +139,9 @@ impl ComputerUseLinux {
             for value in input_schema.values_mut() {
                 sanitize_unsigned_integer_formats(value);
             }
-            if let Some(output_schema) = route.attr.output_schema.as_mut() {
-                for value in Arc::make_mut(output_schema).values_mut() {
-                    sanitize_unsigned_integer_formats(value);
-                }
-            }
+            // Results are text for the agent to read; output schemas only
+            // add kilobytes to every tools/list.
+            route.attr.output_schema = None;
         }
         router
     }
@@ -153,7 +151,7 @@ impl ComputerUseLinux {
 impl ComputerUseLinux {
     #[tool(
         name = "doctor",
-        description = "Check the X11 session: X display, i3 window IPC, AT-SPI bus, xdotool and tesseract. readiness.blockers names the fix for each failure.",
+        description = "Check the X11 session (display, i3, AT-SPI, xdotool, tesseract). readiness.blockers names the fix for each failure.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -167,7 +165,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "list_apps",
-        description = "List running app processes and the AT-SPI application roots (their names work as app_name_or_bundle_identifier).",
+        description = "List app processes and AT-SPI application names (usable as app_name_or_bundle_identifier).",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -191,7 +189,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "list_windows",
-        description = "List X11 windows (i3, or EWMH via wmctrl) with window_id, title, app_id (WM_CLASS instance), wm_class, pid, focus state and bounds.",
+        description = "List X11 windows with window_id, title, wm_class, pid, focus and bounds.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -240,7 +238,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "activate_window",
-        description = "Focus an X11 window (switching i3 workspace if needed) by window_id, pid, app_id, wm_class, title, or terminal selectors (tty, terminal_pid, terminal_command, terminal_cwd).",
+        description = "Focus a window by window_id, pid, wm_class or title.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -284,7 +282,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "get_app_state",
-        description = "Observe an app: a header (window title, window_id, url for browsers, element count), then one line per visible element, `[n] role \"name\" @x,y wxh {states} actions=... text=...`, indented by nesting. [n] is a stable element id for element_index in every tool. Browsers show only the web page (include_browser_ui=true for the rest). A screenshot is attached only when the tree shows little (include_screenshot to force). Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
+        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per visible element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -570,7 +568,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "find_elements",
-        description = "Search an app's accessibility tree and return only matching elements as outline lines `[index] role \"name\" @x,y wxh {states} actions=...`. Cheaper than get_app_state for locating a control. Scope with app_name_or_bundle_identifier or a window target. role/name/text/states must all match (case-insensitive substrings). Each `[n]` is the element's id, valid in every tool for the server's lifetime.",
+        description = "Find elements by role/name/text/states (case-insensitive substrings, all must match), including ones hidden from get_app_state (browser UI, off-screen). Returns their `[n]` lines.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -634,7 +632,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "wait_for",
-        description = "Poll an app's accessibility tree until a condition holds or timeout_ms passes. condition=appears waits for an element matching role/name/text/states; disappears waits until none match; changed waits until the scoped tree differs from its state at the first poll and returns the differing lines prefixed + or - (the query is ignored). Each poll rereads the tree, about 1-3 s for a large browser page, so the effective timeout rounds up to whole polls. Use after an action instead of repeated screenshots.",
+        description = "Wait until an element appears or disappears (role/name/text/states), or until the tree changes (condition=changed). Actions already report their changes; use this for slow updates.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -730,7 +728,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "ocr",
-        description = "Read on-screen text with tesseract OCR and return lines as `@x,y wxh text`. Use it where the accessibility tree is empty (canvas, some Electron apps). Without a window target the whole screen is read in screen coordinates; with one the window is focused first and coordinates are window-relative, ready for click with relative=true. Optional region crops first; query keeps only lines containing that text (case-insensitive). Default languages: por+eng when installed.",
+        description = "Read on-screen text with OCR as `@x,y wxh text` lines, for canvases and apps without an accessibility tree. With a window target, coordinates are window-relative (click with relative=true).",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -778,7 +776,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "screenshot",
-        description = "Capture the X11 screen as a size-bounded image. With a window target (window_id/pid/app_id/wm_class/title) the window is focused first and the image is cropped to it; full_screen=true keeps the whole screen. The caption gives returned width/height, coordinate_width/coordinate_height, scale, format and crop details. Use format=jpeg/quality or max_width/max_height/max_bytes to shrink the payload.",
+        description = "Capture the screen, or a focused window with a window target, as an image. The caption gives scale: click x/y = image pixel / scale.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -1587,7 +1585,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "click",
-        description = "Click an element by element_index or semantic selector (role/name/text/states), or at screen coordinates x/y (screenshot coordinate pixels; with relative=true and a window target, relative to that window's crop). A plain left click on an element invokes its AT-SPI click/press/toggle action; coordinates, right/middle buttons and click_count>1 send an xdotool pointer click.",
+        description = "Click an element by element_index (or role/name/text), or screen x/y. Element clicks use the element's own action when it has one, so off-screen items in lists work. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1603,7 +1601,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "perform_action",
-        description = "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided.",
+        description = "Invoke a named AT-SPI action of an element (default: its primary action). Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1622,7 +1620,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "set_value",
-        description = "Set a field and read it back. Text fields (web fields included; non-ASCII is pasted): the text, \"\" clears. Combo boxes, selects, list boxes and radio groups: the option name. Check boxes, radios, switches: \"true\"/\"false\". ok only when the field then holds the value; the result shows what it holds.",
+        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1641,7 +1639,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "fill_form",
-        description = "Set several fields in one call, in order, with set_value semantics (text fields, combo boxes and selects by option name, check boxes and radios with \"true\"/\"false\", a radio group by option name). Each field is {element_index or role/name, value}. Returns each field's read-back value and whether it matches.",
+        description = "Set several fields in order with set_value semantics; each field is {element_index or role/name, value}. Returns each field's value read back and one change report.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1660,7 +1658,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "scroll",
-        description = "Scroll an element in a direction by a number of pages. With a window target and no x/y/element_index, scrolls at the centre of the targeted window.",
+        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -1676,7 +1674,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "drag",
-        description = "Drag with the left button from start_x,start_y to end_x,end_y in screen coordinates (xdotool).",
+        description = "Drag with the left button from start_x,start_y to end_x,end_y (screen coordinates). Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1692,7 +1690,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "press_key",
-        description = "Press a key or chord with xdotool, optionally after focusing a target window or terminal selector. Grammar (case-insensitive; hyphens/spaces ignored): combos join with '+', e.g. Ctrl+L or Ctrl+Shift+T. Modifiers: ctrl/control, alt/option, shift, meta/super/cmd/command. Named keys: enter/return, escape/esc, tab, backspace, delete/del, space, home, end, pageup, pagedown, arrowleft/left, arrowright/right, arrowup/up, arrowdown/down, f1-f12, plus single letters a-z and digits 0-9. Anything else is an error. i3 may consume its own bindings (Super+...) before the app sees them.",
+        description = "Press a key or chord, e.g. Enter, Escape, Tab, ArrowDown, Ctrl+L, Ctrl+Shift+T (letters, digits, F1-F12, Home/End/PageUp/PageDown, Backspace, Delete, Space). Optional window target. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1711,7 +1709,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "type_text",
-        description = "Type text into the focused element, or first focus element_index/role/name or a window/terminal selector. Printable ASCII is typed (newline presses Return); other text is pasted through the clipboard (Ctrl+Shift+V in terminals). The result reads the field back when it can. To replace a field's content use set_value.",
+        description = "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter. To replace a field's content use set_value. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1852,7 +1850,7 @@ impl ComputerUseLinux {
     // can't be env!("CARGO_PKG_VERSION"); the MCP safety check (CI) fails the
     // build if it drifts from the Cargo version.
     version = "0.7.17",
-    instructions = "Drives apps on a virtual X11 display (Xvfb + i3) through AT-SPI, xdotool and X11 screenshots. Start each turn with get_app_state scoped to the app (app_name_or_bundle_identifier, e.g. chrome) or a window target; unscoped trees can flood context. Prefer element_index from the latest get_app_state or find_elements; click, perform_action and set_value also accept unique role/name/text/states selectors. After an action, use wait_for instead of repeated screenshots. Coordinates are screenshot coordinate pixels (divide image pixels by scale). type_text and press_key take optional window or terminal selectors, refuse to send input when focus cannot be verified, and report the focused AT-SPI element; type_text success means dispatched, not verified, so re-observe before retrying. accessibility_tree_truncated=true means the tree is incomplete: narrow the scope or raise max_nodes (max 2000). Chromium and Electron apps need --force-renderer-accessibility for a full tree; where the tree is empty, use ocr or a screenshot. If a tool fails, call doctor: readiness.blockers names the fix. Tools with readOnlyHint=false change app state; get approval before actions that submit, delete, send, purchase or overwrite data."
+    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid for the whole session. Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state; confirm before submitting, sending, deleting or buying. If a tool fails, doctor names the fix."
 )]
 impl ServerHandler for ComputerUseLinux {}
 
@@ -2232,8 +2230,10 @@ struct OcrParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     /// Window title substring.
@@ -2246,9 +2246,11 @@ struct OcrParams {
     #[serde(default)]
     query: Option<String>,
     /// Tesseract language codes such as `por+eng` (default: installed por/eng).
+    #[schemars(skip)]
     #[serde(default)]
     lang: Option<String>,
     /// Drop words below this confidence, 0 to 100 (default 60).
+    #[schemars(skip)]
     #[serde(default)]
     min_confidence: Option<f32>,
     /// Maximum lines returned (default 300).
@@ -2270,21 +2272,24 @@ struct OcrOutput {
 /// Window or app scope shared by `find_elements` and `wait_for`.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ElementScope {
-    /// App name or AT-SPI id that limits the search.
+    /// App name, e.g. chrome.
     #[serde(default)]
     app_name_or_bundle_identifier: Option<String>,
     #[serde(default)]
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     /// Window title substring.
     #[serde(default)]
     title: Option<String>,
-    /// Maximum raw AT-SPI nodes to read (default 2000, the hard max).
+    /// Nodes to read (default 2000).
+    #[schemars(skip)]
     #[serde(default)]
     max_nodes: Option<usize>,
 }
@@ -2357,6 +2362,7 @@ struct WaitForParams {
     #[serde(default)]
     timeout_ms: Option<u64>,
     /// Delay between polls in milliseconds (default 400).
+    #[schemars(skip)]
     #[serde(default)]
     interval_ms: Option<u64>,
 }
@@ -2379,85 +2385,90 @@ struct WaitForOutput {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct GetAppStateParams {
-    /// App name or AT-SPI id that limits the accessibility tree. Omit only when
-    /// you need the whole desktop tree; unscoped results can flood context.
+    /// App name, e.g. chrome. Omitting it reads the whole desktop.
     #[serde(default)]
     app_name_or_bundle_identifier: Option<String>,
-    /// X11 window id from list_windows. Also scopes the accessibility tree to
-    /// that window's application when possible.
+    /// Window id (header of an earlier result, or list_windows).
     #[serde(default)]
     window_id: Option<u64>,
-    /// Process id. Also scopes the accessibility tree to that process when it
-    /// exposes AT-SPI.
+    /// Process id of the app.
     #[serde(default)]
     pid: Option<u32>,
     /// Terminal tty device (for example /dev/pts/3). Resolves a window target
     /// and scopes the tree when possible.
+    #[schemars(skip)]
     #[serde(default)]
     tty: Option<String>,
     /// Terminal emulator pid. Resolves a window target and scopes the tree when
     /// possible.
+    #[schemars(skip)]
     #[serde(default)]
     terminal_pid: Option<u32>,
     /// Terminal command substring. Resolves a window target and scopes the tree
     /// when possible.
+    #[schemars(skip)]
     #[serde(default)]
     terminal_command: Option<String>,
     /// Terminal working directory. Resolves a window target and scopes the tree
     /// when possible.
+    #[schemars(skip)]
     #[serde(default)]
     terminal_cwd: Option<String>,
     /// Application id. Also scopes the accessibility tree when it matches an
     /// AT-SPI root.
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
-    /// Window manager class. Also scopes the accessibility tree when it matches
-    /// an AT-SPI root.
+    /// Window class, e.g. Alacritty.
     #[serde(default)]
     wm_class: Option<String>,
-    /// Window title substring. Also scopes the accessibility tree when it
-    /// matches an AT-SPI root.
+    /// Window title substring.
     #[serde(default)]
     title: Option<String>,
-    /// Maximum raw AT-SPI nodes to inspect before compaction (default 1000, hard max 2000).
+    /// Nodes to read (default 1000, max 2000); raise it when told the tree was cut.
     #[serde(default)]
     max_nodes: Option<usize>,
     /// Maximum AT-SPI traversal depth (default 32, hard max 64).
+    #[schemars(skip)]
     #[serde(default)]
     max_depth: Option<u32>,
-    /// `outline` (default) returns one text line per element in
-    /// `accessibility_outline`; `json` returns full node objects in
-    /// `accessibility_tree`.
+    /// `json` returns full node objects instead of the outline.
     #[serde(default)]
     tree_format: Option<TreeFormat>,
-    /// Screenshot: true always, false never; default only when the tree
-    /// shows little content (terminals, canvases).
+    /// true always attaches a screenshot, false never (default: only when
+    /// the tree shows little).
     #[serde(default)]
     include_screenshot: Option<bool>,
-    /// Show browser toolbars and bubbles too (default: only the web page).
+    /// Also show browser toolbars and bubbles.
     #[serde(default)]
     include_browser_ui: Option<bool>,
     /// Maximum returned screenshot width in pixels (default 1920, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_width: Option<u32>,
     /// Maximum returned screenshot height in pixels (default 1920, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_height: Option<u32>,
     /// Maximum returned screenshot image bytes before base64 (default 2 MiB, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_bytes: Option<usize>,
     /// Additional downscale factor from 0.0 to 1.0, applied before max dimensions.
+    #[schemars(skip)]
     #[serde(default)]
     scale: Option<f32>,
     /// Output image format (default png). Use jpeg with quality to trade exact pixels for smaller payloads.
+    #[schemars(skip)]
     #[serde(default)]
     format: Option<ScreenshotOutputFormat>,
     /// JPEG quality from 1 to 95 (default 80). Ignored for png.
+    #[schemars(skip)]
     #[serde(default)]
-    #[schemars(range(min = 1, max = 95))]
     quality: Option<u8>,
     /// Include the full diagnostics report (large). Default false: only the
     /// compact readiness block is returned.
+    #[schemars(skip)]
     #[serde(default)]
     verbose: Option<bool>,
 }
@@ -2501,8 +2512,10 @@ struct ScreenshotParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     #[serde(default)]
@@ -2514,20 +2527,23 @@ struct ScreenshotParams {
     #[serde(default)]
     max_width: Option<u32>,
     /// Maximum returned screenshot height in pixels (default 1920, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_height: Option<u32>,
     /// Maximum returned screenshot image bytes before base64 (default 2 MiB, hard-capped).
+    #[schemars(skip)]
     #[serde(default)]
     max_bytes: Option<usize>,
     /// Additional downscale factor from 0.0 to 1.0, applied before max dimensions.
+    #[schemars(skip)]
     #[serde(default)]
     scale: Option<f32>,
     /// Output image format (default png). Use jpeg with quality to trade exact pixels for smaller payloads.
     #[serde(default)]
     format: Option<ScreenshotOutputFormat>,
     /// JPEG quality from 1 to 95 (default 80). Ignored for png.
+    #[schemars(skip)]
     #[serde(default)]
-    #[schemars(range(min = 1, max = 95))]
     quality: Option<u8>,
 }
 
@@ -2746,16 +2762,15 @@ struct ClickParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
     #[serde(default)]
     window_title: Option<String>,
-    /// Interpret `x`/`y` from the clipped window screenshot crop origin, in
-    /// coordinate pixels before preview resizing. Divide preview pixels by its
-    /// scale first. This is not a toolkit widget or raw GDK surface origin.
-    /// Requires a window target; missing targets are rejected.
+    /// x/y are relative to the targeted window's screenshot.
     #[serde(default)]
     relative: Option<bool>,
 }
@@ -2938,16 +2953,16 @@ struct ScrollParams {
     window_id: Option<u64>,
     #[serde(default)]
     pid: Option<u32>,
+    #[schemars(skip)]
     #[serde(default)]
     app_id: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     wm_class: Option<String>,
+    #[schemars(skip)]
     #[serde(default)]
     window_title: Option<String>,
-    /// Interpret `x`/`y` from the clipped window screenshot crop origin, in
-    /// coordinate pixels before preview resizing. Divide preview pixels by its
-    /// scale first. This is not a toolkit widget or raw GDK surface origin.
-    /// Requires a window target; missing targets are rejected.
+    /// x/y are relative to the targeted window's screenshot.
     #[serde(default)]
     relative: Option<bool>,
 }

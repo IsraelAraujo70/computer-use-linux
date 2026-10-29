@@ -32,7 +32,7 @@ const SIGNIFICANT_STATES: [&str; 13] = [
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TreeFormat {
-    /// One indented line per element: `[index] role "name" @x,y wxh states`.
+    /// One indented line per element.
     #[default]
     Outline,
     /// The full node objects, with every AT-SPI field.
@@ -196,16 +196,16 @@ pub fn is_specific_action(action: &AccessibilityAction) -> bool {
 /// string fields are case-insensitive substrings.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 pub struct ElementQuery {
-    /// Role substring, for example `button`, `entry`, `link`, `check box`.
+    /// Role substring, e.g. button, entry, link, check box.
     #[serde(default)]
     pub role: Option<String>,
-    /// Substring of the element's accessible name.
+    /// Name substring.
     #[serde(default)]
     pub name: Option<String>,
-    /// Substring searched in the name, description, text content, and value text.
+    /// Substring of the name, description, text or value.
     #[serde(default)]
     pub text: Option<String>,
-    /// States the element must have, for example `["focused"]` or `["checked"]`.
+    /// Required states, e.g. ["checked"].
     #[serde(default)]
     pub states: Option<Vec<String>>,
 }

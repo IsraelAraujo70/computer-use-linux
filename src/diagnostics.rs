@@ -46,6 +46,8 @@ pub struct PlatformReport {
     pub xdg_runtime_dir: Option<String>,
     /// Connection to the X server named by `DISPLAY`.
     pub x11_display: Check,
+    /// The root window's pixels can be read, so screenshots work.
+    pub x11_root_readable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -77,8 +79,7 @@ pub struct ReadinessReport {
     pub can_query_windows: bool,
     pub can_focus_windows: bool,
     pub can_send_input: bool,
-    /// A raw screenshot succeeded. Doctor alone does not capture, so this
-    /// stays false until screenshot or get_app_state runs.
+    /// Screenshots work: the root window is readable, or a capture succeeded.
     pub can_capture_screenshots: bool,
     pub screenshot_capture_status: ScreenshotCaptureStatus,
     /// `tesseract` is installed, so `ocr` works. Optional; never a blocker.
@@ -94,7 +95,7 @@ pub enum ScreenshotCaptureStatus {
     Unavailable,
     /// The X display is reachable; no capture was attempted.
     Unverified,
-    /// A raw screenshot was captured successfully.
+    /// The root window was read (a 1x1 probe or a real capture).
     Verified,
     /// The last raw capture failed.
     Failed,
@@ -404,6 +405,7 @@ fn parse_line_environment(bytes: &[u8]) -> HashMap<String, String> {
 }
 
 fn platform_report() -> PlatformReport {
+    let (x11_display, x11_root_readable) = x11_display_check();
     PlatformReport {
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
@@ -414,24 +416,29 @@ fn platform_report() -> PlatformReport {
         xauthority: env_var("XAUTHORITY"),
         dbus_session_bus_address: dbus_session_address(),
         xdg_runtime_dir: xdg_runtime_dir().map(|path| path.display().to_string()),
-        x11_display: x11_display_check(),
+        x11_display,
+        x11_root_readable,
     }
 }
 
-fn x11_display_check() -> Check {
+/// The X server connection check, and whether its root window is readable.
+fn x11_display_check() -> (Check, bool) {
     let Some(display) = env_var("DISPLAY") else {
-        return Check::fail("DISPLAY is not set");
+        return (Check::fail("DISPLAY is not set"), false);
     };
     if !crate::x11_display::is_native_x11_session() {
-        return Check::fail(format!(
-            "DISPLAY={display} is set, but XDG_SESSION_TYPE is not x11"
-        ));
+        return (
+            Check::fail(format!(
+                "DISPLAY={display} is set, but XDG_SESSION_TYPE is not x11"
+            )),
+            false,
+        );
     }
     // The transport enforces the deadline, so no detached worker remains
     // blocked after a diagnostic timeout.
-    match crate::x11_display::X11Display::connect().map(|display| display.describe()) {
-        Ok(detail) => Check::ok(detail),
-        Err(error) => Check::fail(format!("{error:#}")),
+    match crate::x11_display::X11Display::connect() {
+        Ok(display) => (Check::ok(display.describe()), display.can_read_root()),
+        Err(error) => (Check::fail(format!("{error:#}")), false),
     }
 }
 
@@ -517,11 +524,11 @@ fn readiness_report(
         can_query_windows,
         can_focus_windows,
         can_send_input,
-        can_capture_screenshots: false,
-        screenshot_capture_status: if display_ok {
-            ScreenshotCaptureStatus::Unverified
-        } else {
-            ScreenshotCaptureStatus::Unavailable
+        can_capture_screenshots: display_ok && platform.x11_root_readable,
+        screenshot_capture_status: match (display_ok, platform.x11_root_readable) {
+            (true, true) => ScreenshotCaptureStatus::Verified,
+            (true, false) => ScreenshotCaptureStatus::Unverified,
+            (false, _) => ScreenshotCaptureStatus::Unavailable,
         },
         can_ocr: commands.tesseract.ok,
         recommended_next_step: String::new(),
@@ -834,6 +841,7 @@ mod tests {
             } else {
                 Check::fail("failed to connect to the X server named by DISPLAY")
             },
+            x11_root_readable: display_ok,
         }
     }
 
@@ -892,6 +900,21 @@ mod tests {
         assert!(readiness.ready);
         assert!(readiness.blockers.is_empty());
         assert!(readiness.can_send_input && readiness.can_ocr);
+        // A readable root window is enough to call screenshots available.
+        assert!(readiness.can_capture_screenshots);
+        assert_eq!(
+            readiness.screenshot_capture_status,
+            ScreenshotCaptureStatus::Verified
+        );
+        let mut unreadable = platform(true);
+        unreadable.x11_root_readable = false;
+        let readiness = readiness_report(
+            &unreadable,
+            &accessibility(true, true),
+            &windowing(true, true),
+            &commands(true, true),
+        );
+        assert!(!readiness.can_capture_screenshots);
         assert_eq!(
             readiness.screenshot_capture_status,
             ScreenshotCaptureStatus::Unverified

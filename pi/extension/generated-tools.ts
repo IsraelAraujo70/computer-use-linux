@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "0d5f269c9d1e0b76993d60e227a85a18800f57c0d42d025a981a3a945121b5f8";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "6d22cc6bd5eacdb43b2a3811718ae64f56b9e814bb87c52792d6e14ee8f76ae8";
+export const GENERATED_TOOL_CATALOG_HASH = "3c0fcc230bc1ebf0283c676f4d1efcfa5a1f3227766275d9221326b66b383ff0";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "2020e362d901ca874a3381ab609229753199e67ec57e5aa6ebefc56e78c8673b";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -19,7 +19,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Focus an X11 window (switching i3 workspace if needed) by window_id, pid, app_id, wm_class, title, or terminal selectors (tty, terminal_pid, terminal_command, terminal_cwd).",
+    "description": "Focus a window by window_id, pid, wm_class or title.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -101,17 +101,10 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Click an element by element_index or semantic selector (role/name/text/states), or at screen coordinates x/y (screenshot coordinate pixels; with relative=true and a window target, relative to that window's crop). A plain left click on an element invokes its AT-SPI click/press/toggle action; coordinates, right/middle buttons and click_count>1 send an xdotool pointer click.",
+    "description": "Click an element by element_index (or role/name/text), or screen x/y. Element clicks use the element's own action when it has one, so off-screen items in lists work. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "button": {
           "default": null,
           "type": [
@@ -129,6 +122,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "element_index": {
           "default": null,
+          "description": "Element id `[n]` from any earlier result.",
           "minimum": 0,
           "type": [
             "integer",
@@ -142,6 +136,14 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "pid": {
           "default": null,
           "minimum": 0,
@@ -152,7 +154,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "relative": {
           "default": null,
-          "description": "Interpret `x`/`y` from the clipped window screenshot crop origin, in\ncoordinate pixels before preview resizing. Divide preview pixels by its\nscale first. This is not a toolkit widget or raw GDK surface origin.\nRequires a window target; missing targets are rejected.",
+          "description": "x/y are relative to the targeted window's screenshot.",
           "type": [
             "boolean",
             "null"
@@ -194,13 +196,6 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
-        "wm_class": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "x": {
           "default": null,
           "format": "int32",
@@ -229,7 +224,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": false,
       "readOnlyHint": true
     },
-    "description": "Check the X11 session: X display, i3 window IPC, AT-SPI bus, xdotool and tesseract. readiness.blockers names the fix for each failure.",
+    "description": "Check the X11 session (display, i3, AT-SPI, xdotool, tesseract). readiness.blockers names the fix for each failure.",
     "inputSchema": {
       "properties": {},
       "type": "object"
@@ -243,7 +238,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Drag with the left button from start_x,start_y to end_x,end_y in screen coordinates (xdotool).",
+    "description": "Drag with the left button from start_x,start_y to end_x,end_y (screen coordinates). Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -254,6 +249,14 @@ export const GENERATED_MCP_TOOLS =
         "end_y": {
           "format": "int32",
           "type": "integer"
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "start_x": {
           "format": "int32",
@@ -276,25 +279,91 @@ export const GENERATED_MCP_TOOLS =
   },
   {
     "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "Set several fields in order with set_value semantics; each field is {element_index or role/name, value}. Returns each field's value read back and one change report.",
+    "inputSchema": {
+      "$defs": {
+        "FormField": {
+          "description": "One `fill_form` field: an element and the value to give it.",
+          "properties": {
+            "element_index": {
+              "default": null,
+              "description": "Element id `[n]` from an earlier result.\nElement id `[n]` from any earlier result.",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "name": {
+              "default": null,
+              "description": "Name substring, when not using element_index.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "role": {
+              "default": null,
+              "description": "Role substring, when not using element_index.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "value": {
+              "description": "Text, option name, or \"true\"/\"false\" for check boxes and radios.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "fields": {
+          "items": {
+            "$ref": "#/$defs/FormField"
+          },
+          "type": "array"
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "fields"
+      ],
+      "type": "object"
+    },
+    "name": "fill_form"
+  },
+  {
+    "annotations": {
       "destructiveHint": false,
       "idempotentHint": true,
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "Search an app's accessibility tree and return only matching elements as outline lines `[index] role \"name\" @x,y wxh {states} actions=...`. Cheaper than get_app_state for locating a control. Scope with app_name_or_bundle_identifier or a window target. role/name/text/states must all match (case-insensitive substrings). The indices stay valid for click, perform_action and set_value until the next snapshot.",
+    "description": "Find elements by role/name/text/states (case-insensitive substrings, all must match), including ones hidden from get_app_state (browser UI, off-screen). Returns their `[n]` lines.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "app_name_or_bundle_identifier": {
           "default": null,
-          "description": "App name or AT-SPI id that limits the search.",
+          "description": "App name, e.g. chrome.",
           "type": [
             "string",
             "null"
@@ -309,18 +378,9 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
-        "max_nodes": {
-          "default": null,
-          "description": "Maximum raw AT-SPI nodes to read (default 2000, the hard max).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
         "name": {
           "default": null,
-          "description": "Substring of the element's accessible name.",
+          "description": "Name substring.",
           "type": [
             "string",
             "null"
@@ -336,7 +396,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "role": {
           "default": null,
-          "description": "Role substring, for example `button`, `entry`, `link`, `check box`.",
+          "description": "Role substring, e.g. button, entry, link, check box.",
           "type": [
             "string",
             "null"
@@ -344,7 +404,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "states": {
           "default": null,
-          "description": "States the element must have, for example `[\"focused\"]` or `[\"checked\"]`.",
+          "description": "Required states, e.g. [\"checked\"].",
           "items": {
             "type": "string"
           },
@@ -355,7 +415,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "text": {
           "default": null,
-          "description": "Substring searched in the name, description, text content, and value text.",
+          "description": "Substring of the name, description, text or value.",
           "type": [
             "string",
             "null"
@@ -374,13 +434,6 @@ export const GENERATED_MCP_TOOLS =
           "minimum": 0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "wm_class": {
-          "default": null,
-          "type": [
-            "string",
             "null"
           ]
         }
@@ -410,22 +463,15 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "Screenshot plus accessibility tree of an app on the X11 display; call it first. Scope with app_name_or_bundle_identifier (AT-SPI app name, e.g. chrome) or a window target (window_id/pid/app_id/wm_class/title); unscoped it returns the whole desktop. accessibility_outline has one line per element, `[index] role \"name\" @x,y wxh {states} actions=...`, indented by depth; the index is what click, perform_action and set_value take (tree_format=json gives full nodes). find_elements is cheaper for one control. screenshot metadata has coordinate_width/coordinate_height and scale for mapping image pixels to screen coordinates. A window-targeted screenshot needs that window already focused.",
+    "description": "Observe an app. Returns a header (window, window_id, url, element count) and one line per visible element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
     "inputSchema": {
       "$defs": {
-        "ScreenshotOutputFormat": {
-          "enum": [
-            "png",
-            "jpeg"
-          ],
-          "type": "string"
-        },
         "TreeFormat": {
           "description": "How `get_app_state` returns the accessibility tree.",
           "oneOf": [
             {
               "const": "outline",
-              "description": "One indented line per element: `[index] role \"name\" @x,y wxh states`.",
+              "description": "One indented line per element.",
               "type": "string"
             },
             {
@@ -438,81 +484,33 @@ export const GENERATED_MCP_TOOLS =
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "description": "Application id. Also scopes the accessibility tree when it matches an\nAT-SPI root.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "app_name_or_bundle_identifier": {
           "default": null,
-          "description": "App name or AT-SPI id that limits the accessibility tree. Omit only when\nyou need the whole desktop tree; unscoped results can flood context.",
+          "description": "App name, e.g. chrome. Omitting it reads the whole desktop.",
           "type": [
             "string",
             "null"
           ]
         },
-        "format": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ScreenshotOutputFormat"
-            },
-            {
-              "type": "null"
-            }
-          ],
+        "include_browser_ui": {
           "default": null,
-          "description": "Output image format (default png). Use jpeg with quality to trade exact pixels for smaller payloads."
-        },
-        "include_screenshot": {
-          "default": null,
-          "description": "Include a size-bounded screenshot (default true). Set false when the\naccessibility tree is enough.",
+          "description": "Also show browser toolbars and bubbles.",
           "type": [
             "boolean",
             "null"
           ]
         },
-        "max_bytes": {
+        "include_screenshot": {
           "default": null,
-          "description": "Maximum returned screenshot image bytes before base64 (default 2 MiB, hard-capped).",
-          "minimum": 0,
+          "description": "true always attaches a screenshot, false never (default: only when\nthe tree shows little).",
           "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "max_depth": {
-          "default": null,
-          "description": "Maximum AT-SPI traversal depth (default 32, hard max 64).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "max_height": {
-          "default": null,
-          "description": "Maximum returned screenshot height in pixels (default 1920, hard-capped).",
-          "minimum": 0,
-          "type": [
-            "integer",
+            "boolean",
             "null"
           ]
         },
         "max_nodes": {
           "default": null,
-          "description": "Maximum raw AT-SPI nodes to inspect before compaction (default 1000, hard max 2000).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "max_width": {
-          "default": null,
-          "description": "Maximum returned screenshot width in pixels (default 1920, hard-capped).",
+          "description": "Nodes to read (default 1000, max 2000); raise it when told the tree was cut.",
           "minimum": 0,
           "type": [
             "integer",
@@ -521,51 +519,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "pid": {
           "default": null,
-          "description": "Process id. Also scopes the accessibility tree to that process when it\nexposes AT-SPI.",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "quality": {
-          "default": null,
-          "description": "JPEG quality from 1 to 95 (default 80). Ignored for png.",
-          "maximum": 95,
-          "minimum": 1,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "scale": {
-          "default": null,
-          "description": "Additional downscale factor from 0.0 to 1.0, applied before max dimensions.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
-        "terminal_command": {
-          "default": null,
-          "description": "Terminal command substring. Resolves a window target and scopes the tree\nwhen possible.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "terminal_cwd": {
-          "default": null,
-          "description": "Terminal working directory. Resolves a window target and scopes the tree\nwhen possible.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "terminal_pid": {
-          "default": null,
-          "description": "Terminal emulator pid. Resolves a window target and scopes the tree when\npossible.",
+          "description": "Process id of the app.",
           "minimum": 0,
           "type": [
             "integer",
@@ -574,7 +528,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "title": {
           "default": null,
-          "description": "Window title substring. Also scopes the accessibility tree when it\nmatches an AT-SPI root.",
+          "description": "Window title substring.",
           "type": [
             "string",
             "null"
@@ -590,27 +544,11 @@ export const GENERATED_MCP_TOOLS =
             }
           ],
           "default": null,
-          "description": "`outline` (default) returns one text line per element in\n`accessibility_outline`; `json` returns full node objects in\n`accessibility_tree`."
-        },
-        "tty": {
-          "default": null,
-          "description": "Terminal tty device (for example /dev/pts/3). Resolves a window target\nand scopes the tree when possible.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "verbose": {
-          "default": null,
-          "description": "Include the full diagnostics report (large). Default false: only the\ncompact readiness block is returned.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "description": "`json` returns full node objects instead of the outline."
         },
         "window_id": {
           "default": null,
-          "description": "X11 window id from list_windows. Also scopes the accessibility tree to\nthat window's application when possible.",
+          "description": "Window id (header of an earlier result, or list_windows).",
           "minimum": 0,
           "type": [
             "integer",
@@ -619,7 +557,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "wm_class": {
           "default": null,
-          "description": "Window manager class. Also scopes the accessibility tree when it matches\nan AT-SPI root.",
+          "description": "Window class, e.g. Alacritty.",
           "type": [
             "string",
             "null"
@@ -637,7 +575,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "List running app processes and the AT-SPI application roots (their names work as app_name_or_bundle_identifier).",
+    "description": "List app processes and AT-SPI application names (usable as app_name_or_bundle_identifier).",
     "inputSchema": {
       "properties": {},
       "type": "object"
@@ -651,7 +589,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "List X11 windows (i3, or EWMH via wmctrl) with window_id, title, app_id (WM_CLASS instance), wm_class, pid, focus state and bounds.",
+    "description": "List X11 windows with window_id, title, wm_class, pid, focus and bounds.",
     "inputSchema": {
       "properties": {},
       "type": "object"
@@ -665,7 +603,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "Read on-screen text with tesseract OCR and return lines as `@x,y wxh text`. Use it where the accessibility tree is empty (canvas, some Electron apps). Without a window target the whole screen is read in screen coordinates; with one the window is focused first and coordinates are window-relative, ready for click with relative=true. Optional region crops first; query keeps only lines containing that text (case-insensitive). Default languages: por+eng when installed.",
+    "description": "Read on-screen text with OCR as `@x,y wxh text` lines, for canvases and apps without an accessibility tree. With a window target, coordinates are window-relative (click with relative=true).",
     "inputSchema": {
       "$defs": {
         "OcrRegion": {
@@ -698,36 +636,12 @@ export const GENERATED_MCP_TOOLS =
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "lang": {
-          "default": null,
-          "description": "Tesseract language codes such as `por+eng` (default: installed por/eng).",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "limit": {
           "default": null,
           "description": "Maximum lines returned (default 300).",
           "minimum": 0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "min_confidence": {
-          "default": null,
-          "description": "Drop words below this confidence, 0 to 100 (default 60).",
-          "format": "float",
-          "type": [
-            "number",
             "null"
           ]
         },
@@ -774,13 +688,6 @@ export const GENERATED_MCP_TOOLS =
             "integer",
             "null"
           ]
-        },
-        "wm_class": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
         }
       },
       "type": "object"
@@ -794,7 +701,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided.",
+    "description": "Invoke a named AT-SPI action of an element (default: its primary action). Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -814,6 +721,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "element_index": {
           "default": null,
+          "description": "Element id `[n]` from any earlier result.",
           "minimum": 0,
           "type": [
             "integer",
@@ -824,6 +732,14 @@ export const GENERATED_MCP_TOOLS =
           "default": null,
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -860,7 +776,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Press a key or chord with xdotool, optionally after focusing a target window or terminal selector. Grammar (case-insensitive; hyphens/spaces ignored): combos join with '+', e.g. Ctrl+L or Ctrl+Shift+T. Modifiers: ctrl/control, alt/option, shift, meta/super/cmd/command. Named keys: enter/return, escape/esc, tab, backspace, delete/del, space, home, end, pageup, pagedown, arrowleft/left, arrowright/right, arrowup/up, arrowdown/down, f1-f12, plus single letters a-z and digits 0-9. Anything else is an error. i3 may consume its own bindings (Super+...) before the app sees them.",
+    "description": "Press a key or chord, e.g. Enter, Escape, Tab, ArrowDown, Ctrl+L, Ctrl+Shift+T (letters, digits, F1-F12, Home/End/PageUp/PageDown, Backspace, Delete, Space). Optional window target. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -873,6 +789,14 @@ export const GENERATED_MCP_TOOLS =
         },
         "key": {
           "type": "string"
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "pid": {
           "default": null,
@@ -948,7 +872,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Capture the X11 screen as a size-bounded image. With a window target (window_id/pid/app_id/wm_class/title) the window is focused first and the image is cropped to it; full_screen=true keeps the whole screen. The caption gives returned width/height, coordinate_width/coordinate_height, scale, format and crop details. Use format=jpeg/quality or max_width/max_height/max_bytes to shrink the payload.",
+    "description": "Capture the screen, or a focused window with a window target, as an image. The caption gives scale: click x/y = image pixel / scale.",
     "inputSchema": {
       "$defs": {
         "ScreenshotOutputFormat": {
@@ -961,13 +885,6 @@ export const GENERATED_MCP_TOOLS =
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "format": {
           "anyOf": [
             {
@@ -988,24 +905,6 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
-        "max_bytes": {
-          "default": null,
-          "description": "Maximum returned screenshot image bytes before base64 (default 2 MiB, hard-capped).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "max_height": {
-          "default": null,
-          "description": "Maximum returned screenshot height in pixels (default 1920, hard-capped).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
         "max_width": {
           "default": null,
           "description": "Maximum returned screenshot width in pixels (default 1920, hard-capped).",
@@ -1023,25 +922,6 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
-        "quality": {
-          "default": null,
-          "description": "JPEG quality from 1 to 95 (default 80). Ignored for png.",
-          "maximum": 95,
-          "minimum": 1,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "scale": {
-          "default": null,
-          "description": "Additional downscale factor from 0.0 to 1.0, applied before max dimensions.",
-          "format": "float",
-          "type": [
-            "number",
-            "null"
-          ]
-        },
         "title": {
           "default": null,
           "type": [
@@ -1054,13 +934,6 @@ export const GENERATED_MCP_TOOLS =
           "minimum": 0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "wm_class": {
-          "default": null,
-          "type": [
-            "string",
             "null"
           ]
         }
@@ -1076,25 +949,27 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Scroll an element in a direction by a number of pages. With a window target and no x/y/element_index, scrolls at the centre of the targeted window.",
+    "description": "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "direction": {
           "type": "string"
         },
         "element_index": {
           "default": null,
+          "description": "Element id `[n]` from any earlier result.",
           "minimum": 0,
           "type": [
             "integer",
+            "null"
+          ]
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -1118,7 +993,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "relative": {
           "default": null,
-          "description": "Interpret `x`/`y` from the clipped window screenshot crop origin, in\ncoordinate pixels before preview resizing. Divide preview pixels by its\nscale first. This is not a toolkit widget or raw GDK surface origin.\nRequires a window target; missing targets are rejected.",
+          "description": "x/y are relative to the targeted window's screenshot.",
           "type": [
             "boolean",
             "null"
@@ -1129,20 +1004,6 @@ export const GENERATED_MCP_TOOLS =
           "minimum": 0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "window_title": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "wm_class": {
-          "default": null,
-          "type": [
-            "string",
             "null"
           ]
         },
@@ -1177,7 +1038,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Set the value of a settable accessibility element selected by index, identifier, or semantic selector.",
+    "description": "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1190,6 +1051,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "element_index": {
           "default": null,
+          "description": "Element id `[n]` from any earlier result.",
           "minimum": 0,
           "type": [
             "integer",
@@ -1200,6 +1062,14 @@ export const GENERATED_MCP_TOOLS =
           "default": null,
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -1242,7 +1112,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Type literal text with xdotool (layout-aware XTEST), optionally after focusing a target window or terminal selector; newlines press Return. With a target, the result reports the AT-SPI focused element and warns when it is not editable. Success confirms dispatch only; re-observe the field before retrying. NUL is rejected. For long text in an editable field, set_value is faster.",
+    "description": "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter. To replace a field's content use set_value. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1253,11 +1123,44 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
+        "element_index": {
+          "default": null,
+          "description": "Element id `[n]` to focus before typing.\nElement id `[n]` from any earlier result.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "default": null,
+          "description": "Name substring of the element to focus before typing.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "pid": {
           "default": null,
           "minimum": 0,
           "type": [
             "integer",
+            "null"
+          ]
+        },
+        "role": {
+          "default": null,
+          "description": "Role substring of the element to focus before typing.",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -1330,7 +1233,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "Poll an app's accessibility tree until a condition holds or timeout_ms passes. condition=appears waits for an element matching role/name/text/states; disappears waits until none match; changed waits until the scoped tree differs from its state at the first poll and returns the differing lines prefixed + or - (the query is ignored). Each poll rereads the tree, about 1-3 s for a large browser page, so the effective timeout rounds up to whole polls. Use after an action instead of repeated screenshots.",
+    "description": "Wait until an element appears or disappears (role/name/text/states), or until the tree changes (condition=changed). Actions already report their changes; use this for slow updates.",
     "inputSchema": {
       "$defs": {
         "WaitCondition": {
@@ -1355,16 +1258,9 @@ export const GENERATED_MCP_TOOLS =
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
-        "app_id": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "app_name_or_bundle_identifier": {
           "default": null,
-          "description": "App name or AT-SPI id that limits the search.",
+          "description": "App name, e.g. chrome.",
           "type": [
             "string",
             "null"
@@ -1374,27 +1270,9 @@ export const GENERATED_MCP_TOOLS =
           "$ref": "#/$defs/WaitCondition",
           "default": "appears"
         },
-        "interval_ms": {
-          "default": null,
-          "description": "Delay between polls in milliseconds (default 400).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "max_nodes": {
-          "default": null,
-          "description": "Maximum raw AT-SPI nodes to read (default 2000, the hard max).",
-          "minimum": 0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
         "name": {
           "default": null,
-          "description": "Substring of the element's accessible name.",
+          "description": "Name substring.",
           "type": [
             "string",
             "null"
@@ -1410,7 +1288,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "role": {
           "default": null,
-          "description": "Role substring, for example `button`, `entry`, `link`, `check box`.",
+          "description": "Role substring, e.g. button, entry, link, check box.",
           "type": [
             "string",
             "null"
@@ -1418,7 +1296,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "states": {
           "default": null,
-          "description": "States the element must have, for example `[\"focused\"]` or `[\"checked\"]`.",
+          "description": "Required states, e.g. [\"checked\"].",
           "items": {
             "type": "string"
           },
@@ -1429,7 +1307,7 @@ export const GENERATED_MCP_TOOLS =
         },
         "text": {
           "default": null,
-          "description": "Substring searched in the name, description, text content, and value text.",
+          "description": "Substring of the name, description, text or value.",
           "type": [
             "string",
             "null"
@@ -1457,13 +1335,6 @@ export const GENERATED_MCP_TOOLS =
           "minimum": 0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "wm_class": {
-          "default": null,
-          "type": [
-            "string",
             "null"
           ]
         }
