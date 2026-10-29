@@ -188,6 +188,45 @@ pub fn visible_area(nodes: &[AccessibilityNode], id: u32) -> Option<Bounds> {
         .and_then(|frame| nodes[frame].bounds.clone())
 }
 
+/// The part of a scrollable element on screen: its bounds cut to where it
+/// can be seen (`visible_area`). Without `id`, the visible web document,
+/// else the first window frame.
+pub fn shown_part(nodes: &[AccessibilityNode], id: Option<u32>) -> Option<Bounds> {
+    match id {
+        Some(id) => {
+            let node = nodes.iter().find(|node| node.index == id)?;
+            let bounds = node.bounds.as_ref()?;
+            match visible_area(nodes, id) {
+                Some(area) => intersect(bounds, &area),
+                None => Some(bounds.clone()),
+            }
+        }
+        None => {
+            let tree = Tree::new(nodes);
+            tree.visible_document()
+                .and_then(|document| nodes[document].bounds.clone())
+                .or_else(|| {
+                    tree.first_with_role(&["frame", "window"])
+                        .and_then(|frame| nodes[frame].bounds.clone())
+                })
+        }
+    }
+}
+
+/// The overlap of two rectangles, `None` when they do not overlap.
+pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
+    let x = a.x.max(b.x);
+    let y = a.y.max(b.y);
+    let right = (a.x + a.width).min(b.x + b.width);
+    let bottom = (a.y + a.height).min(b.y + b.height);
+    (right > x && bottom > y).then(|| Bounds {
+        x,
+        y,
+        width: right - x,
+        height: bottom - y,
+    })
+}
+
 /// What changed from the view the agent last saw to the current one: `+`
 /// new elements, `-` gone ones, `~` same id with different content (moves
 /// alone do not count), then the focus, and the title and URL when they
@@ -807,6 +846,35 @@ mod tests {
         // Browser UI is visible anywhere in the window.
         let frame = visible_area(&nodes, 4).map(|area| (area.y, area.height));
         assert_eq!(frame, Some((0, 800)));
+    }
+
+    #[test]
+    fn a_tall_list_shows_only_its_part_inside_the_viewport() {
+        let nodes = browser(vec![at(
+            node(20, Some(10), "list", "Pedidos"),
+            0,
+            300,
+            900,
+            80_000,
+        )]);
+        let viewport = shown_part(&nodes, None).expect("the document viewport");
+        let list = shown_part(&nodes, Some(20)).expect("the list's visible part");
+        assert_eq!(list.y, 300);
+        assert_eq!(list.y + list.height, viewport.y + viewport.height);
+        assert!(shown_part(&nodes, Some(999)).is_none());
+        let apart = Bounds {
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+        };
+        let away = Bounds {
+            x: 10,
+            y: 0,
+            width: 10,
+            height: 10,
+        };
+        assert!(intersect(&apart, &away).is_none());
     }
 
     #[test]
