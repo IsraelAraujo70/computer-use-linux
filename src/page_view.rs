@@ -188,6 +188,45 @@ pub fn visible_area(nodes: &[AccessibilityNode], id: u32) -> Option<Bounds> {
         .and_then(|frame| nodes[frame].bounds.clone())
 }
 
+/// The part of a scrollable element on screen: its bounds cut to where it
+/// can be seen (`visible_area`). Without `id`, the visible web document,
+/// else the first window frame.
+pub fn shown_part(nodes: &[AccessibilityNode], id: Option<u32>) -> Option<Bounds> {
+    match id {
+        Some(id) => {
+            let node = nodes.iter().find(|node| node.index == id)?;
+            let bounds = node.bounds.as_ref()?;
+            match visible_area(nodes, id) {
+                Some(area) => intersect(bounds, &area),
+                None => Some(bounds.clone()),
+            }
+        }
+        None => {
+            let tree = Tree::new(nodes);
+            tree.visible_document()
+                .and_then(|document| nodes[document].bounds.clone())
+                .or_else(|| {
+                    tree.first_with_role(&["frame", "window"])
+                        .and_then(|frame| nodes[frame].bounds.clone())
+                })
+        }
+    }
+}
+
+/// The overlap of two rectangles, `None` when they do not overlap.
+pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
+    let x = a.x.max(b.x);
+    let y = a.y.max(b.y);
+    let right = (a.x + a.width).min(b.x + b.width);
+    let bottom = (a.y + a.height).min(b.y + b.height);
+    (right > x && bottom > y).then(|| Bounds {
+        x,
+        y,
+        width: right - x,
+        height: bottom - y,
+    })
+}
+
 /// What changed from the view the agent last saw to the current one: `+`
 /// new elements, `-` gone ones, `~` same id with different content (moves
 /// alone do not count), then the focus, and the title and URL when they
@@ -276,6 +315,90 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
         }
     }
     out
+}
+
+/// Lower-case words a control or status shows while the app is still
+/// working on a request (Portuguese and English, the languages of the apps
+/// agents drive here). A changed label ending in "…" or "..." counts too.
+const BUSY_WORDS: [&str; 9] = [
+    "carregando",
+    "salvando",
+    "enviando",
+    "processando",
+    "aguarde",
+    "loading",
+    "saving",
+    "sending",
+    "please wait",
+];
+
+/// Why the page still looks busy with an action: the settle loop keeps
+/// reading until this is gone, so the report includes the action's result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Busy {
+    /// What looks busy, e.g. `[57] button "Salvando…" shows a busy label`.
+    pub reason: String,
+    /// False when the only sign is a button that became disabled: some stay
+    /// disabled for good, so the caller may stop once the page goes quiet.
+    pub strong: bool,
+}
+
+/// What in `after` says the app is still working on the action that
+/// followed `before` (elements matched by id): a label that changed to a
+/// busy one (`BUSY_WORDS`, or ending in an ellipsis), a new element with a
+/// busy word, a newly `busy` element, a new progress bar, or a button that
+/// was enabled and is now disabled (weak). `None` when nothing does.
+pub fn busy_reason(before: &[AccessibilityNode], after: &[AccessibilityNode]) -> Option<Busy> {
+    let earlier: HashMap<u32, &AccessibilityNode> =
+        before.iter().map(|node| (node.index, node)).collect();
+    let mut weak = None;
+    for node in after {
+        let old = earlier.get(&node.index).copied();
+        let label = busy_label(node);
+        let strong = |what: &str| {
+            Some(Busy {
+                reason: format!("{} {what}", element_label(node)),
+                strong: true,
+            })
+        };
+        if has_state(node, "busy") && !old.is_some_and(|old| has_state(old, "busy")) {
+            return strong("is busy");
+        }
+        if node.role.eq_ignore_ascii_case("progress bar") && old.is_none() {
+            return strong("appeared");
+        }
+        let newly_busy_label = match (old, label.as_deref()) {
+            (_, None) => false,
+            (None, Some(label)) => has_busy_word(label),
+            (Some(old), Some(label)) => {
+                busy_label(old).as_deref() != Some(label)
+                    && (has_busy_word(label) || label.ends_with('…') || label.ends_with("..."))
+            }
+        };
+        if newly_busy_label {
+            return strong("shows a busy label");
+        }
+        let became_disabled = node.role.to_ascii_lowercase().ends_with("button")
+            && !has_state(node, "enabled")
+            && old.is_some_and(|old| has_state(old, "enabled"));
+        if became_disabled && weak.is_none() {
+            weak = Some(Busy {
+                reason: format!("{} became disabled", element_label(node)),
+                strong: false,
+            });
+        }
+    }
+    weak
+}
+
+/// The name, else the text, a busy check reads.
+fn busy_label(node: &AccessibilityNode) -> Option<String> {
+    clean(node.name.as_deref()).or_else(|| node_text(node))
+}
+
+fn has_busy_word(label: &str) -> bool {
+    let lower = label.to_lowercase();
+    BUSY_WORDS.iter().any(|word| lower.contains(word))
 }
 
 /// Parent/child links of a snapshot, by position.
@@ -726,6 +849,35 @@ mod tests {
     }
 
     #[test]
+    fn a_tall_list_shows_only_its_part_inside_the_viewport() {
+        let nodes = browser(vec![at(
+            node(20, Some(10), "list", "Pedidos"),
+            0,
+            300,
+            900,
+            80_000,
+        )]);
+        let viewport = shown_part(&nodes, None).expect("the document viewport");
+        let list = shown_part(&nodes, Some(20)).expect("the list's visible part");
+        assert_eq!(list.y, 300);
+        assert_eq!(list.y + list.height, viewport.y + viewport.height);
+        assert!(shown_part(&nodes, Some(999)).is_none());
+        let apart = Bounds {
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+        };
+        let away = Bounds {
+            x: 10,
+            y: 0,
+            width: 10,
+            height: 10,
+        };
+        assert!(intersect(&apart, &away).is_none());
+    }
+
+    #[test]
     fn non_browser_views_draw_children_under_their_parent() {
         // Breadth-first snapshot order; the view is depth-first.
         let nodes = vec![
@@ -842,5 +994,99 @@ mod tests {
         assert!(report.contains("--- page ---\n[10] document web"));
         assert!(report.contains("  [140] row \"r40\""));
         assert!(!report.contains("\n+ "));
+    }
+
+    fn disabled(mut node: AccessibilityNode) -> AccessibilityNode {
+        node.states.retain(|state| state != "enabled");
+        node
+    }
+
+    fn form(save: AccessibilityNode, extra: Vec<AccessibilityNode>) -> Vec<AccessibilityNode> {
+        let mut nodes = vec![
+            node(10, None, "document web", "Perfil"),
+            node(11, Some(10), "entry", "Nome"),
+            save,
+        ];
+        nodes.extend(extra);
+        nodes
+    }
+
+    #[test]
+    fn a_save_button_turning_into_salvando_is_busy_until_the_result() {
+        let before = form(
+            node(12, Some(10), "button", "Salvar alterações"),
+            Vec::new(),
+        );
+        let saving = form(
+            disabled(node(12, Some(10), "button", "Salvando…")),
+            Vec::new(),
+        );
+        let busy = busy_reason(&before, &saving).expect("busy while saving");
+        assert!(busy.strong);
+        assert_eq!(busy.reason, "[12] button \"Salvando…\" shows a busy label");
+        let saved = form(
+            node(12, Some(10), "button", "Salvar alterações"),
+            vec![node(13, Some(10), "status bar", "Alterações salvas")],
+        );
+        assert_eq!(busy_reason(&before, &saved), None);
+        let failed = form(
+            node(12, Some(10), "button", "Salvar alterações"),
+            vec![node(
+                13,
+                Some(10),
+                "notification",
+                "Não foi possível salvar. Tente novamente.",
+            )],
+        );
+        assert_eq!(busy_reason(&before, &failed), None);
+    }
+
+    #[test]
+    fn busy_signs_are_states_progress_bars_words_and_ellipses() {
+        let before = form(node(12, Some(10), "button", "Enviar"), Vec::new());
+        let mut document = node(10, None, "document web", "Perfil");
+        document.states.push("busy".into());
+        let mut after = form(node(12, Some(10), "button", "Enviar"), Vec::new());
+        after[0] = document;
+        assert!(busy_reason(&before, &after).is_some_and(|busy| busy.reason.contains("is busy")));
+
+        let bar = form(
+            node(12, Some(10), "button", "Enviar"),
+            vec![node(14, Some(10), "progress bar", "")],
+        );
+        assert!(busy_reason(&before, &bar).is_some_and(|busy| busy.reason.contains("appeared")));
+
+        let loading = form(
+            node(12, Some(10), "button", "Enviar"),
+            vec![with_text(node(15, Some(10), "static", ""), "Please wait")],
+        );
+        assert!(busy_reason(&before, &loading).is_some_and(|busy| busy.strong));
+
+        let dots = form(node(12, Some(10), "button", "Enviar..."), Vec::new());
+        assert!(busy_reason(&before, &dots).is_some());
+    }
+
+    #[test]
+    fn a_disabled_button_is_a_weak_sign_and_unchanged_pages_are_not_busy() {
+        let before = form(node(12, Some(10), "button", "Enviar"), Vec::new());
+        let after = form(disabled(node(12, Some(10), "button", "Enviar")), Vec::new());
+        assert_eq!(
+            busy_reason(&before, &after),
+            Some(Busy {
+                reason: "[12] button \"Enviar\" became disabled".into(),
+                strong: false,
+            })
+        );
+        // Already disabled, already busy-looking, or a new row that merely
+        // ends in an ellipsis: nothing new to wait for.
+        let still = form(disabled(node(12, Some(10), "button", "Enviar")), Vec::new());
+        assert_eq!(busy_reason(&still, &still), None);
+        let loading = form(node(12, Some(10), "button", "Carregando…"), Vec::new());
+        assert_eq!(busy_reason(&loading, &loading), None);
+        let row = form(
+            node(12, Some(10), "button", "Enviar"),
+            vec![node(16, Some(10), "row", "Pedido de cadeiras…")],
+        );
+        assert_eq!(busy_reason(&before, &row), None);
     }
 }

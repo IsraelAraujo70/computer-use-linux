@@ -77,6 +77,12 @@ const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(60);
 const SETTLE_POLL: Duration = Duration::from_millis(90);
 /// Longest wait for the tree to settle after an action.
 const SETTLE_LIMIT: Duration = Duration::from_secs(2);
+/// Longest wait, counted from the action, while the page looks busy with it
+/// (a "Salvando…" button, a spinner): async results often take a second.
+const BUSY_SETTLE_LIMIT: Duration = Duration::from_secs(6);
+/// How long the tree must stay unchanged before a button that only became
+/// disabled stops counting as busy; some stay disabled for good.
+const BUSY_QUIET: Duration = Duration::from_millis(1_500);
 
 /// The app filter and limits of an observation, reused when an action has
 /// to read the same part of the tree again.
@@ -641,7 +647,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "wait_for",
-        description = "Wait until an element appears or disappears (role/name/text/states), or until the tree changes (condition=changed). Actions already report their changes; use this for slow updates.",
+        description = "Wait for a slow page (a spinner, \"Carregando…\") to update. Actions already wait for the page to settle and report what changed, so call this only after one whose result is still pending. When you do not know what will appear, call it with no query (condition=changed): it returns the changed lines. With role/name/text/states it waits until a match appears (or disappears with condition=disappears).",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -652,7 +658,7 @@ impl ComputerUseLinux {
     async fn wait_for(&self, Parameters(params): Parameters<WaitForParams>) -> Json<WaitForOutput> {
         let timeout_ms = params.timeout_ms.unwrap_or(5_000).clamp(100, 60_000);
         let interval = Duration::from_millis(params.interval_ms.unwrap_or(400).clamp(100, 5_000));
-        let condition = params.condition;
+        let condition = wait_condition(params.condition, params.query.is_empty());
         if condition != WaitCondition::Changed && params.query.is_empty() {
             return Json(WaitForOutput {
                 satisfied: false,
@@ -1265,7 +1271,7 @@ impl ComputerUseLinux {
                 Err(message) => (field.describe(), FieldOutcome::failed(message)),
             };
             ok_count += usize::from(outcome.ok);
-            lines.push(form_field_line(&label, &outcome));
+            lines.push(form_field_line(&label, &outcome, &field.value));
         }
         Json(ActionOutput {
             ok: ok_count == params.fields.len(),
@@ -1429,7 +1435,7 @@ impl ComputerUseLinux {
                 }
             }
         }
-        let target_point =
+        let mut target_point =
             match self.resolve_optional_target_point(params.x, params.y, params.element_index) {
                 Ok(point) => point,
                 Err(message) => {
@@ -1442,7 +1448,7 @@ impl ComputerUseLinux {
                     });
                 }
             };
-        let direction = match params.direction.to_ascii_lowercase().as_str() {
+        let direction = match params.direction().as_str() {
             "up" => ScrollDirection::Up,
             "down" => ScrollDirection::Down,
             "left" => ScrollDirection::Left,
@@ -1464,10 +1470,21 @@ impl ComputerUseLinux {
                 &ElementSelector::default(),
                 ElementResolvePurpose::Click,
             ) {
-                let visible = match target_point {
+                let mut visible = match target_point {
                     Some(point) => self.point_visible_for(&node, point).await,
                     None => false,
                 };
+                if !visible && params.until.is_some() {
+                    // A list taller than the page: wheel at the centre of the
+                    // part of it that is on screen.
+                    let shown = self.last_snapshot.lock().ok().and_then(|cached| {
+                        crate::page_view::shown_part(&cached.nodes, Some(node.index))
+                    });
+                    if let Some(center) = shown.as_ref().and_then(bounds_center) {
+                        target_point = Some(center);
+                        visible = self.point_visible_for(&node, center).await;
+                    }
+                }
                 if !visible {
                     // Wheel input at an off-page point scrolls nothing; ask
                     // the toolkit to bring the element into view instead.
@@ -1525,18 +1542,22 @@ impl ComputerUseLinux {
                 });
             }
             let backend = self.clone();
-            let hint = self
-                .cached_node_for(
-                    params.element_index,
-                    &ElementSelector::default(),
-                    ElementResolvePurpose::Click,
-                )
-                .map(|node| node.object_ref);
-            let wheel = xdotool_pointer_scroll_args(target_point, repeat, direction);
+            let container = self.cached_node_for(
+                params.element_index,
+                &ElementSelector::default(),
+                ElementResolvePurpose::Click,
+            );
+            let plan = ScrollUntil {
+                query,
+                point: target_point,
+                direction,
+                direction_given: params.direction.is_some(),
+                max_clicks: repeat,
+                container: container.as_ref().map(|node| node.index),
+                hint_ref: container.map(|node| node.object_ref),
+            };
             let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-                backend
-                    .scroll_until(&query, &wheel, repeat, hint.as_deref())
-                    .await
+                backend.scroll_until(&plan).await
             })
             .await;
             let _input_guard = input_guard;
@@ -1564,12 +1585,12 @@ impl ComputerUseLinux {
             output.message = match target_point {
                 Some((x, y)) => format!(
                     "scrolled {} {} page(s) at {x},{y} (xdotool)",
-                    params.direction.to_ascii_lowercase(),
+                    params.direction(),
                     params.pages.unwrap_or(1.0)
                 ),
                 None => format!(
                     "scrolled {} {} page(s) under the pointer (xdotool)",
-                    params.direction.to_ascii_lowercase(),
+                    params.direction(),
                     params.pages.unwrap_or(1.0)
                 ),
             };
@@ -1866,7 +1887,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "scroll",
-        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is visible and returns its line. Reports what changed.",
+        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is rendered, brings it into view and returns its line; with no direction it searches down, then up. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -2061,6 +2082,14 @@ impl ComputerUseLinux {
                 crate::outline::element_label(&node),
                 crate::outline::truncate(&shown, 200)
             ));
+            if crate::fields::compare_read_back(read_back.as_deref(), &params.text)
+                == crate::fields::ReadBack::Formatted
+            {
+                output.message.push_str(&format!(
+                    " That matches the typed text (the field formatted it as \"{}\").",
+                    crate::outline::truncate(&shown, 200)
+                ));
+            }
         } else if focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), true).await;
             output = with_notes(output, notes);
@@ -2565,11 +2594,10 @@ struct FindElementsOutput {
     message: String,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum WaitCondition {
     /// An element matching the query exists.
-    #[default]
     Appears,
     /// No element matches the query.
     Disappears,
@@ -2583,8 +2611,10 @@ struct WaitForParams {
     scope: ElementScope,
     #[serde(flatten)]
     query: ElementQuery,
+    /// appears (default with a query), disappears, or changed (default
+    /// without one: wait for any change when you do not know what comes).
     #[serde(default)]
-    condition: WaitCondition,
+    condition: Option<WaitCondition>,
     /// Give up after this many milliseconds (default 5000, max 60000).
     #[serde(default)]
     timeout_ms: Option<u64>,
@@ -3144,14 +3174,21 @@ struct FillFormParams {
     fields: Vec<FormField>,
 }
 
-/// One `fill_form` result line: `label: ok value="…"` or `label: FAILED …`.
-fn form_field_line(label: &str, outcome: &FieldOutcome) -> String {
+/// One `fill_form` result line: `label: ok value="…"` (noting a value its
+/// input mask reformatted) or `label: FAILED …`.
+fn form_field_line(label: &str, outcome: &FieldOutcome, requested: &str) -> String {
     let value = outcome
         .value
         .as_deref()
         .map(|value| format!(" value=\"{value}\""))
         .unwrap_or_default();
-    if outcome.ok {
+    let formatted = outcome.value.as_deref().filter(|shown| {
+        crate::fields::compare_read_back(Some(shown), requested)
+            == crate::fields::ReadBack::Formatted
+    });
+    if let (true, Some(shown)) = (outcome.ok, formatted) {
+        format!("{label}: ok value=\"{requested}\" (the field formatted it as \"{shown}\")")
+    } else if outcome.ok {
         format!("{label}: ok{value}")
     } else {
         format!("{label}: FAILED{value} error: {}", outcome.message)
@@ -3170,14 +3207,16 @@ struct ScrollParams {
     x: Option<i32>,
     #[serde(default)]
     y: Option<i32>,
-    /// up, down, left or right (default down).
-    #[serde(default = "default_scroll_direction")]
-    direction: String,
+    /// up, down, left or right (default down; with until and no direction,
+    /// down to the end, then up past the start).
+    #[serde(default)]
+    direction: Option<String>,
     #[serde(default)]
     #[schemars(range(min = -100, max = 100))]
     pages: Option<f64>,
-    /// Keep scrolling a page at a time until an element matching this is
-    /// on the visible page (or the end, or 80 scrolls); returns its line.
+    /// Keep scrolling (at most a page, about 60% of the scrolled area, per
+    /// step) until an element matching this is rendered, then bring it into
+    /// view (or the end, or 80 scrolls each way); returns its line.
     #[serde(default)]
     until: Option<ElementQuery>,
     // Optional window target (parity with click): the window is raised/focused
@@ -3200,10 +3239,6 @@ struct ScrollParams {
     relative: Option<bool>,
 }
 
-fn default_scroll_direction() -> String {
-    "down".to_string()
-}
-
 fn scroll_units(pages: Option<f64>) -> std::result::Result<i32, String> {
     let pages = pages.unwrap_or(1.0);
     if !pages.is_finite() || pages.abs() > MAX_SCROLL_PAGES {
@@ -3215,6 +3250,14 @@ fn scroll_units(pages: Option<f64>) -> std::result::Result<i32, String> {
 }
 
 impl ScrollParams {
+    /// The requested direction, lower-cased; down when none was given.
+    fn direction(&self) -> String {
+        self.direction
+            .as_deref()
+            .unwrap_or("down")
+            .to_ascii_lowercase()
+    }
+
     /// A window target if any window-identifying field was supplied.
     fn window_target(&self) -> Option<WindowTarget> {
         if self.window_id.is_none()
@@ -3958,27 +4001,50 @@ impl ComputerUseLinux {
     /// Waits for the app to settle after an action, then reports what changed
     /// against the snapshot the agent last saw and makes the settled snapshot
     /// the cached one. Settled means two consecutive reads of the observed
-    /// scope agree, or `SETTLE_LIMIT` passed.
+    /// scope agree and nothing looks busy (`page_view::busy_reason`), or the
+    /// limit passed: `SETTLE_LIMIT`, or `BUSY_SETTLE_LIMIT` once the page
+    /// looked busy, which the report then says.
     async fn observe_changes(&self) -> String {
+        let acted = std::time::Instant::now();
+        let before = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
         sleep(SETTLE_FIRST_WAIT).await;
-        let started = std::time::Instant::now();
         let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
         let mut settled: Option<Rescan> = None;
         let mut last_error = None;
+        let mut busy_seen: Option<String> = None;
+        let mut still_busy = false;
+        let mut quiet_since = std::time::Instant::now();
         loop {
             match self.rescan(None).await {
                 Ok(rescan) => {
                     let contents = crate::outline::element_contents(&rescan.nodes);
                     let stable = previous.as_ref() == Some(&contents);
+                    if !stable {
+                        quiet_since = std::time::Instant::now();
+                    }
+                    let busy = crate::page_view::busy_reason(&before, &rescan.nodes);
+                    if let Some(busy) = &busy {
+                        busy_seen.get_or_insert_with(|| busy.reason.clone());
+                    }
+                    still_busy = still_busy_after(busy.as_ref(), quiet_since.elapsed());
                     previous = Some(contents);
                     settled = Some(rescan);
-                    if stable {
+                    if stable && !still_busy {
                         break;
                     }
                 }
                 Err(error) => last_error = Some(error),
             }
-            if started.elapsed() >= SETTLE_LIMIT {
+            let limit = if busy_seen.is_some() {
+                BUSY_SETTLE_LIMIT
+            } else {
+                SETTLE_FIRST_WAIT + SETTLE_LIMIT
+            };
+            if acted.elapsed() >= limit {
                 break;
             }
             sleep(SETTLE_POLL).await;
@@ -3989,16 +4055,23 @@ impl ComputerUseLinux {
                 last_error.unwrap_or_default()
             );
         };
-        let before = self
-            .last_snapshot
-            .lock()
-            .map(|cached| cached.nodes.clone())
-            .unwrap_or_default();
         let options = settled.scope.options;
-        let report = crate::page_view::change_report(
+        let mut report = String::new();
+        if let Some(reason) = busy_seen {
+            report.push_str(&format!(
+                "waited {} ms for the page to finish ({reason}){}\n",
+                acted.elapsed().as_millis(),
+                if still_busy {
+                    "; it still looks busy"
+                } else {
+                    ""
+                }
+            ));
+        }
+        report.push_str(&crate::page_view::change_report(
             &crate::page_view::page_view(&before, options),
             &crate::page_view::page_view(&settled.nodes, options),
-        );
+        ));
         self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
             .await;
         report
@@ -4439,9 +4512,13 @@ impl ComputerUseLinux {
         requested: &str,
     ) -> FieldOutcome {
         let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+        let formatted = crate::fields::compare_read_back(read_back.as_deref(), requested)
+            == crate::fields::ReadBack::Formatted;
         FieldOutcome {
             ok,
-            message: if ok {
+            message: if ok && formatted {
+                format!("set {label} value=\"{requested}\" (the field formatted it as \"{shown}\")")
+            } else if ok {
                 format!("set {label} value=\"{shown}\"")
             } else {
                 format!("{label} now holds \"{shown}\", not the requested \"{requested}\"")
@@ -4776,71 +4853,192 @@ impl ComputerUseLinux {
         }
     }
 
-    /// Runs the wheel command `wheel` step by step, reading the tree after
-    /// each, until an element matching `query` is on the visible page:
-    /// returns its lines and the scroll count. Ends with an error when the
-    /// tree stops changing (the end of the list) or after
-    /// `SCROLL_UNTIL_MAX_STEPS`; the last read then becomes the cached
-    /// snapshot, since the page has moved. Steps report no changes.
-    async fn scroll_until(
+    /// Scrolls step by step until an element matching the query is rendered,
+    /// then brings it onto the visible page: returns its lines and the
+    /// scroll count. Each step moves `until_step_clicks` wheel clicks and
+    /// reads the tree until it stops changing (`read_after_scroll_step`);
+    /// `until_step` decides what follows. Without a requested direction a
+    /// search down that reaches the end goes on upward (`next_until_pass`).
+    /// On failure the last read becomes the cached snapshot, since the page
+    /// has moved.
+    async fn scroll_until(&self, plan: &ScrollUntil) -> std::result::Result<String, String> {
+        let hint = plan.hint_ref.as_deref();
+        let mut last = self.rescan(hint).await?;
+        if !rendered_matches(&last.nodes, &plan.query).is_empty() {
+            return self.reveal_until_match(plan, last, 0).await;
+        }
+        let horizontal = matches!(
+            plan.direction,
+            ScrollDirection::Left | ScrollDirection::Right
+        );
+        let shown = crate::page_view::shown_part(&last.nodes, plan.container);
+        let extent = shown.map(|area| if horizontal { area.width } else { area.height });
+        let clicks = until_step_clicks(extent, plan.max_clicks);
+        let mut direction = plan.direction;
+        let mut scrolls = 0;
+        let mut searched_back = false;
+        let end = loop {
+            let end = self
+                .scroll_until_pass(plan, direction, clicks, &mut last, &mut scrolls)
+                .await?;
+            match next_until_pass(direction, plan.direction_given, end) {
+                Some(next) => {
+                    eprintln!("scroll until: the end going {direction:?}; searching {next:?}");
+                    direction = next;
+                    searched_back = true;
+                }
+                None => break end,
+            }
+        };
+        let message = match end {
+            UntilStep::Found => return self.reveal_until_match(plan, last, scrolls).await,
+            UntilStep::Cap => format!(
+                "no element matched until within {SCROLL_UNTIL_MAX_STEPS} scrolls; the list goes on"
+            ),
+            _ if searched_back => format!(
+                "reached both ends after {scrolls} scroll(s) without an element matching until"
+            ),
+            _ => format!(
+                "reached the end after {scrolls} scroll(s) without an element matching until"
+            ),
+        };
+        self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
+        Err(message)
+    }
+
+    /// Scrolls in one direction until a match is rendered, the end, or
+    /// `SCROLL_UNTIL_MAX_STEPS` steps; `last` and `scrolls` follow along.
+    async fn scroll_until_pass(
         &self,
-        query: &ElementQuery,
-        wheel: &[String],
-        repeat: u32,
-        hint_ref: Option<&str>,
+        plan: &ScrollUntil,
+        direction: ScrollDirection,
+        clicks: u32,
+        last: &mut Rescan,
+        scrolls: &mut u32,
+    ) -> std::result::Result<UntilStep, String> {
+        let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
+        let command_timeout = xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS);
+        let mut previous = crate::outline::element_contents(&last.nodes);
+        let mut steps = 0;
+        let mut unchanged = 0;
+        loop {
+            run_xdotool(&wheel, command_timeout).await?;
+            steps += 1;
+            *scrolls += 1;
+            let rows_before = row_keys(&last.nodes);
+            *last = self
+                .read_after_scroll_step(plan.hint_ref.as_deref())
+                .await?;
+            let new_rows = row_keys(&last.nodes).difference(&rows_before).count();
+            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?})");
+            let contents = crate::outline::element_contents(&last.nodes);
+            let found = !rendered_matches(&last.nodes, &plan.query).is_empty();
+            let step = until_step(found, contents != previous, unchanged, steps);
+            previous = contents;
+            match step {
+                UntilStep::Continue => unchanged = 0,
+                UntilStep::Recheck => {
+                    unchanged += 1;
+                    // A list that loads more rows may still be fetching them.
+                    sleep(SCROLL_UNTIL_END_WAIT).await;
+                }
+                end => return Ok(end),
+            }
+        }
+    }
+
+    /// Reads the tree after a scroll step until two reads in a row agree or
+    /// `SCROLL_UNTIL_STEP_LIMIT` passes: smooth scrolling and virtual lists
+    /// keep changing it for a few frames.
+    async fn read_after_scroll_step(&self, hint: Option<&str>) -> Result<Rescan, String> {
+        let started = std::time::Instant::now();
+        sleep(SETTLE_FIRST_WAIT).await;
+        let mut last = self.rescan(hint).await?;
+        let mut previous = crate::outline::element_contents(&last.nodes);
+        while started.elapsed() < SCROLL_UNTIL_STEP_LIMIT {
+            sleep(SETTLE_POLL).await;
+            last = self.rescan(hint).await?;
+            let contents = crate::outline::element_contents(&last.nodes);
+            if contents == previous {
+                break;
+            }
+            previous = contents;
+        }
+        Ok(last)
+    }
+
+    /// Brings a rendered match onto the visible page: AT-SPI
+    /// `Component.ScrollTo`, else a few small wheel scrolls toward it.
+    /// Reports its lines once it is visible, or that it stayed off the page.
+    async fn reveal_until_match(
+        &self,
+        plan: &ScrollUntil,
+        mut last: Rescan,
+        scrolls: u32,
     ) -> std::result::Result<String, String> {
-        let found_message = |scrolls: u32, found: &[&AccessibilityNode]| {
-            let lines = found
+        let lines = |found: &[&AccessibilityNode]| {
+            found
                 .iter()
                 .take(5)
                 .map(|node| crate::outline::render_line(node))
                 .collect::<Vec<_>>()
-                .join("\n");
-            match scrolls {
-                0 => format!("already on the visible page:\n{lines}"),
-                n => format!("found after {n} scroll(s):\n{lines}"),
-            }
+                .join("\n")
         };
-        let mut last = self.rescan(hint_ref).await?;
-        let found = visible_matches(&last.nodes, query);
-        if !found.is_empty() {
-            return Ok(found_message(0, &found));
-        }
-        let command_timeout = xdotool_scroll_timeout(repeat, XDOTOOL_SCROLL_CLICK_DELAY_MS);
-        let mut previous = crate::outline::element_contents(&last.nodes);
-        let mut unchanged = 0;
-        let mut scrolls = 0;
-        let outcome = loop {
-            if scrolls >= SCROLL_UNTIL_MAX_STEPS {
-                break format!(
-                    "no element matched until within {scrolls} scrolls; the list goes on"
+        let found_message = |found: &[&AccessibilityNode], revealed: bool| match (scrolls, revealed)
+        {
+            (0, false) => format!("already on the visible page:\n{}", lines(found)),
+            (0, true) => format!("found and scrolled into view:\n{}", lines(found)),
+            (n, _) => format!("found after {n} scroll(s):\n{}", lines(found)),
+        };
+        let hint = plan.hint_ref.as_deref();
+        for attempt in 0..=SCROLL_UNTIL_REVEAL_NUDGES {
+            let visible = visible_matches(&last.nodes, &plan.query);
+            if !visible.is_empty() {
+                return Ok(found_message(&visible, attempt > 0));
+            }
+            let rendered = rendered_matches(&last.nodes, &plan.query);
+            let Some(target) = rendered.first() else {
+                break;
+            };
+            let toward = target
+                .bounds
+                .as_ref()
+                .zip(crate::page_view::visible_area(&last.nodes, target.index));
+            if attempt == 0
+                && crate::atspi_tree::scroll_into_view(&target.object_ref)
+                    .await
+                    .is_ok()
+            {
+                eprintln!("scroll until: ScrollTo [{}]", target.index);
+            } else if let Some(direction) =
+                toward.and_then(|(bounds, area)| direction_toward(bounds, &area))
+            {
+                eprintln!(
+                    "scroll until: nudging {direction:?} toward [{}]",
+                    target.index
                 );
-            }
-            run_xdotool(wheel, command_timeout).await?;
-            scrolls += 1;
-            sleep(SCROLL_UNTIL_STEP_WAIT).await;
-            last = self.rescan(hint_ref).await?;
-            let found = visible_matches(&last.nodes, query);
-            if !found.is_empty() {
-                return Ok(found_message(scrolls, &found));
-            }
-            let contents = crate::outline::element_contents(&last.nodes);
-            if contents == previous {
-                unchanged += 1;
-                if unchanged >= 2 {
-                    break format!(
-                        "reached the end after {scrolls} scroll(s) without an element matching until"
-                    );
-                }
-                // A list that loads more rows may still be fetching them.
-                sleep(SCROLL_UNTIL_END_WAIT).await;
+                let wheel = xdotool_pointer_scroll_args(plan.point, 2, direction);
+                run_xdotool(
+                    &wheel,
+                    xdotool_scroll_timeout(2, XDOTOOL_SCROLL_CLICK_DELAY_MS),
+                )
+                .await?;
             } else {
-                unchanged = 0;
+                break;
             }
-            previous = contents;
-        };
-        self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
-        Err(outcome)
+            last = self.read_after_scroll_step(hint).await?;
+        }
+        let rendered = rendered_matches(&last.nodes, &plan.query);
+        if rendered.is_empty() {
+            self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
+            return Err(format!(
+                "an element matching until showed up after {scrolls} scroll(s) but was gone after scrolling it into view"
+            ));
+        }
+        Ok(format!(
+            "found after {scrolls} scroll(s), but it is not on the visible page yet (click still reaches it by id):\n{}",
+            lines(&rendered)
+        ))
     }
 
     /// Whether a point inside an element's bounds is on the visible page:
@@ -4953,13 +5151,154 @@ impl ComputerUseLinux {
     }
 }
 
-/// Most page scrolls one `scroll(until=…)` call makes.
+/// Whether the settle loop keeps reading because of `busy`: always for a
+/// strong sign, and for a button that only became disabled until the tree
+/// has been unchanged for `BUSY_QUIET`.
+fn still_busy_after(busy: Option<&crate::page_view::Busy>, quiet_for: Duration) -> bool {
+    busy.is_some_and(|busy| busy.strong || quiet_for < BUSY_QUIET)
+}
+
+/// Most scroll steps one `scroll(until=…)` call makes in one direction.
 const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
-/// Wait after each scroll before reading the tree, so new rows exist.
-const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(150);
+/// Longest wait after a scroll step for the tree to stop changing.
+const SCROLL_UNTIL_STEP_LIMIT: Duration = Duration::from_millis(700);
+/// Small wheel scrolls toward a rendered match ScrollTo did not reveal.
+const SCROLL_UNTIL_REVEAL_NUDGES: u32 = 3;
+/// About how far one X11 wheel click scrolls: Chromium moves 53 px, GTK 3
+/// a little more on a typical page. Used only to size steps.
+const WHEEL_CLICK_PX: i32 = 53;
+/// Share of the scrolled area's visible extent one `until` step may move,
+/// so rows a virtual list renders around the viewport are read before it
+/// recycles them.
+const SCROLL_UNTIL_STEP_SHARE: f64 = 0.6;
 /// Extra wait after a scroll that changed nothing, before trying once more:
 /// an infinite list may still be loading its next rows.
 const SCROLL_UNTIL_END_WAIT: Duration = Duration::from_millis(500);
+
+/// One `scroll(until=…)` request, resolved.
+struct ScrollUntil {
+    query: ElementQuery,
+    /// Where the wheel turns; `None` scrolls under the pointer.
+    point: Option<(i32, i32)>,
+    direction: ScrollDirection,
+    /// Whether the caller chose `direction`; if not, the search also goes up.
+    direction_given: bool,
+    /// Most wheel clicks per step, from the `pages` request.
+    max_clicks: u32,
+    /// The scrolled element's id and object, when one was given.
+    container: Option<u32>,
+    hint_ref: Option<String>,
+}
+
+/// What `scroll(until=…)` does after the tree settled following a step.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UntilStep {
+    /// A match is rendered: bring it into view.
+    Found,
+    /// The page moved: scroll again.
+    Continue,
+    /// Nothing moved once: wait for more rows, then scroll again.
+    Recheck,
+    /// Nothing moved twice in a row: this is the end of the list.
+    End,
+    /// `SCROLL_UNTIL_MAX_STEPS` steps in this direction.
+    Cap,
+}
+
+/// Decides the next move from a step's result: `moved` says the tree
+/// differs from the read before the step, `unchanged` counts the steps in a
+/// row before this one that moved nothing, `steps` this direction's steps.
+fn until_step(found: bool, moved: bool, unchanged: u32, steps: u32) -> UntilStep {
+    if found {
+        UntilStep::Found
+    } else if !moved && unchanged >= 1 {
+        UntilStep::End
+    } else if steps >= SCROLL_UNTIL_MAX_STEPS {
+        UntilStep::Cap
+    } else if moved {
+        UntilStep::Continue
+    } else {
+        UntilStep::Recheck
+    }
+}
+
+/// The direction to search next after a pass ended with `end`: up, when a
+/// search down with no requested direction reached the end of the list.
+fn next_until_pass(
+    direction: ScrollDirection,
+    direction_given: bool,
+    end: UntilStep,
+) -> Option<ScrollDirection> {
+    (end == UntilStep::End && !direction_given && direction == ScrollDirection::Down)
+        .then_some(ScrollDirection::Up)
+}
+
+/// Wheel clicks per `until` step: the requested count, cut to about
+/// `SCROLL_UNTIL_STEP_SHARE` of the scrolled area's visible extent (pixels).
+fn until_step_clicks(extent: Option<i32>, requested: u32) -> u32 {
+    let requested = requested.max(1);
+    match extent {
+        Some(extent) if extent > 0 => {
+            let fit = (f64::from(extent) * SCROLL_UNTIL_STEP_SHARE / f64::from(WHEEL_CLICK_PX))
+                .floor() as u32;
+            requested.min(fit.max(1))
+        }
+        _ => requested,
+    }
+}
+
+/// The wheel direction that moves `bounds` toward `area`, `None` when its
+/// centre is already inside.
+fn direction_toward(bounds: &Bounds, area: &Bounds) -> Option<ScrollDirection> {
+    let (x, y) = bounds_center(bounds)?;
+    if y < area.y {
+        Some(ScrollDirection::Up)
+    } else if y >= area.y + area.height {
+        Some(ScrollDirection::Down)
+    } else if x < area.x {
+        Some(ScrollDirection::Left)
+    } else if x >= area.x + area.width {
+        Some(ScrollDirection::Right)
+    } else {
+        None
+    }
+}
+
+/// Roles of list, table and tree rows, which scroll step logs count.
+const ROW_ROLES: [&str; 5] = [
+    "list item",
+    "row",
+    "table row",
+    "tree item",
+    "tree table row",
+];
+
+/// Each row's role and label, to count rows a scroll step brought in.
+fn row_keys(nodes: &[AccessibilityNode]) -> std::collections::HashSet<String> {
+    nodes
+        .iter()
+        .filter(|node| ROW_ROLES.contains(&node.role.as_str()))
+        .filter_map(|node| {
+            let label = crate::outline::clean(node.name.as_deref()).or_else(|| {
+                crate::outline::clean(node.text.as_ref().and_then(|text| text.content.as_deref()))
+            })?;
+            Some(format!("{} {label}", node.role))
+        })
+        .collect()
+}
+
+/// Elements matching `query` with a size, wherever they are: a virtual
+/// list's rows rendered around the viewport count.
+fn rendered_matches<'a>(
+    nodes: &'a [AccessibilityNode],
+    query: &ElementQuery,
+) -> Vec<&'a AccessibilityNode> {
+    nodes
+        .iter()
+        .filter(|node| query.matches(node))
+        .filter(|node| node.bounds.as_ref().and_then(bounds_center).is_some())
+        .collect()
+}
 
 /// Elements matching `query` whose centre lies where they can be seen: in
 /// their document's viewport, else their window frame.
@@ -5396,6 +5735,17 @@ fn click_equivalent_action(action: &AccessibilityAction) -> bool {
         action.name.to_ascii_lowercase().as_str(),
         "click" | "press" | "toggle"
     )
+}
+
+/// The condition `wait_for` checks: the requested one, else `changed` when
+/// no query names an element (the agent does not know what will appear),
+/// else `appears`.
+fn wait_condition(requested: Option<WaitCondition>, query_empty: bool) -> WaitCondition {
+    match requested {
+        Some(condition) => condition,
+        None if query_empty => WaitCondition::Changed,
+        None => WaitCondition::Appears,
+    }
 }
 
 /// Whether one `wait_for` poll satisfies `appears` or `disappears`. Absence
@@ -7785,10 +8135,120 @@ mod tests {
     }
 
     #[test]
+    fn scroll_until_stops_on_a_match_the_end_or_the_cap() {
+        assert_eq!(until_step(true, true, 0, 1), UntilStep::Found);
+        // A match counts even on the step that hits the cap or the end.
+        assert_eq!(
+            until_step(true, false, 1, SCROLL_UNTIL_MAX_STEPS),
+            UntilStep::Found
+        );
+        assert_eq!(until_step(false, true, 0, 5), UntilStep::Continue);
+        assert_eq!(until_step(false, false, 0, 5), UntilStep::Recheck);
+        assert_eq!(until_step(false, false, 1, 6), UntilStep::End);
+        assert_eq!(
+            until_step(false, true, 0, SCROLL_UNTIL_MAX_STEPS),
+            UntilStep::Cap
+        );
+        assert_eq!(
+            until_step(false, true, 0, SCROLL_UNTIL_MAX_STEPS - 1),
+            UntilStep::Continue
+        );
+    }
+
+    #[test]
+    fn scroll_until_searches_up_only_after_an_unrequested_search_down_ends() {
+        use ScrollDirection::{Down, Up};
+        assert_eq!(next_until_pass(Down, false, UntilStep::End), Some(Up));
+        assert_eq!(next_until_pass(Down, true, UntilStep::End), None);
+        assert_eq!(next_until_pass(Down, false, UntilStep::Cap), None);
+        assert_eq!(next_until_pass(Down, false, UntilStep::Found), None);
+        assert_eq!(next_until_pass(Up, false, UntilStep::End), None);
+    }
+
+    #[test]
+    fn scroll_until_steps_stay_within_most_of_the_visible_extent() {
+        // 600 px visible: 60 % is 360 px, six 53 px clicks; one page is five.
+        assert_eq!(until_step_clicks(Some(600), 5), 5);
+        // A 250 px list box: 150 px, two clicks.
+        assert_eq!(until_step_clicks(Some(250), 5), 2);
+        assert_eq!(until_step_clicks(Some(40), 5), 1);
+        assert_eq!(until_step_clicks(None, 5), 5);
+        assert_eq!(until_step_clicks(Some(0), 0), 1);
+        let area = Bounds {
+            x: 0,
+            y: 100,
+            width: 800,
+            height: 500,
+        };
+        let row = |y| Bounds {
+            x: 10,
+            y,
+            width: 600,
+            height: 40,
+        };
+        assert_eq!(
+            direction_toward(&row(900), &area),
+            Some(ScrollDirection::Down)
+        );
+        assert_eq!(direction_toward(&row(20), &area), Some(ScrollDirection::Up));
+        assert_eq!(direction_toward(&row(300), &area), None);
+    }
+
+    #[test]
+    fn scroll_until_counts_rendered_rows_outside_the_viewport_as_found() {
+        let row = |index: u32, y: i32, height: i32| {
+            let mut row = node(
+                index,
+                Some(Bounds {
+                    x: 10,
+                    y,
+                    width: 200,
+                    height,
+                }),
+            );
+            row.role = "button".to_string();
+            row.name = Some(format!("Arquivar pedido #{index}"));
+            row
+        };
+        let nodes = [row(1377, 1_200, 28), row(1378, 1_240, 0)];
+        let query = ElementQuery {
+            name: Some("#1377".to_string()),
+            ..Default::default()
+        };
+        let found: Vec<u32> = rendered_matches(&nodes, &query)
+            .iter()
+            .map(|node| node.index)
+            .collect();
+        assert_eq!(found, [1377]);
+        // A zero-size match (collapsed, hidden) does not count.
+        let hidden = ElementQuery {
+            name: Some("#1378".to_string()),
+            ..Default::default()
+        };
+        assert!(rendered_matches(&nodes, &hidden).is_empty());
+    }
+
+    #[test]
+    fn settle_waits_out_strong_busy_signs_and_quiet_disabled_buttons() {
+        let busy = |strong| crate::page_view::Busy {
+            reason: String::new(),
+            strong,
+        };
+        assert!(!still_busy_after(None, Duration::ZERO));
+        assert!(still_busy_after(Some(&busy(true)), Duration::from_secs(5)));
+        assert!(still_busy_after(
+            Some(&busy(false)),
+            Duration::from_millis(400)
+        ));
+        assert!(!still_busy_after(Some(&busy(false)), BUSY_QUIET));
+    }
+
+    #[test]
     fn scroll_defaults_to_down_and_takes_an_until_query() {
         let params: ScrollParams =
             serde_json::from_value(serde_json::json!({"until": {"name": "Item 42"}})).unwrap();
-        assert_eq!(params.direction, "down");
+        assert_eq!(params.direction, None);
+        assert_eq!(params.direction(), "down");
         assert_eq!(params.until.unwrap().name.as_deref(), Some("Item 42"));
     }
 
@@ -8263,6 +8723,28 @@ mod tests {
     }
 
     #[test]
+    fn wait_for_without_a_query_waits_for_any_change() {
+        let params: WaitForParams = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert_eq!(params.condition, None);
+        assert_eq!(
+            wait_condition(params.condition, params.query.is_empty()),
+            WaitCondition::Changed
+        );
+        let named: WaitForParams =
+            serde_json::from_value(serde_json::json!({"name": "Alterações salvas"})).unwrap();
+        assert_eq!(
+            wait_condition(named.condition, named.query.is_empty()),
+            WaitCondition::Appears
+        );
+        let explicit: WaitForParams =
+            serde_json::from_value(serde_json::json!({"condition": "disappears"})).unwrap();
+        assert_eq!(
+            wait_condition(explicit.condition, explicit.query.is_empty()),
+            WaitCondition::Disappears
+        );
+    }
+
+    #[test]
     fn element_identifier_overrides_cached_object_ref() {
         let backend = ComputerUseLinux::default();
         backend.cache_nodes(&[node(7, None)]);
@@ -8600,7 +9082,7 @@ mod tests {
             element_index: None,
             x: Some(10),
             y: Some(20),
-            direction: "down".to_string(),
+            direction: Some("down".to_string()),
             pages: None,
             window_id: Some(1),
             pid: None,
@@ -8622,7 +9104,7 @@ mod tests {
             element_index: None,
             x: None,
             y: None,
-            direction: "down".to_string(),
+            direction: Some("down".to_string()),
             pages: None,
             window_id: Some(1),
             pid: None,
@@ -8644,7 +9126,7 @@ mod tests {
             element_index: None,
             x: None,
             y: None,
-            direction: "down".to_string(),
+            direction: Some("down".to_string()),
             pages: None,
             window_id: Some(1),
             pid: None,
@@ -8667,7 +9149,7 @@ mod tests {
             element_index: None,
             x: Some(801),
             y: Some(20),
-            direction: "down".to_string(),
+            direction: Some("down".to_string()),
             pages: None,
             window_id: Some(1),
             pid: None,
@@ -8853,7 +9335,7 @@ mod field_entry_tests {
             message: String::new(),
         };
         assert_eq!(
-            form_field_line("[3] entry \"Nome\"", &ok),
+            form_field_line("[3] entry \"Nome\"", &ok, "Joana"),
             "[3] entry \"Nome\": ok value=\"Joana\""
         );
         let failed = FieldOutcome {
@@ -8862,8 +9344,17 @@ mod field_entry_tests {
             message: "could not focus".into(),
         };
         assert_eq!(
-            form_field_line("[4] entry", &failed),
+            form_field_line("[4] entry", &failed, "Joana"),
             "[4] entry: FAILED value=\"\" error: could not focus"
+        );
+        let masked = FieldOutcome {
+            ok: true,
+            value: Some("4111 1111 1111 1111".into()),
+            message: String::new(),
+        };
+        assert_eq!(
+            form_field_line("[5] entry \"Cartão\"", &masked, "4111111111111111"),
+            "[5] entry \"Cartão\": ok value=\"4111111111111111\" (the field formatted it as \"4111 1111 1111 1111\")"
         );
     }
 }
