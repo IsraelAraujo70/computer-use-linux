@@ -998,7 +998,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "set_value",
-        description = "Set the value of a settable accessibility element selected by index, identifier, or semantic selector.",
+        description = "Set a field and read it back. Text fields (web fields included; non-ASCII is pasted): the text, \"\" clears. Combo boxes, selects, list boxes and radio groups: the option name. Check boxes, radios, switches: \"true\"/\"false\". ok only when the field then holds the value; the result shows what it holds.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1012,13 +1012,12 @@ impl ComputerUseLinux {
     ) -> Json<ActionOutput> {
         let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let received = Some(serde_json::json!(params.clone()));
-        let object_ref = match self.resolve_object_ref(
+        let node = match self.resolve_field_node(
             params.element_index,
             params.element_identifier.as_deref(),
             &params.selector(),
-            ElementResolvePurpose::SetValue,
         ) {
-            Ok(object_ref) => object_ref,
+            Ok(node) => node,
             Err(message) => {
                 return Json(ActionOutput {
                     ok: false,
@@ -1029,30 +1028,87 @@ impl ComputerUseLinux {
                 });
             }
         };
+        let node = match node {
+            Some(node) => node,
+            None => {
+                let object_ref = params.element_identifier.as_deref().unwrap_or_default();
+                match crate::atspi_tree::read_element(object_ref.trim()).await {
+                    Ok(node) => node,
+                    Err(error) => {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "set_value".to_string(),
+                            message: format!("{error:#}"),
+                            received,
+                        });
+                    }
+                }
+            }
+        };
+        let outcome = self.set_field(&node, &params.value).await;
+        Json(ActionOutput {
+            ok: outcome.ok,
+            implemented: true,
+            action: "set_value".to_string(),
+            message: outcome.message,
+            received,
+        })
+    }
 
-        match set_element_value(&object_ref, &params.value).await {
-            Ok(ValueSetInvocation::Numeric { value }) => Json(ActionOutput {
-                ok: true,
-                implemented: true,
-                action: "set_value".to_string(),
-                message: format!("AT-SPI numeric value set to {value}."),
-                received,
-            }),
-            Ok(ValueSetInvocation::EditableText) => Json(ActionOutput {
-                ok: true,
-                implemented: true,
-                action: "set_value".to_string(),
-                message: "AT-SPI editable text contents set.".to_string(),
-                received,
-            }),
-            Err(error) => Json(ActionOutput {
+    #[tool(
+        name = "fill_form",
+        description = "Set several fields in one call, in order, with set_value semantics (text fields, combo boxes and selects by option name, check boxes and radios with \"true\"/\"false\", a radio group by option name). Each field is {element_index or role/name, value}. Returns each field's read-back value and whether it matches.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn fill_form(
+        &self,
+        Parameters(params): Parameters<FillFormParams>,
+    ) -> Json<ActionOutput> {
+        let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let received = Some(serde_json::json!(params.clone()));
+        if params.fields.is_empty() {
+            return Json(ActionOutput {
                 ok: false,
                 implemented: true,
-                action: "set_value".to_string(),
-                message: error.to_string(),
+                action: "fill_form".to_string(),
+                message: "Pass at least one field.".to_string(),
                 received,
-            }),
+            });
         }
+        let mut lines = Vec::new();
+        let mut ok_count = 0;
+        for field in &params.fields {
+            let selector = field.selector();
+            let resolved = self
+                .resolve_field_node(field.element_index, None, &selector)
+                .and_then(|node| node.ok_or_else(|| "no element given".to_string()));
+            let (label, outcome) = match resolved {
+                Ok(node) => (
+                    crate::outline::element_label(&node),
+                    self.set_field(&node, &field.value).await,
+                ),
+                Err(message) => (field.describe(), FieldOutcome::failed(message)),
+            };
+            ok_count += usize::from(outcome.ok);
+            lines.push(form_field_line(&label, &outcome));
+        }
+        Json(ActionOutput {
+            ok: ok_count == params.fields.len(),
+            implemented: true,
+            action: "fill_form".to_string(),
+            message: format!(
+                "{ok_count}/{} fields set\n{}",
+                params.fields.len(),
+                lines.join("\n")
+            ),
+            received,
+        })
     }
 
     #[tool(
@@ -1338,7 +1394,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "type_text",
-        description = "Type literal text with xdotool (layout-aware XTEST), optionally after focusing a target window or terminal selector; newlines press Return. With a target, the result reports the AT-SPI focused element and warns when it is not editable. Success confirms dispatch only; re-observe the field before retrying. NUL is rejected. For long text in an editable field, set_value is faster.",
+        description = "Type text into the focused element, or first focus element_index/role/name or a window/terminal selector. Printable ASCII is typed (newline presses Return); other text is pasted through the clipboard (Ctrl+Shift+V in terminals). The result reads the field back when it can. To replace a field's content use set_value.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1350,13 +1406,7 @@ impl ComputerUseLinux {
         &self,
         Parameters(params): Parameters<TypeTextParams>,
     ) -> Json<ActionOutput> {
-        let Json(mut output) = self.dispatch_type_text(params).await;
-        if output.ok {
-            output.message.push_str(
-                " Field contents were not verified; re-observe the target before retrying.",
-            );
-        }
-        Json(output)
+        self.dispatch_type_text(params).await
     }
 
     async fn dispatch_type_text(&self, params: TypeTextParams) -> Json<ActionOutput> {
@@ -1370,29 +1420,70 @@ impl ComputerUseLinux {
             ));
         }
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let failed = |message: String| {
+            Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "type_text".to_string(),
+                message,
+                received: received.clone(),
+            })
+        };
         let focus = match self.focus_target_for_input(&params.window_target()).await {
             Ok(focus) => focus,
-            Err(message) => {
-                return Json(ActionOutput {
-                    ok: false,
-                    implemented: true,
-                    action: "type_text".to_string(),
-                    message,
-                    received,
-                });
-            }
+            Err(message) => return failed(message),
         };
-        // xdotool type resolves keysyms against the live XKB layout.
-        let delay_ms = xdotool_type_delay_ms();
-        let args = xdotool_type_args_with_delay(&params.text, delay_ms);
-        let command_timeout = xdotool_type_timeout(&params.text, delay_ms);
+        let target = if params.element_index.is_some() || !params.selector().is_empty() {
+            match self.resolve_cached_node(
+                params.element_index,
+                &params.selector(),
+                ElementResolvePurpose::SetValue,
+            ) {
+                Ok(node) => {
+                    let label = crate::outline::element_label(&node);
+                    if let Err(message) = self.focus_element(&node, &label).await {
+                        return failed(message);
+                    }
+                    Some(node)
+                }
+                Err(message) => return failed(message),
+            }
+        } else {
+            None
+        };
+        let window = match focus.as_ref() {
+            Some(focus) => focus.focused_window.clone(),
+            None => focused_window().await.ok().flatten(),
+        };
+        let paste_chord = paste_chord_for(window.as_ref());
+        let text = params.text.clone();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-            run_xdotool(&args, command_timeout).await
+            enter_text(&text, paste_chord).await.map(|()| Vec::new())
         })
         .await;
         let _input_guard = input_guard;
-        let mut output = action_result("type_text", result.map(|output| vec![output]), received);
-        if output.ok && focus.is_some() {
+        let mut output = action_result("type_text", result, received);
+        if !output.ok {
+            return Json(output);
+        }
+        output.message = if crate::fields::typeable_ascii(&params.text) {
+            "Typed through xdotool (X11 XTEST).".to_string()
+        } else {
+            format!("Pasted through the X11 clipboard ({paste_chord}).")
+        };
+        if let Some(node) = target {
+            sleep(Duration::from_millis(100)).await;
+            let read_back = crate::atspi_tree::read_element(&node.object_ref)
+                .await
+                .ok()
+                .and_then(|fresh| crate::fields::field_text(&fresh));
+            let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+            output.message.push_str(&format!(
+                " {} now holds \"{}\".",
+                crate::outline::element_label(&node),
+                crate::outline::truncate(&shown, 200)
+            ));
+        } else if focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), true).await;
             output = with_notes(output, notes);
         }
@@ -2348,6 +2439,59 @@ impl SetValueParams {
     }
 }
 
+/// One `fill_form` field: an element and the value to give it.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct FormField {
+    /// Element id `[n]` from an earlier result.
+    #[serde(default)]
+    element_index: Option<u32>,
+    /// Role substring, when not using element_index.
+    #[serde(default)]
+    role: Option<String>,
+    /// Name substring, when not using element_index.
+    #[serde(default)]
+    name: Option<String>,
+    /// Text, option name, or "true"/"false" for check boxes and radios.
+    value: String,
+}
+
+impl FormField {
+    fn selector(&self) -> ElementSelector<'_> {
+        ElementSelector {
+            role: self.role.as_deref(),
+            name: self.name.as_deref(),
+            text: None,
+            states: &[],
+        }
+    }
+
+    fn describe(&self) -> String {
+        match self.element_index {
+            Some(index) => format!("[{index}]"),
+            None => describe_selector(&self.selector()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct FillFormParams {
+    fields: Vec<FormField>,
+}
+
+/// One `fill_form` result line: `label: ok value="…"` or `label: FAILED …`.
+fn form_field_line(label: &str, outcome: &FieldOutcome) -> String {
+    let value = outcome
+        .value
+        .as_deref()
+        .map(|value| format!(" value=\"{value}\""))
+        .unwrap_or_default();
+    if outcome.ok {
+        format!("{label}: ok{value}")
+    } else {
+        format!("{label}: FAILED{value} error: {}", outcome.message)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct ScrollParams {
     #[serde(default)]
@@ -2449,6 +2593,15 @@ struct PressKeyParams {
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct TypeTextParams {
     text: String,
+    /// Element id `[n]` to focus before typing.
+    #[serde(default)]
+    element_index: Option<u32>,
+    /// Role substring of the element to focus before typing.
+    #[serde(default)]
+    role: Option<String>,
+    /// Name substring of the element to focus before typing.
+    #[serde(default)]
+    name: Option<String>,
     #[serde(default)]
     window_id: Option<u64>,
     #[serde(default)]
@@ -2486,6 +2639,15 @@ impl PressKeyParams {
 }
 
 impl TypeTextParams {
+    fn selector(&self) -> ElementSelector<'_> {
+        ElementSelector {
+            role: self.role.as_deref(),
+            name: self.name.as_deref(),
+            text: None,
+            states: &[],
+        }
+    }
+
     fn window_target(&self) -> WindowTarget {
         WindowTarget {
             window_id: self.window_id,
@@ -2843,11 +3005,24 @@ impl ComputerUseLinux {
             .and_then(|window| window.pid)
             .or(focus.requested_window.pid);
         match timeout(Duration::from_millis(1500), probe_focused_element(pid)).await {
-            Ok(Ok(probe)) => Some(focus_probe_feedback(
-                &probe,
-                expects_editable,
-                focus.exact_window_focused,
-            )),
+            Ok(Ok(probe)) => {
+                let mut feedback =
+                    focus_probe_feedback(&probe, expects_editable, focus.exact_window_focused);
+                if let FocusProbe::Found(element) = &probe {
+                    let text = crate::atspi_tree::read_element(&element.object_ref)
+                        .await
+                        .ok()
+                        .and_then(|fresh| fresh.text)
+                        .map(|text| crate::outline::clean(text.content.as_deref()));
+                    if let Some(text) = text {
+                        feedback.push_str(&format!(
+                            " It now holds \"{}\".",
+                            crate::outline::truncate(&text.unwrap_or_default(), 200)
+                        ));
+                    }
+                }
+                Some(feedback)
+            }
             Ok(Err(error)) => Some(format!(
                 "Focused-element feedback unavailable ({}).",
                 first_line(&format!("{error:#}"))
@@ -3048,6 +3223,21 @@ impl ComputerUseLinux {
             .map(|node| node.object_ref)
     }
 
+    /// The cached node a field-setting call names, or `Ok(None)` when it
+    /// passes a raw `element_identifier`, which the caller reads fresh.
+    fn resolve_field_node(
+        &self,
+        element_index: Option<u32>,
+        element_identifier: Option<&str>,
+        selector: &ElementSelector<'_>,
+    ) -> std::result::Result<Option<AccessibilityNode>, String> {
+        if element_identifier.is_some_and(|value| !value.trim().is_empty()) {
+            return Ok(None);
+        }
+        self.resolve_cached_node(element_index, selector, ElementResolvePurpose::SetValue)
+            .map(Some)
+    }
+
     fn resolve_cached_node(
         &self,
         element_index: Option<u32>,
@@ -3144,6 +3334,603 @@ impl ComputerUseLinux {
     }
 }
 
+/// What `set_value` did to one field.
+#[derive(Debug, Clone)]
+struct FieldOutcome {
+    ok: bool,
+    /// The field's value read back after the change, when readable.
+    value: Option<String>,
+    message: String,
+}
+
+impl FieldOutcome {
+    fn failed(message: impl Into<String>) -> Self {
+        Self {
+            ok: false,
+            value: None,
+            message: message.into(),
+        }
+    }
+}
+
+/// How long `set_value` polls a field for the value it entered.
+const FIELD_READBACK_TIMEOUT: Duration = Duration::from_millis(1_200);
+/// How long a combo box gets to show its options after being opened.
+const OPTIONS_APPEAR_TIMEOUT: Duration = Duration::from_millis(1_500);
+
+impl ComputerUseLinux {
+    /// Sets one field the way a user would and reads it back: AT-SPI
+    /// EditableText/Value when exposed, else per kind (text entry, toggle,
+    /// option choice). `ok` only when the read-back value is the requested one.
+    async fn set_field(&self, node: &AccessibilityNode, value: &str) -> FieldOutcome {
+        let label = crate::outline::element_label(node);
+        if node.supports_editable_text
+            || (node.value.is_some() && value.trim().parse::<f64>().is_ok())
+        {
+            if let Ok(invocation) = set_element_value(&node.object_ref, value).await {
+                let fresh = crate::atspi_tree::read_element(&node.object_ref).await.ok();
+                let read_back = match invocation {
+                    ValueSetInvocation::Numeric { .. } => fresh
+                        .as_ref()
+                        .and_then(|node| node.value.as_ref())
+                        .map(|value| value.current.to_string()),
+                    ValueSetInvocation::EditableText => {
+                        fresh.as_ref().and_then(crate::fields::field_text)
+                    }
+                };
+                let ok = match invocation {
+                    ValueSetInvocation::Numeric { value } => fresh
+                        .as_ref()
+                        .and_then(|node| node.value.as_ref())
+                        .is_some_and(|current| (current.current - value).abs() < 1e-9),
+                    ValueSetInvocation::EditableText => {
+                        crate::fields::values_match(read_back.as_deref(), value)
+                    }
+                };
+                return self.text_outcome(&label, ok, read_back, value);
+            }
+        }
+        match crate::fields::field_kind(node) {
+            crate::fields::FieldKind::Text => self.set_text_field(node, &label, value).await,
+            crate::fields::FieldKind::Toggle => self.set_toggle_field(node, &label, value).await,
+            crate::fields::FieldKind::Choice => {
+                self.set_choice_field(node, &label, value, false).await
+            }
+            crate::fields::FieldKind::Other => {
+                // A fieldset or radio group: pick its radio button by name.
+                let outcome = self.set_choice_field(node, &label, value, true).await;
+                if outcome.ok || !outcome.message.contains("no radio buttons") {
+                    return outcome;
+                }
+                FieldOutcome::failed(format!(
+                    "{label} is not a text field, check box, combo box or radio group; use click or type_text"
+                ))
+            }
+        }
+    }
+
+    fn text_outcome(
+        &self,
+        label: &str,
+        ok: bool,
+        read_back: Option<String>,
+        requested: &str,
+    ) -> FieldOutcome {
+        let shown = crate::outline::clean(read_back.as_deref()).unwrap_or_default();
+        FieldOutcome {
+            ok,
+            message: if ok {
+                format!("set {label} value=\"{shown}\"")
+            } else {
+                format!("{label} now holds \"{shown}\", not the requested \"{requested}\"")
+            },
+            value: Some(shown),
+        }
+    }
+
+    async fn set_text_field(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        value: &str,
+    ) -> FieldOutcome {
+        if let Err(message) = self.focus_element(node, label).await {
+            return FieldOutcome::failed(message);
+        }
+        if let Err(message) = send_key_chord("ctrl+a").await {
+            return FieldOutcome::failed(message);
+        }
+        let entered = if value.is_empty() {
+            send_key_chord("BackSpace").await
+        } else {
+            enter_text(value, "ctrl+v").await
+        };
+        if let Err(message) = entered {
+            return FieldOutcome::failed(message);
+        }
+        let password = node.role.eq_ignore_ascii_case("password text");
+        let expected_chars = value.chars().count();
+        let fresh = poll_element(&node.object_ref, FIELD_READBACK_TIMEOUT, |fresh| {
+            let text = crate::fields::field_text(fresh);
+            if password {
+                text.map_or(0, |text| text.chars().count()) == expected_chars
+            } else {
+                crate::fields::values_match(text.as_deref(), value)
+            }
+        })
+        .await;
+        let (matched, read_back) = match fresh {
+            Some((matched, fresh)) => (matched, crate::fields::field_text(&fresh)),
+            None => (false, None),
+        };
+        if password {
+            let count = read_back.map_or(0, |text| text.chars().count());
+            return FieldOutcome {
+                ok: matched,
+                message: if matched {
+                    format!("set {label} ({count} characters, masked)")
+                } else {
+                    format!("{label} holds {count} characters, not {expected_chars}")
+                },
+                value: Some("•".repeat(count)),
+            };
+        }
+        self.text_outcome(label, matched, read_back, value)
+    }
+
+    async fn set_toggle_field(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        value: &str,
+    ) -> FieldOutcome {
+        let Some(wanted) = crate::fields::parse_toggle(value) else {
+            return FieldOutcome::failed(format!(
+                "{label} is a {}; pass value \"true\" or \"false\"",
+                node.role
+            ));
+        };
+        let current = match crate::atspi_tree::read_element(&node.object_ref).await {
+            Ok(fresh) => crate::fields::is_checked(&fresh),
+            Err(error) => return FieldOutcome::failed(format!("{label}: {error:#}")),
+        };
+        let state_word = |checked: bool| if checked { "checked" } else { "unchecked" };
+        if current == wanted {
+            return FieldOutcome {
+                ok: true,
+                value: Some(wanted.to_string()),
+                message: format!("{label} is already {}", state_word(wanted)),
+            };
+        }
+        if !wanted && node.role.to_ascii_lowercase().contains("radio") {
+            return FieldOutcome::failed(format!(
+                "{label} is a radio button; it cannot be cleared, set another option of its group instead"
+            ));
+        }
+        if let Err(message) = self.activate_element(node, label, TOGGLE_ACTIONS).await {
+            return FieldOutcome::failed(message);
+        }
+        let fresh = poll_element(&node.object_ref, FIELD_READBACK_TIMEOUT, |fresh| {
+            crate::fields::is_checked(fresh) == wanted
+        })
+        .await;
+        let (matched, now) = match fresh {
+            Some((matched, fresh)) => (matched, crate::fields::is_checked(&fresh)),
+            None => (false, current),
+        };
+        FieldOutcome {
+            ok: matched,
+            value: Some(now.to_string()),
+            message: if matched {
+                format!("{label} is now {}", state_word(now))
+            } else {
+                format!("{label} stayed {} after activation", state_word(now))
+            },
+        }
+    }
+
+    /// Picks the option named by `value` in a combo box or list box (or, with
+    /// `radio_group`, the radio button of a group), opening it when its
+    /// options are not in the tree yet. Options are invoked through their
+    /// AT-SPI action, so options scrolled out of the popup still work.
+    async fn set_choice_field(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        value: &str,
+        radio_group: bool,
+    ) -> FieldOutcome {
+        let pid = object_ref_owner_pid(&node.object_ref).await.ok().flatten();
+        let mut nodes = match fresh_app_nodes(pid).await {
+            Ok(nodes) => nodes,
+            Err(error) => return FieldOutcome::failed(format!("{label}: {error}")),
+        };
+        let Some(mut target) = nodes
+            .iter()
+            .position(|candidate| candidate.object_ref == node.object_ref)
+        else {
+            return FieldOutcome::failed(format!("{label} is no longer in the tree"));
+        };
+        let mut options = crate::fields::option_candidates(&nodes, target, None, radio_group);
+        if radio_group && options.is_empty() {
+            return FieldOutcome::failed(format!("{label} has no radio buttons"));
+        }
+        let names = |nodes: &[AccessibilityNode], options: &[usize]| -> Vec<String> {
+            options
+                .iter()
+                .map(|&at| nodes[at].name.clone().unwrap_or_default())
+                .collect()
+        };
+        let mut matched = {
+            let option_names = names(&nodes, &options);
+            let refs: Vec<&str> = option_names.iter().map(String::as_str).collect();
+            crate::fields::match_option(&refs, value)
+        };
+        if matched.is_err() && !radio_group && !crate::fields::has_state(node, "expanded") {
+            // Collapsed custom combo boxes keep their options out of the tree.
+            let before: std::collections::HashSet<String> =
+                nodes.iter().map(|node| node.object_ref.clone()).collect();
+            if let Err(message) = self.activate_element(node, label, EXPAND_ACTIONS).await {
+                return FieldOutcome::failed(message);
+            }
+            let started = std::time::Instant::now();
+            loop {
+                sleep(Duration::from_millis(150)).await;
+                if let Ok(fresh) = fresh_app_nodes(pid).await {
+                    if let Some(at) = fresh
+                        .iter()
+                        .position(|candidate| candidate.object_ref == node.object_ref)
+                    {
+                        nodes = fresh;
+                        target = at;
+                        options =
+                            crate::fields::option_candidates(&nodes, target, Some(&before), false);
+                        let option_names = names(&nodes, &options);
+                        let refs: Vec<&str> = option_names.iter().map(String::as_str).collect();
+                        matched = crate::fields::match_option(&refs, value);
+                        if matched.is_ok() {
+                            break;
+                        }
+                    }
+                }
+                if started.elapsed() >= OPTIONS_APPEAR_TIMEOUT {
+                    break;
+                }
+            }
+        }
+        let option = match matched {
+            Ok(index) => nodes[options[index]].clone(),
+            Err(message) => return FieldOutcome::failed(format!("{label}: {message}")),
+        };
+        let option_label = crate::outline::element_label(&option);
+        let option_name = option.name.clone().unwrap_or_default();
+        if radio_group {
+            let outcome = self.set_toggle_field(&option, &option_label, "true").await;
+            return FieldOutcome {
+                value: outcome.ok.then(|| option_name.clone()),
+                message: if outcome.ok {
+                    format!("set {label} to {option_label}")
+                } else {
+                    outcome.message
+                },
+                ok: outcome.ok,
+            };
+        }
+        if let Err(message) = self
+            .activate_element(&option, &option_label, OPTION_ACTIONS)
+            .await
+        {
+            return FieldOutcome::failed(message);
+        }
+        let mut chosen = self
+            .choice_read_back(&node.object_ref, &option.object_ref, &option_name)
+            .await;
+        if !chosen.0 {
+            // Some popups react only to real pointer input (mousedown handlers):
+            // bring the option into view and click it.
+            if let Some(point) = self.visible_center_after_scroll(&option.object_ref).await {
+                if click_point(point).await.is_ok() {
+                    chosen = self
+                        .choice_read_back(&node.object_ref, &option.object_ref, &option_name)
+                        .await;
+                }
+            }
+        }
+        let (ok, shown) = chosen;
+        FieldOutcome {
+            ok,
+            message: if ok {
+                format!("set {label} to \"{option_name}\" (shows \"{shown}\")")
+            } else {
+                format!(
+                    "invoked {option_label}, but {label} shows \"{shown}\"; the choice did not take"
+                )
+            },
+            value: Some(shown),
+        }
+    }
+
+    /// Whether the combo box now shows the option (or the option reports
+    /// `selected`), and what the combo box shows.
+    async fn choice_read_back(
+        &self,
+        combo_ref: &str,
+        option_ref: &str,
+        option_name: &str,
+    ) -> (bool, String) {
+        let wanted = crate::outline::clean(Some(option_name))
+            .unwrap_or_default()
+            .to_lowercase();
+        let started = std::time::Instant::now();
+        loop {
+            sleep(Duration::from_millis(100)).await;
+            let shown = crate::atspi_tree::read_element(combo_ref)
+                .await
+                .ok()
+                .and_then(|combo| crate::fields::choice_text(&combo))
+                .unwrap_or_default();
+            let option_selected = crate::atspi_tree::read_element(option_ref)
+                .await
+                .is_ok_and(|option| crate::fields::has_state(&option, "selected"));
+            let shows_option = !wanted.is_empty() && shown.to_lowercase().contains(&wanted);
+            if shows_option || option_selected {
+                let shown = if shows_option || shown.is_empty() {
+                    if shown.is_empty() {
+                        option_name.to_string()
+                    } else {
+                        shown
+                    }
+                } else {
+                    option_name.to_string()
+                };
+                return (true, shown);
+            }
+            if started.elapsed() >= FIELD_READBACK_TIMEOUT {
+                return (false, shown);
+            }
+        }
+    }
+
+    /// Gives an element keyboard focus: its app window first, then AT-SPI
+    /// GrabFocus, then a click on its centre when it is on screen. Succeeds
+    /// only once AT-SPI reports the element `focused`.
+    async fn focus_element(&self, node: &AccessibilityNode, label: &str) -> Result<(), String> {
+        self.raise_owner_window(&node.object_ref).await;
+        let _ = crate::atspi_tree::grab_focus(&node.object_ref).await;
+        let focused = |fresh: &AccessibilityNode| crate::fields::has_state(fresh, "focused");
+        if let Some((true, _)) =
+            poll_element(&node.object_ref, Duration::from_millis(400), focused).await
+        {
+            return Ok(());
+        }
+        if let Some(point) = self.visible_center_after_scroll(&node.object_ref).await {
+            click_point(point).await?;
+            if let Some((true, _)) =
+                poll_element(&node.object_ref, Duration::from_millis(600), focused).await
+            {
+                return Ok(());
+            }
+        }
+        Err(format!(
+            "could not focus {label}; it may be disabled or covered. Click it, then use type_text."
+        ))
+    }
+
+    /// Invokes the first of `actions` the element exposes, else clicks its
+    /// centre when it is on screen.
+    async fn activate_element(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        actions: &[&str],
+    ) -> Result<String, String> {
+        match crate::atspi_tree::invoke_preferred_action(&node.object_ref, actions).await {
+            Ok(Some(invocation)) if invocation.ok => {
+                return Ok(invocation.action_name.unwrap_or_default());
+            }
+            Ok(_) => {}
+            Err(error) => return Err(format!("{label}: {error:#}")),
+        }
+        self.raise_owner_window(&node.object_ref).await;
+        match self.visible_center_after_scroll(&node.object_ref).await {
+            Some(point) => click_point(point)
+                .await
+                .map(|()| "pointer click".to_string()),
+            None => Err(format!(
+                "{label} exposes no usable AT-SPI action and is not on screen to click"
+            )),
+        }
+    }
+
+    /// The element's centre when it lies on the desktop, scrolling it into
+    /// view through AT-SPI first when it does not.
+    async fn visible_center_after_scroll(&self, object_ref: &str) -> Option<(i32, i32)> {
+        let desktop = self.desktop_size().await;
+        let on_screen = |node: &AccessibilityNode| {
+            let (x, y) = node.bounds.as_ref().and_then(bounds_center)?;
+            let inside = desktop.is_none_or(|(width, height)| {
+                x >= 0 && y >= 0 && (x as u32) < width && (y as u32) < height
+            });
+            inside.then_some((x, y))
+        };
+        let fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
+        if let Some(point) = on_screen(&fresh) {
+            return Some(point);
+        }
+        crate::atspi_tree::scroll_into_view(object_ref).await.ok()?;
+        sleep(Duration::from_millis(150)).await;
+        on_screen(&crate::atspi_tree::read_element(object_ref).await.ok()?)
+    }
+
+    /// Focus the window of the app that owns the element unless it already
+    /// has focus, so keyboard input reaches that app. Best effort.
+    async fn raise_owner_window(&self, object_ref: &str) {
+        let Ok(Some(pid)) = object_ref_owner_pid(object_ref).await else {
+            return;
+        };
+        if let Ok(Some(window)) = focused_window().await {
+            if window.pid == Some(pid) {
+                return;
+            }
+        }
+        let target = WindowTarget {
+            pid: Some(pid),
+            ..WindowTarget::default()
+        };
+        if focus_window_target(&target).await.is_ok() {
+            sleep(Duration::from_millis(120)).await;
+        }
+    }
+}
+
+/// Actions that flip a check box, radio button or switch.
+const TOGGLE_ACTIONS: &[&str] = &[
+    "toggle", "check", "uncheck", "click", "press", "activate", "select",
+];
+/// Actions that open a combo box popup.
+const EXPAND_ACTIONS: &[&str] = &["open", "expand", "show", "click", "press", "activate"];
+/// Actions that choose an option.
+const OPTION_ACTIONS: &[&str] = &["select", "click", "press", "activate", "jump", "dodefault"];
+
+/// A compacted snapshot of one app (positional indices), for internal
+/// lookups that must not replace the agent's cached snapshot.
+async fn fresh_app_nodes(pid: Option<u32>) -> Result<Vec<AccessibilityNode>, String> {
+    let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
+    snapshot_accessibility_tree(None, pid, max_nodes, max_depth)
+        .await
+        .map(|snapshot| compact_accessibility_tree(snapshot.nodes))
+        .map_err(|error| format!("{error:#}"))
+}
+
+/// Rereads an element until `done` holds or `limit` passes. `None` when the
+/// element cannot be read at all; otherwise whether `done` held, and the last read.
+async fn poll_element(
+    object_ref: &str,
+    limit: Duration,
+    done: impl Fn(&AccessibilityNode) -> bool,
+) -> Option<(bool, AccessibilityNode)> {
+    let started = std::time::Instant::now();
+    let mut last = None;
+    loop {
+        if let Ok(fresh) = crate::atspi_tree::read_element(object_ref).await {
+            if done(&fresh) {
+                return Some((true, fresh));
+            }
+            last = Some(fresh);
+        }
+        if started.elapsed() >= limit {
+            return last.map(|fresh| (false, fresh));
+        }
+        sleep(Duration::from_millis(80)).await;
+    }
+}
+
+/// One left click at a screen point.
+async fn click_point((x, y): (i32, i32)) -> Result<(), String> {
+    let args = xdotool_pointer_click_args(x, y, 1, None)
+        .ok_or_else(|| "left button is always supported".to_string())?;
+    run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await.map(|_| ())
+}
+
+/// Presses one xdotool key chord such as `ctrl+a`.
+async fn send_key_chord(chord: &str) -> Result<(), String> {
+    let args = vec![
+        "key".to_string(),
+        "--clearmodifiers".to_string(),
+        chord.to_string(),
+    ];
+    run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await.map(|_| ())
+}
+
+/// Types printable ASCII with `xdotool type`; anything else is pasted from
+/// an X11 CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or
+/// Ctrl+Shift+V in terminals), since XTEST drops non-ASCII text on Xvfb.
+async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
+    if crate::fields::typeable_ascii(text) {
+        let delay_ms = xdotool_type_delay_ms();
+        let args = xdotool_type_args_with_delay(text, delay_ms);
+        return run_xdotool(&args, xdotool_type_timeout(text, delay_ms))
+            .await
+            .map(|_| ());
+    }
+    paste_text(text, paste_chord).await
+}
+
+/// How long the clipboard stays owned after a paste was first served.
+const CLIPBOARD_LINGER: Duration = Duration::from_secs(4);
+
+async fn paste_text(text: &str, paste_chord: &str) -> Result<(), String> {
+    let owned = text.to_string();
+    let guard = tokio::task::spawn_blocking(move || {
+        crate::x11_clipboard::hold_clipboard(&owned, Duration::from_secs(10))
+    })
+    .await
+    .map_err(|error| format!("clipboard task failed: {error}"))?
+    .map_err(|error| format!("could not own the X11 clipboard: {error:#}"))?;
+    let sent = send_key_chord(paste_chord).await;
+    let served = tokio::task::spawn_blocking(move || {
+        let served = guard.wait_served(Duration::from_secs(2));
+        // Chromium reads the selection once when ownership changes and again
+        // when the paste lands; an owner that is gone by then yields an empty
+        // paste, and one that vanishes mid-request stalls the renderer. Keep
+        // serving a while; the next paste's owner takes over cleanly.
+        std::thread::spawn(move || {
+            std::thread::sleep(CLIPBOARD_LINGER);
+            drop(guard);
+        });
+        served
+    })
+    .await
+    .unwrap_or(false);
+    sent?;
+    if served {
+        Ok(())
+    } else {
+        Err(format!(
+            "pasted with {paste_chord}, but the focused app never read the clipboard; the text was not entered"
+        ))
+    }
+}
+
+/// The paste chord for the focused window: terminals take Ctrl+Shift+V
+/// (xterm only Shift+Insert, which reads PRIMARY, also owned here).
+fn paste_chord_for(window: Option<&WindowInfo>) -> &'static str {
+    let class = window
+        .map(|window| {
+            format!(
+                "{} {}",
+                window.wm_class.as_deref().unwrap_or_default(),
+                window.app_id.as_deref().unwrap_or_default()
+            )
+            .to_ascii_lowercase()
+        })
+        .unwrap_or_default();
+    if class
+        .split_whitespace()
+        .any(|word| word == "xterm" || word == "uxterm")
+    {
+        "shift+Insert"
+    } else if [
+        "alacritty",
+        "terminal",
+        "kitty",
+        "konsole",
+        "wezterm",
+        "foot",
+        "terminator",
+        "tilix",
+        "urxvt",
+        "st-256color",
+    ]
+    .iter()
+    .any(|name| class.contains(name))
+    {
+        "ctrl+shift+v"
+    } else {
+        "ctrl+v"
+    }
+}
+
 #[derive(Debug)]
 enum ClickTarget {
     Coordinates(i32, i32),
@@ -3208,6 +3995,17 @@ fn resolve_semantic_node(
         .collect::<Vec<_>>();
     if !useful_matches.is_empty() {
         matches = useful_matches;
+    } else if matches!(purpose, ElementResolvePurpose::SetValue) {
+        // A radio group's legend repeats its name as plain text; the group
+        // is the field.
+        let containers = matches
+            .iter()
+            .copied()
+            .filter(|node| !TEXT_ONLY_ROLES.contains(&node.role.as_str()))
+            .collect::<Vec<_>>();
+        if !containers.is_empty() {
+            matches = containers;
+        }
     }
 
     if let Some(node) = unique_preferred_node(&matches, node_is_showing) {
@@ -3233,6 +4031,9 @@ fn resolve_semantic_node(
         describe_matching_nodes(&matches),
     ))
 }
+
+/// Roles that only carry text, never a value to set.
+const TEXT_ONLY_ROLES: [&str; 6] = ["static", "label", "heading", "paragraph", "caption", "text"];
 
 fn unique_preferred_node<'a>(
     nodes: &[&'a AccessibilityNode],
@@ -3277,7 +4078,11 @@ fn node_matches_resolve_purpose(node: &AccessibilityNode, purpose: ElementResolv
                 || primary_action_name(&node.actions).is_some()
         }
         ElementResolvePurpose::Action => !node.actions.is_empty(),
-        ElementResolvePurpose::SetValue => node.supports_editable_text || node.value.is_some(),
+        ElementResolvePurpose::SetValue => {
+            node.supports_editable_text
+                || node.value.is_some()
+                || crate::fields::field_kind(node) != crate::fields::FieldKind::Other
+        }
     }
 }
 
@@ -5775,6 +6580,7 @@ mod tests {
             editable: false,
             states: vec!["focused".to_string(), "editable".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         assert!(focused_element_is_editable(&element));
         assert!(!describe_focused_element(&element, true).starts_with("WARNING:"));
@@ -6154,6 +6960,7 @@ mod tests {
             editable: false,
             states: vec!["focused".to_string()],
             is_terminal,
+            object_ref: String::new(),
         }
     }
 
@@ -6165,6 +6972,7 @@ mod tests {
             editable: true,
             states: vec!["focused".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let described = describe_focused_element(&element, true);
         assert!(described.contains("editable"));
@@ -6188,6 +6996,7 @@ mod tests {
             editable: false,
             states: vec!["focused".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let described = describe_focused_element(&element, true);
         assert!(described.contains("WARNING"));
@@ -6202,6 +7011,7 @@ mod tests {
             editable: false,
             states: vec![],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let described = describe_focused_element(&element, false);
         assert!(!described.contains("WARNING"));
@@ -6418,6 +7228,62 @@ mod tests {
 }
 
 #[cfg(test)]
+mod field_entry_tests {
+    use super::*;
+
+    fn window(wm_class: &str) -> WindowInfo {
+        WindowInfo {
+            window_id: 1,
+            title: None,
+            app_id: None,
+            wm_class: Some(wm_class.to_string()),
+            pid: None,
+            bounds: None,
+            workspace: None,
+            focused: true,
+            hidden: false,
+            client_type: None,
+            backend: "i3".to_string(),
+            terminal: None,
+        }
+    }
+
+    #[test]
+    fn terminals_paste_with_their_own_chord() {
+        assert_eq!(paste_chord_for(Some(&window("Alacritty"))), "ctrl+shift+v");
+        assert_eq!(
+            paste_chord_for(Some(&window("Gnome-terminal"))),
+            "ctrl+shift+v"
+        );
+        assert_eq!(paste_chord_for(Some(&window("XTerm"))), "shift+Insert");
+        assert_eq!(paste_chord_for(Some(&window("Google-chrome"))), "ctrl+v");
+        assert_eq!(paste_chord_for(None), "ctrl+v");
+    }
+
+    #[test]
+    fn form_lines_show_the_read_back_value_and_the_failure() {
+        let ok = FieldOutcome {
+            ok: true,
+            value: Some("Joana".into()),
+            message: String::new(),
+        };
+        assert_eq!(
+            form_field_line("[3] entry \"Nome\"", &ok),
+            "[3] entry \"Nome\": ok value=\"Joana\""
+        );
+        let failed = FieldOutcome {
+            ok: false,
+            value: Some(String::new()),
+            message: "could not focus".into(),
+        };
+        assert_eq!(
+            form_field_line("[4] entry", &failed),
+            "[4] entry: FAILED value=\"\" error: could not focus"
+        );
+    }
+}
+
+#[cfg(test)]
 mod accessibility_tree_note_tests {
     use super::{truncated_accessibility_tree_note, unscoped_accessibility_tree_warning};
 
@@ -6509,6 +7375,7 @@ mod focus_probe_feedback_tests {
             editable: true,
             states: vec!["focused".to_string()],
             is_terminal: false,
+            object_ref: String::new(),
         };
         let text = focus_probe_feedback(&FocusProbe::Found(element), true, false);
         assert!(text.contains("text"), "{text}");

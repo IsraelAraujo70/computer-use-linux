@@ -203,6 +203,19 @@ pub fn render_line(node: &AccessibilityNode) -> String {
     line
 }
 
+/// Short reference to an element for action results: `[id] role "name"`.
+pub fn element_label(node: &AccessibilityNode) -> String {
+    match clean(node.name.as_deref()) {
+        Some(name) => format!(
+            "[{}] {} \"{}\"",
+            node.index,
+            node.role,
+            truncate(&name, MAX_NAME_CHARS)
+        ),
+        None => format!("[{}] {}", node.index, node.role),
+    }
+}
+
 /// Whether an action says more than "this is a Chromium container": Chromium
 /// gives every node `doDefault` and `showContextMenu`, and every descendant of
 /// a clickable element `clickAncestor`.
@@ -293,7 +306,8 @@ pub fn clean(value: Option<&str>) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
-fn truncate(value: &str, max_chars: usize) -> String {
+/// Cuts `value` to `max_chars` with an ellipsis; double quotes become single.
+pub fn truncate(value: &str, max_chars: usize) -> String {
     if value.chars().count() <= max_chars {
         return value.replace('"', "'");
     }

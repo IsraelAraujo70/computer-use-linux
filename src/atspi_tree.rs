@@ -409,6 +409,10 @@ pub struct FocusedElementSummary {
     #[serde(skip)]
     #[schemars(skip)]
     pub is_terminal: bool,
+    /// `:bus/path` of the element, for reading its text back. Internal only.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub object_ref: String,
 }
 
 const FOCUS_PROBE_MAX_NODES: usize = 400;
@@ -494,6 +498,7 @@ async fn focused_element_probe(
                 editable: supports_editable_text(proxies.as_ref()).await,
                 states: state_labels(state),
                 is_terminal,
+                object_ref: object_ref_id(&object_ref),
             }));
         }
         let remaining = traversal.remaining_capacity();
@@ -604,6 +609,92 @@ async fn perform_action_inner(
         action_name,
         ok,
     })
+}
+
+/// Fresh read of one element by object ref. `index`, `parent_index` and
+/// `depth` are zero: the node is not part of any snapshot.
+pub(crate) async fn read_element(object_ref_id: &str) -> Result<AccessibilityNode> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref)
+        .await
+        .with_context(|| format!("failed to open AT-SPI object {object_ref_id}"))?;
+    // A vanished object answers every property read with an error, which
+    // read_node would turn into an empty "unknown" node; check one first.
+    proxy
+        .get_state()
+        .await
+        .with_context(|| format!("AT-SPI object {object_ref_id} no longer exists"))?;
+    Ok(read_node(&proxy, &object_ref, 0, None, 0).await)
+}
+
+/// Moves keyboard focus to the element through `Component.GrabFocus`.
+/// Returns the toolkit's answer; callers still read the `focused` state back.
+pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref).await?;
+    let component = proxy
+        .proxies()
+        .await?
+        .component()
+        .await
+        .context("element does not expose the AT-SPI Component interface")?;
+    Ok(component.grab_focus().await?)
+}
+
+/// Asks the toolkit to scroll the element into view (`Component.ScrollTo`).
+pub(crate) async fn scroll_into_view(object_ref_id: &str) -> Result<bool> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref).await?;
+    let component = proxy
+        .proxies()
+        .await?
+        .component()
+        .await
+        .context("element does not expose the AT-SPI Component interface")?;
+    Ok(component.scroll_to(atspi::ScrollType::Anywhere).await?)
+}
+
+/// Invokes the first action whose name appears in `preferred` (in that
+/// order, case-insensitive). `Ok(None)` when the element has none of them.
+pub(crate) async fn invoke_preferred_action(
+    object_ref_id: &str,
+    preferred: &[&str],
+) -> Result<Option<ActionInvocation>> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(object_ref_id)?;
+    let proxy = open_accessible(&conn, &object_ref)
+        .await
+        .with_context(|| format!("failed to open AT-SPI object {object_ref_id}"))?;
+    let Ok(action) = proxy.proxies().await?.action().await else {
+        return Ok(None);
+    };
+    let mut actions = action.get_actions().await.unwrap_or_default();
+    for (index, entry) in actions.iter_mut().enumerate() {
+        if entry.name.is_empty() {
+            if let Ok(name) = action.get_name(index as i32).await {
+                entry.name = name;
+            }
+        }
+    }
+    let Some(action_index) = preferred.iter().find_map(|wanted| {
+        actions
+            .iter()
+            .position(|action| action.name.eq_ignore_ascii_case(wanted))
+    }) else {
+        return Ok(None);
+    };
+    let ok = action
+        .do_action(action_index as i32)
+        .await
+        .with_context(|| format!("failed to invoke AT-SPI action {action_index}"))?;
+    Ok(Some(ActionInvocation {
+        action_index: action_index as i32,
+        action_name: actions.get(action_index).map(|action| action.name.clone()),
+        ok,
+    }))
 }
 
 pub async fn set_element_value(object_ref_id: &str, value: &str) -> Result<ValueSetInvocation> {
