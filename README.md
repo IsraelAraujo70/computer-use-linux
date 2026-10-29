@@ -41,6 +41,7 @@ Chromium and Electron apps need `--force-renderer-accessibility` for a full tree
 - `screenshot`: size-bounded PNG or JPEG of the screen or one window (focused first, then cropped).
 - `ocr`: tesseract text lines with coordinates, for surfaces without a tree.
 - `click`, `scroll`, `drag`: by element index, semantic selector (`role`/`name`/`text`/`states`) or coordinates. A plain left click on an element invokes its AT-SPI click/press/toggle action; coordinates and other buttons go through xdotool.
+- `drop_files`: upload files by dropping them (XDND, `text/uri-list`) onto a file input or drop zone; the display has no file dialog.
 - `press_key`, `type_text`: xdotool keys and literal text, optionally after focusing a window or terminal (`tty`, `terminal_pid`, `terminal_command`, `terminal_cwd`). Results report the focused AT-SPI element and warn when it is not editable.
 - `perform_action`, `set_value`: invoke an AT-SPI action or set a value or editable text directly.
 - `activate_window`: focus a window, switching i3 workspace if needed.
@@ -54,7 +55,7 @@ Screenshots default to at most 1920 px per side and 2 MiB. Pass `max_width`, `ma
 | --- | --- | --- |
 | Read-only observation | `doctor`, `list_apps`, `list_windows`, `focused_window`, `get_app_state`, `find_elements`, `wait_for`, `ocr` | `readOnlyHint=true`; may reveal window, accessibility and screen contents. |
 | UI state mutators | `activate_window`, `scroll`, `screenshot` | `readOnlyHint=false`, `destructiveHint=false`; change focus or scroll position, or focus a window to capture it. |
-| Desktop action mutators | `click`, `drag`, `press_key`, `type_text`, `perform_action`, `set_value` | `readOnlyHint=false`, `destructiveHint=true`; can trigger any action in the targeted app. |
+| Desktop action mutators | `click`, `drag`, `drop_files`, `press_key`, `type_text`, `perform_action`, `set_value` | `readOnlyHint=false`, `destructiveHint=true`; can trigger any action in the targeted app. |
 | Conditional host-code execution | `run_shell` | Absent unless `COMPUTER_USE_LINUX_ENABLE_SHELL=1`; runs with the server user's permissions. |
 
 Annotations are hints, not authorization. Hosts should still ask the user before calls that submit, delete, send, purchase or overwrite data. `run_shell` clears the ambient environment down to a small allowlist, uses a non-login `/bin/sh`, a 30 s default and 120 s maximum timeout, and writes a stderr audit record keyed by the command's SHA-256.

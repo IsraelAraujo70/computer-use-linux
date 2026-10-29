@@ -29,7 +29,7 @@ use std::{
     env,
     ffi::OsString,
     future::Future,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::{Arc, Mutex},
     time::Duration,
@@ -1674,6 +1674,79 @@ impl ComputerUseLinux {
         ))
     }
 
+    async fn drop_files(
+        &self,
+        Parameters(params): Parameters<DropFilesParams>,
+    ) -> Json<ActionOutput> {
+        let received = Some(serde_json::json!(params.clone()));
+        let failed = |message: String| {
+            Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "drop_files".to_string(),
+                message,
+                received: received.clone(),
+            })
+        };
+        let paths = match validate_drop_paths(&params.paths) {
+            Ok(paths) => paths,
+            Err(message) => return failed(message),
+        };
+        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let selector = params.selector();
+        let (label, point) = match params.x.zip(params.y) {
+            Some(point) => (format!("{},{}", point.0, point.1), point),
+            None if params.element_index.is_some() || !selector.is_empty() => {
+                match self
+                    .visible_element_center(params.element_index, &selector)
+                    .await
+                {
+                    Ok(target) => target,
+                    Err(message) => return failed(message),
+                }
+            }
+            None => {
+                return failed(
+                    "Pass element_index, role/name/text, or x and y: where to drop the files."
+                        .to_string(),
+                )
+            }
+        };
+        if let Some(note) = self.off_screen_note_for_point(point.0, point.1).await {
+            return failed(format!("{note} Nothing was dropped."));
+        }
+        let count = paths.len();
+        let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
+            tokio::task::spawn_blocking(move || {
+                crate::x11_dnd::drop_files(&paths, point, DROP_FINISH_TIMEOUT)
+            })
+            .await
+            .map_err(|error| format!("drop task failed: {error}"))?
+            .map_err(|error| format!("{error:#}"))
+        })
+        .await;
+        let _input_guard = input_guard;
+        let outcome = match result {
+            Ok(outcome) => outcome,
+            Err(message) => return failed(format!("Nothing was dropped: {message}")),
+        };
+        let steps = outcome.log.join("; ");
+        eprintln!("drop_files at {},{}: {steps}", point.0, point.1);
+        if outcome.succeeded() {
+            Json(ActionOutput {
+                ok: true,
+                implemented: true,
+                action: "drop_files".to_string(),
+                message: format!("dropped {count} file(s) onto {label} (XDND: {steps})"),
+                received,
+            })
+        } else {
+            failed(format!(
+                "the drop onto {label} was not taken (XDND: {steps}); drop onto the file input or drop zone itself"
+            ))
+        }
+    }
+
     async fn press_key(
         &self,
         Parameters(params): Parameters<PressKeyParams>,
@@ -1820,6 +1893,25 @@ impl ComputerUseLinux {
     async fn drag_tool(&self, Parameters(params): Parameters<DragParams>) -> CallToolResult {
         let observe = params.observe != Some(false);
         let Json(output) = self.drag(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "drop_files",
+        description = "Upload files: drop them (absolute paths) onto the page's file input or drop zone, given by element_index, role/name/text or x,y; there is no file dialog on this display. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn drop_files_tool(
+        &self,
+        Parameters(params): Parameters<DropFilesParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.drop_files(Parameters(params)).await;
         self.finish_action(output, observe).await
     }
 
@@ -3166,6 +3258,64 @@ struct DragParams {
     end_x: Option<i32>,
     #[serde(default)]
     end_y: Option<i32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct DropFilesParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    /// Absolute paths of the files to drop.
+    paths: Vec<String>,
+    /// Element id `[n]` of the file input or drop zone.
+    #[serde(default)]
+    element_index: Option<u32>,
+    #[serde(default)]
+    role: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    text: Option<String>,
+    #[serde(default)]
+    x: Option<i32>,
+    #[serde(default)]
+    y: Option<i32>,
+}
+
+impl DropFilesParams {
+    fn selector(&self) -> ElementSelector<'_> {
+        ElementSelector {
+            role: self.role.as_deref(),
+            name: self.name.as_deref(),
+            text: self.text.as_deref(),
+            states: &[],
+        }
+    }
+}
+
+/// How long the drop target gets to read the files and finish the drop.
+const DROP_FINISH_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// The paths `drop_files` was given, each an absolute path of an existing
+/// regular file; the first that is not is the error.
+fn validate_drop_paths(paths: &[String]) -> std::result::Result<Vec<PathBuf>, String> {
+    if paths.is_empty() {
+        return Err("Pass at least one absolute file path in paths.".to_string());
+    }
+    paths
+        .iter()
+        .map(|raw| {
+            let path = Path::new(raw);
+            if !path.is_absolute() {
+                return Err(format!("{raw:?} is not an absolute path"));
+            }
+            match std::fs::metadata(path) {
+                Ok(metadata) if metadata.is_file() => Ok(path.to_path_buf()),
+                Ok(_) => Err(format!("{raw:?} is not a regular file")),
+                Err(error) => Err(format!("{raw:?}: {error}")),
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -7650,6 +7800,48 @@ mod tests {
         let result = backend.scroll(Parameters(params)).await.0;
         assert!(!result.ok);
         assert!(result.message.contains("until needs"), "{}", result.message);
+    }
+
+    #[test]
+    fn drop_paths_must_be_absolute_existing_files() {
+        let dir = std::env::temp_dir().join(format!("cul-drop-paths-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("Comprovante ação.pdf");
+        std::fs::write(&file, b"%PDF").unwrap();
+        let file_str = file.to_string_lossy().to_string();
+        assert_eq!(
+            validate_drop_paths(std::slice::from_ref(&file_str)).unwrap(),
+            std::slice::from_ref(&file)
+        );
+        let relative = validate_drop_paths(&["Comprovante.pdf".to_string()]).unwrap_err();
+        assert!(relative.contains("not an absolute path"), "{relative}");
+        let directory = validate_drop_paths(&[dir.to_string_lossy().to_string()]).unwrap_err();
+        assert!(directory.contains("not a regular file"), "{directory}");
+        let missing = dir.join("missing.pdf").to_string_lossy().to_string();
+        assert!(validate_drop_paths(&[file_str, missing]).is_err());
+        assert!(validate_drop_paths(&[]).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn drop_files_needs_a_target_before_touching_the_display() {
+        let file = std::env::temp_dir().join(format!("cul-drop-target-{}", std::process::id()));
+        std::fs::write(&file, b"x").unwrap();
+        let backend = ComputerUseLinux::default();
+        let result = backend
+            .drop_files(Parameters(DropFilesParams {
+                paths: vec![file.to_string_lossy().to_string()],
+                ..Default::default()
+            }))
+            .await
+            .0;
+        let _ = std::fs::remove_file(&file);
+        assert!(!result.ok);
+        assert!(
+            result.message.contains("where to drop"),
+            "{}",
+            result.message
+        );
     }
 
     #[test]
