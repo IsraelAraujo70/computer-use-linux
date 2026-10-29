@@ -4792,6 +4792,12 @@ impl ElementSelector<'_> {
     }
 }
 
+/// Picks the one cached node a role/name/text selector means. The matches
+/// are narrowed in turn to nodes fit for the purpose, (for fields) nodes
+/// that are not plain text, actionable nodes (a specific action, editable,
+/// or a value), exact name matches, and showing nodes. The first narrowing
+/// that leaves exactly one node picks it; one that leaves none is skipped.
+/// Several left at the end is an error listing them as `[id] role "name"`.
 fn resolve_semantic_node(
     nodes: &[AccessibilityNode],
     selector: &ElementSelector<'_>,
@@ -4809,43 +4815,35 @@ fn resolve_semantic_node(
         ));
     }
 
-    if let Some(node) =
-        unique_preferred_node(&matches, |node| node_matches_resolve_purpose(node, purpose))
-    {
-        return Ok(node.clone());
-    }
-
-    let useful_matches = matches
-        .iter()
-        .copied()
-        .filter(|node| node_matches_resolve_purpose(node, purpose))
-        .collect::<Vec<_>>();
-    if !useful_matches.is_empty() {
-        matches = useful_matches;
-    } else if matches!(purpose, ElementResolvePurpose::SetValue) {
+    let wanted_name = selector
+        .name
+        .or(selector.text)
+        .map(str::trim)
+        .filter(|name| !name.is_empty());
+    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 5] = [
+        &|node| node_matches_resolve_purpose(node, purpose),
         // A radio group's legend repeats its name as plain text; the group
         // is the field.
-        let containers = matches
+        &|node| {
+            !matches!(purpose, ElementResolvePurpose::SetValue)
+                || !TEXT_ONLY_ROLES.contains(&node.role.as_str())
+        },
+        &node_is_actionable,
+        &|node| wanted_name.is_some_and(|name| node_has_exact_name(node, name)),
+        &node_is_showing,
+    ];
+    for keep in narrowings {
+        if matches.len() == 1 {
+            break;
+        }
+        let kept = matches
             .iter()
             .copied()
-            .filter(|node| !TEXT_ONLY_ROLES.contains(&node.role.as_str()))
+            .filter(|node| keep(node))
             .collect::<Vec<_>>();
-        if !containers.is_empty() {
-            matches = containers;
+        if !kept.is_empty() {
+            matches = kept;
         }
-    }
-
-    if let Some(node) = unique_preferred_node(&matches, node_is_showing) {
-        return Ok(node.clone());
-    }
-
-    let visible_matches = matches
-        .iter()
-        .copied()
-        .filter(|node| node_is_showing(node))
-        .collect::<Vec<_>>();
-    if !visible_matches.is_empty() {
-        matches = visible_matches;
     }
 
     if matches.len() == 1 {
@@ -4853,23 +4851,30 @@ fn resolve_semantic_node(
     }
 
     Err(format!(
-        "Semantic selector {} matched multiple cached nodes: {}. Pass element_index or add more selector fields.",
+        "Semantic selector {} matched {} elements; pass element_index of the one you mean:\n{}",
         describe_selector(selector),
+        matches.len(),
         describe_matching_nodes(&matches),
     ))
 }
 
+/// Whether the node does something beyond showing text: a specific action,
+/// an editable field (Chromium web fields carry only the state), or a value.
+fn node_is_actionable(node: &AccessibilityNode) -> bool {
+    is_actionable_accessibility_node(node) || node.states.iter().any(|state| state == "editable")
+}
+
+/// Whether the node's name, or its text when it has no name, is exactly
+/// `name` up to case and whitespace.
+fn node_has_exact_name(node: &AccessibilityNode, name: &str) -> bool {
+    node.name
+        .as_deref()
+        .or_else(|| node.text.as_ref().and_then(|text| text.content.as_deref()))
+        .is_some_and(|actual| normalized_equals(actual, name))
+}
+
 /// Roles that only carry text, never a value to set.
 const TEXT_ONLY_ROLES: [&str; 6] = ["static", "label", "heading", "paragraph", "caption", "text"];
-
-fn unique_preferred_node<'a>(
-    nodes: &[&'a AccessibilityNode],
-    predicate: impl Fn(&AccessibilityNode) -> bool,
-) -> Option<&'a AccessibilityNode> {
-    let mut matches = nodes.iter().copied().filter(|node| predicate(node));
-    let first = matches.next()?;
-    matches.next().is_none().then_some(first)
-}
 
 fn node_matches_selector(node: &AccessibilityNode, selector: &ElementSelector<'_>) -> bool {
     selector
@@ -4970,18 +4975,18 @@ fn describe_selector(selector: &ElementSelector<'_>) -> String {
     }
 }
 
+/// Up to five candidates as `[id] role "name"` lines, then how many more.
 fn describe_matching_nodes(nodes: &[&AccessibilityNode]) -> String {
-    nodes
+    const SHOWN: usize = 5;
+    let mut lines = nodes
         .iter()
-        .take(8)
-        .map(|node| {
-            format!(
-                "element_index {} role={:?} name={:?}",
-                node.index, node.role, node.name
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("; ")
+        .take(SHOWN)
+        .map(|node| crate::outline::element_label(node))
+        .collect::<Vec<_>>();
+    if nodes.len() > SHOWN {
+        lines.push(format!("(and {} more)", nodes.len() - SHOWN));
+    }
+    lines.join("\n")
 }
 
 fn is_plain_left_click(button: Option<&str>, click_count: Option<u32>) -> bool {
@@ -7795,9 +7800,106 @@ mod tests {
             )
             .unwrap_err();
 
-        assert!(error.contains("matched multiple cached nodes"));
-        assert!(error.contains("element_index 7"));
-        assert!(error.contains("element_index 9"));
+        assert!(error.contains("matched 2 elements"), "{error}");
+        assert!(error.contains("\n[7] push button \"Close\""), "{error}");
+        assert!(error.contains("\n[9] push button \"Close\""), "{error}");
+    }
+
+    fn named(index: u32, role: &str, name: &str) -> AccessibilityNode {
+        let mut node = node(index, None);
+        node.role = role.to_string();
+        node.name = Some(name.to_string());
+        node
+    }
+
+    fn pick(nodes: &[AccessibilityNode], name: &str, purpose: ElementResolvePurpose) -> u32 {
+        let selector = ElementSelector {
+            name: Some(name),
+            ..Default::default()
+        };
+        resolve_semantic_node(nodes, &selector, purpose)
+            .map(|node| node.index)
+            .unwrap_or_else(|error| panic!("{error}"))
+    }
+
+    #[test]
+    fn a_label_and_its_file_button_resolve_to_the_button() {
+        // Chrome: <label>Comprovante</label><input type=file>, both with
+        // bounds and Chromium's generic actions; only the button can press.
+        let bounds = Some(Bounds {
+            x: 10,
+            y: 10,
+            width: 80,
+            height: 20,
+        });
+        let generic = AccessibilityAction {
+            name: "doDefault".to_string(),
+            ..click_action()
+        };
+        let mut label = named(3, "static", "Comprovante");
+        label.bounds = bounds.clone();
+        label.actions = vec![generic.clone()];
+        let mut button = named(4, "push button", "Comprovante: No file chosen");
+        button.bounds = bounds;
+        button.actions = vec![
+            generic,
+            AccessibilityAction {
+                name: "press".to_string(),
+                ..click_action()
+            },
+        ];
+        let nodes = [label, button];
+        assert_eq!(pick(&nodes, "Comprovante", ElementResolvePurpose::Click), 4);
+        assert_eq!(
+            pick(&nodes, "Comprovante", ElementResolvePurpose::Action),
+            4
+        );
+    }
+
+    #[test]
+    fn among_actionable_matches_the_exact_name_wins() {
+        let mut save = named(5, "push button", "Save");
+        save.actions = vec![click_action()];
+        let mut save_all = named(6, "push button", "Save all");
+        save_all.actions = vec![click_action()];
+        assert_eq!(
+            pick(&[save_all, save], "save", ElementResolvePurpose::Click),
+            5
+        );
+    }
+
+    #[test]
+    fn among_same_named_matches_the_showing_one_wins() {
+        let mut hidden = named(5, "push button", "Next");
+        hidden.actions = vec![click_action()];
+        let mut shown = hidden.clone();
+        shown.index = 6;
+        shown.states = vec!["showing".to_string(), "visible".to_string()];
+        assert_eq!(
+            pick(&[hidden, shown], "next", ElementResolvePurpose::Click),
+            6
+        );
+    }
+
+    #[test]
+    fn an_ambiguous_selector_lists_five_candidates_and_the_rest_count() {
+        let nodes = (1..=7)
+            .map(|index| {
+                let mut button = named(index, "push button", "Delete");
+                button.actions = vec![click_action()];
+                button
+            })
+            .collect::<Vec<_>>();
+        let selector = ElementSelector {
+            name: Some("delete"),
+            ..Default::default()
+        };
+        let error =
+            resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap_err();
+        assert!(error.contains("matched 7 elements"), "{error}");
+        assert!(error.contains("[5] push button \"Delete\""), "{error}");
+        assert!(!error.contains("[6]"), "{error}");
+        assert!(error.ends_with("(and 2 more)"), "{error}");
     }
 
     #[test]
