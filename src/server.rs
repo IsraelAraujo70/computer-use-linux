@@ -77,6 +77,12 @@ const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(60);
 const SETTLE_POLL: Duration = Duration::from_millis(90);
 /// Longest wait for the tree to settle after an action.
 const SETTLE_LIMIT: Duration = Duration::from_secs(2);
+/// Longest wait, counted from the action, while the page looks busy with it
+/// (a "Salvando…" button, a spinner): async results often take a second.
+const BUSY_SETTLE_LIMIT: Duration = Duration::from_secs(6);
+/// How long the tree must stay unchanged before a button that only became
+/// disabled stops counting as busy; some stay disabled for good.
+const BUSY_QUIET: Duration = Duration::from_millis(1_500);
 
 /// The app filter and limits of an observation, reused when an action has
 /// to read the same part of the tree again.
@@ -3973,27 +3979,50 @@ impl ComputerUseLinux {
     /// Waits for the app to settle after an action, then reports what changed
     /// against the snapshot the agent last saw and makes the settled snapshot
     /// the cached one. Settled means two consecutive reads of the observed
-    /// scope agree, or `SETTLE_LIMIT` passed.
+    /// scope agree and nothing looks busy (`page_view::busy_reason`), or the
+    /// limit passed: `SETTLE_LIMIT`, or `BUSY_SETTLE_LIMIT` once the page
+    /// looked busy, which the report then says.
     async fn observe_changes(&self) -> String {
+        let acted = std::time::Instant::now();
+        let before = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
         sleep(SETTLE_FIRST_WAIT).await;
-        let started = std::time::Instant::now();
         let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
         let mut settled: Option<Rescan> = None;
         let mut last_error = None;
+        let mut busy_seen: Option<String> = None;
+        let mut still_busy = false;
+        let mut quiet_since = std::time::Instant::now();
         loop {
             match self.rescan(None).await {
                 Ok(rescan) => {
                     let contents = crate::outline::element_contents(&rescan.nodes);
                     let stable = previous.as_ref() == Some(&contents);
+                    if !stable {
+                        quiet_since = std::time::Instant::now();
+                    }
+                    let busy = crate::page_view::busy_reason(&before, &rescan.nodes);
+                    if let Some(busy) = &busy {
+                        busy_seen.get_or_insert_with(|| busy.reason.clone());
+                    }
+                    still_busy = still_busy_after(busy.as_ref(), quiet_since.elapsed());
                     previous = Some(contents);
                     settled = Some(rescan);
-                    if stable {
+                    if stable && !still_busy {
                         break;
                     }
                 }
                 Err(error) => last_error = Some(error),
             }
-            if started.elapsed() >= SETTLE_LIMIT {
+            let limit = if busy_seen.is_some() {
+                BUSY_SETTLE_LIMIT
+            } else {
+                SETTLE_FIRST_WAIT + SETTLE_LIMIT
+            };
+            if acted.elapsed() >= limit {
                 break;
             }
             sleep(SETTLE_POLL).await;
@@ -4004,16 +4033,23 @@ impl ComputerUseLinux {
                 last_error.unwrap_or_default()
             );
         };
-        let before = self
-            .last_snapshot
-            .lock()
-            .map(|cached| cached.nodes.clone())
-            .unwrap_or_default();
         let options = settled.scope.options;
-        let report = crate::page_view::change_report(
+        let mut report = String::new();
+        if let Some(reason) = busy_seen {
+            report.push_str(&format!(
+                "waited {} ms for the page to finish ({reason}){}\n",
+                acted.elapsed().as_millis(),
+                if still_busy {
+                    "; it still looks busy"
+                } else {
+                    ""
+                }
+            ));
+        }
+        report.push_str(&crate::page_view::change_report(
             &crate::page_view::page_view(&before, options),
             &crate::page_view::page_view(&settled.nodes, options),
-        );
+        ));
         self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
             .await;
         report
@@ -4970,6 +5006,13 @@ impl ComputerUseLinux {
             sleep(Duration::from_millis(120)).await;
         }
     }
+}
+
+/// Whether the settle loop keeps reading because of `busy`: always for a
+/// strong sign, and for a button that only became disabled until the tree
+/// has been unchanged for `BUSY_QUIET`.
+fn still_busy_after(busy: Option<&crate::page_view::Busy>, quiet_for: Duration) -> bool {
+    busy.is_some_and(|busy| busy.strong || quiet_for < BUSY_QUIET)
 }
 
 /// Most page scrolls one `scroll(until=…)` call makes.
@@ -7801,6 +7844,21 @@ mod tests {
         assert!(ids("Row 3").is_empty());
         assert!(ids("Row 4").is_empty());
         assert_eq!(ids("Row"), [2]);
+    }
+
+    #[test]
+    fn settle_waits_out_strong_busy_signs_and_quiet_disabled_buttons() {
+        let busy = |strong| crate::page_view::Busy {
+            reason: String::new(),
+            strong,
+        };
+        assert!(!still_busy_after(None, Duration::ZERO));
+        assert!(still_busy_after(Some(&busy(true)), Duration::from_secs(5)));
+        assert!(still_busy_after(
+            Some(&busy(false)),
+            Duration::from_millis(400)
+        ));
+        assert!(!still_busy_after(Some(&busy(false)), BUSY_QUIET));
     }
 
     #[test]
