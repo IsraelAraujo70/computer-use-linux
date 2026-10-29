@@ -984,9 +984,62 @@ impl ComputerUseLinux {
                 }
             }
         }
-        let target = match self.resolve_click_target(&params) {
-            Ok(target) => target,
-            Err(message) => {
+        let node = if params.x.zip(params.y).is_none() {
+            self.cached_node_for(
+                params.element_index,
+                &params.selector(),
+                ElementResolvePurpose::Click,
+            )
+        } else {
+            None
+        };
+        let label = node.as_ref().map(crate::outline::element_label);
+        let clicked = label.as_deref().unwrap_or("the element");
+        let resolved = self.resolve_click_target(&params);
+        // An element click whose point is not on the visible page (scrolled
+        // away, inside a closed popup, no bounds) would land on no pixel or
+        // on the wrong thing: use the element's own action, else scroll it
+        // into view, else refuse.
+        let needs_fallback = match (&resolved, &node) {
+            (Ok(ClickTarget::Coordinates(x, y)), Some(node)) => {
+                !self.point_visible_for(node, (*x, *y)).await
+            }
+            (Err(_), Some(_)) => true,
+            _ => false,
+        };
+        let target = match (resolved, node) {
+            (_, Some(node)) if needs_fallback => {
+                match self
+                    .off_screen_click(
+                        &node,
+                        clicked,
+                        is_plain_left_click(params.button.as_deref(), params.click_count),
+                    )
+                    .await
+                {
+                    Ok(OffScreenClick::Invoked(message)) => {
+                        return Json(ActionOutput {
+                            ok: true,
+                            implemented: true,
+                            action: "click".to_string(),
+                            message,
+                            received,
+                        });
+                    }
+                    Ok(OffScreenClick::ScrolledTo(x, y)) => ClickTarget::Coordinates(x, y),
+                    Err(message) => {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "click".to_string(),
+                            message,
+                            received,
+                        });
+                    }
+                }
+            }
+            (Ok(target), _) => target,
+            (Err(message), _) => {
                 return Json(ActionOutput {
                     ok: false,
                     implemented: true,
@@ -996,17 +1049,6 @@ impl ComputerUseLinux {
                 });
             }
         };
-        let label = if params.x.zip(params.y).is_none() {
-            self.cached_node_for(
-                params.element_index,
-                &params.selector(),
-                ElementResolvePurpose::Click,
-            )
-            .map(|node| crate::outline::element_label(&node))
-        } else {
-            None
-        };
-        let clicked = label.as_deref().unwrap_or("the element");
         if let ClickTarget::PrimaryAction {
             object_ref,
             action_name,
@@ -1072,7 +1114,15 @@ impl ComputerUseLinux {
                 received,
             });
         };
-        let off_screen_note = self.off_screen_note_for_point(x, y).await;
+        if let Some(note) = self.off_screen_note_for_point(x, y).await {
+            return Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "click".to_string(),
+                message: format!("{note} Nothing was clicked."),
+                received,
+            });
+        }
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
             run_xdotool(&xdotool_args, INPUT_COMMAND_TIMEOUT).await
         })
@@ -1085,7 +1135,7 @@ impl ComputerUseLinux {
                 None => format!("clicked {x},{y} (xdotool)"),
             };
         }
-        Json(with_notes(output, off_screen_note))
+        Json(output)
     }
 
     async fn perform_action(
@@ -1401,10 +1451,50 @@ impl ComputerUseLinux {
                 });
             }
         };
-        let off_screen_note = match target_point {
-            Some((x, y)) => self.off_screen_note_for_point(x, y).await,
-            None => None,
-        };
+        if params.x.zip(params.y).is_none() {
+            if let Some(node) = self.cached_node_for(
+                params.element_index,
+                &ElementSelector::default(),
+                ElementResolvePurpose::Click,
+            ) {
+                let visible = match target_point {
+                    Some(point) => self.point_visible_for(&node, point).await,
+                    None => false,
+                };
+                if !visible {
+                    // Wheel input at an off-page point scrolls nothing; ask
+                    // the toolkit to bring the element into view instead.
+                    let label = crate::outline::element_label(&node);
+                    return Json(match crate::atspi_tree::scroll_into_view(&node.object_ref).await {
+                        Ok(_) => ActionOutput {
+                            ok: true,
+                            implemented: true,
+                            action: "scroll".to_string(),
+                            message: format!("scrolled {label} into view (AT-SPI ScrollTo)"),
+                            received,
+                        },
+                        Err(error) => ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "scroll".to_string(),
+                            message: format!("{label} is off the visible page and could not be scrolled into view: {error:#}"),
+                            received,
+                        },
+                    });
+                }
+            }
+        }
+        if let Some((x, y)) = target_point {
+            if let Some(note) = self.off_screen_note_for_point(x, y).await {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message: format!("{note} Nothing was scrolled."),
+                    received,
+                });
+            }
+        }
         // XTEST wheel buttons have no XI2 valuators, so GTK 3 takes its button
         // path instead of re-baselining smooth-scroll valuators (#184).
         let repeat = u32::try_from(units.max(1)).unwrap_or(1);
@@ -1430,7 +1520,7 @@ impl ComputerUseLinux {
                 ),
             };
         }
-        Json(with_notes(output, off_screen_note))
+        Json(output)
     }
 
     async fn drag(&self, Parameters(params): Parameters<DragParams>) -> Json<ActionOutput> {
@@ -4356,24 +4446,93 @@ impl ComputerUseLinux {
         }
     }
 
+    /// Whether a point inside an element's bounds is on the visible page:
+    /// inside its web document's viewport (else its window frame) and on the
+    /// desktop.
+    async fn point_visible_for(&self, node: &AccessibilityNode, (x, y): (i32, i32)) -> bool {
+        let area = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| crate::page_view::visible_area(&cached.nodes, node.index));
+        let in_area = area.is_none_or(|area| {
+            x >= area.x && y >= area.y && x < area.x + area.width && y < area.y + area.height
+        });
+        let on_desktop = self.desktop_size().await.is_none_or(|(width, height)| {
+            x >= 0 && y >= 0 && (x as u32) < width && (y as u32) < height
+        });
+        in_area && on_desktop
+    }
+
+    /// Clicks an element whose centre is not on the visible page: its AT-SPI
+    /// action (plain left clicks only), else `Component.ScrollTo` and the
+    /// centre it then has, else an error naming the fix.
+    async fn off_screen_click(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        plain_left_click: bool,
+    ) -> std::result::Result<OffScreenClick, String> {
+        if plain_left_click {
+            match crate::atspi_tree::invoke_preferred_action(
+                &node.object_ref,
+                OFF_SCREEN_CLICK_ACTIONS,
+            )
+            .await
+            {
+                Ok(Some(invocation)) if invocation.ok => {
+                    return Ok(OffScreenClick::Invoked(format!(
+                        "clicked {label} (AT-SPI {}; it is outside the visible page)",
+                        invocation.action_name.unwrap_or_default()
+                    )));
+                }
+                Ok(_) => {}
+                Err(error) => return Err(format!("{label}: {error:#}")),
+            }
+        }
+        if crate::atspi_tree::scroll_into_view(&node.object_ref)
+            .await
+            .is_ok()
+        {
+            sleep(Duration::from_millis(150)).await;
+            if let Ok(fresh) = crate::atspi_tree::read_element(&node.object_ref).await {
+                if let Some(center) = fresh.bounds.as_ref().and_then(bounds_center) {
+                    let mut moved = fresh;
+                    moved.index = node.index;
+                    if self.point_visible_for(&moved, center).await {
+                        return Ok(OffScreenClick::ScrolledTo(center.0, center.1));
+                    }
+                }
+            }
+        }
+        Err(format!(
+            "element [{id}] is outside the visible window; scroll it into view with scroll(element_index={id})",
+            id = node.index
+        ))
+    }
+
     /// The element's centre when it lies on the desktop, scrolling it into
     /// view through AT-SPI first when it does not.
     async fn visible_center_after_scroll(&self, object_ref: &str) -> Option<(i32, i32)> {
-        let desktop = self.desktop_size().await;
-        let on_screen = |node: &AccessibilityNode| {
-            let (x, y) = node.bounds.as_ref().and_then(bounds_center)?;
-            let inside = desktop.is_none_or(|(width, height)| {
-                x >= 0 && y >= 0 && (x as u32) < width && (y as u32) < height
-            });
-            inside.then_some((x, y))
-        };
+        let id = self
+            .element_ids
+            .lock()
+            .map(|mut ids| ids.id_for(object_ref))
+            .unwrap_or_default();
         let fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
-        if let Some(point) = on_screen(&fresh) {
-            return Some(point);
+        let mut fresh = fresh;
+        fresh.index = id;
+        if let Some(point) = fresh.bounds.as_ref().and_then(bounds_center) {
+            if self.point_visible_for(&fresh, point).await {
+                return Some(point);
+            }
         }
         crate::atspi_tree::scroll_into_view(object_ref).await.ok()?;
         sleep(Duration::from_millis(150)).await;
-        on_screen(&crate::atspi_tree::read_element(object_ref).await.ok()?)
+        let mut moved = crate::atspi_tree::read_element(object_ref).await.ok()?;
+        moved.index = id;
+        let point = moved.bounds.as_ref().and_then(bounds_center)?;
+        self.point_visible_for(&moved, point).await.then_some(point)
     }
 
     /// Focus the window of the app that owns the element unless it already
@@ -4534,6 +4693,29 @@ fn paste_chord_for(window: Option<&WindowInfo>) -> &'static str {
         "ctrl+v"
     }
 }
+
+/// How a click on an off-page element went.
+enum OffScreenClick {
+    /// Its AT-SPI action ran; the message says which.
+    Invoked(String),
+    /// ScrollTo brought it on screen at this point.
+    ScrolledTo(i32, i32),
+}
+
+/// Actions that stand in for a left click on an element that is not on the
+/// visible page, in order of preference.
+const OFF_SCREEN_CLICK_ACTIONS: &[&str] = &[
+    "press",
+    "click",
+    "activate",
+    "select",
+    "jump",
+    "toggle",
+    "check",
+    "uncheck",
+    "open",
+    "dodefault",
+];
 
 #[derive(Debug)]
 enum ClickTarget {

@@ -23,6 +23,8 @@ pub struct ViewOptions {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ViewEntry {
     pub id: u32,
+    /// Id of the nearest ancestor shown in the same view.
+    pub parent: Option<u32>,
     pub depth: usize,
     /// `[id] role "name" @x,y wxh {states} ...`, unindented.
     pub line: String,
@@ -113,11 +115,15 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
     };
     let mut entries = Vec::new();
     let mut omitted = 0;
-    // (position, depth, nearest shown ancestor that carries text)
-    let mut stack: Vec<(usize, usize, Option<usize>)> =
-        roots.into_iter().rev().map(|at| (at, 0, None)).collect();
+    // (position, depth, nearest shown ancestor that carries text, nearest
+    // shown ancestor)
+    let mut stack: Vec<(usize, usize, Option<usize>, Option<u32>)> = roots
+        .into_iter()
+        .rev()
+        .map(|at| (at, 0, None, None))
+        .collect();
     let mut visited = vec![false; nodes.len()];
-    while let Some((at, depth, context)) = stack.pop() {
+    while let Some((at, depth, context, parent)) = stack.pop() {
         if std::mem::replace(&mut visited[at], true) {
             continue;
         }
@@ -132,6 +138,7 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
         if shown {
             entries.push(ViewEntry {
                 id: node.index,
+                parent,
                 depth,
                 line: render_line(node),
                 label: element_label(node),
@@ -147,8 +154,9 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
             } else {
                 context
             };
+        let child_parent = if shown { Some(node.index) } else { parent };
         for &child in tree.children(at).iter().rev() {
-            stack.push((child, child_depth, child_context));
+            stack.push((child, child_depth, child_context, child_parent));
         }
     }
 
@@ -161,6 +169,23 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
         omitted,
         focus: tree.focused().map(|at| describe_focus(&nodes[at])),
     }
+}
+
+/// The screen area where element `id` can be seen: its web document's
+/// viewport when it is inside the visible document, else its window frame.
+/// `None` when the snapshot shows neither.
+pub fn visible_area(nodes: &[AccessibilityNode], id: u32) -> Option<Bounds> {
+    let tree = Tree::new(nodes);
+    let target = nodes.iter().position(|node| node.index == id);
+    if let (Some(document), Some(target)) = (tree.visible_document(), target) {
+        if tree.inside(target, document) {
+            return nodes[document].bounds.clone();
+        }
+    }
+    target
+        .and_then(|target| tree.ancestor_with_role(target, &["frame", "window", "dialog"]))
+        .or_else(|| tree.first_with_role(&["frame", "window"]))
+        .and_then(|frame| nodes[frame].bounds.clone())
 }
 
 /// What changed from the view the agent last saw to the current one: `+`
@@ -185,11 +210,38 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
             Some(_) => {}
         }
     }
-    let removed: Vec<String> = before
+    // A removed container stands for everything inside it.
+    let gone: std::collections::HashSet<u32> = before
         .entries
         .iter()
         .filter(|entry| !after_ids.contains(&entry.id))
-        .map(|entry| format!("- {}", entry.label))
+        .map(|entry| entry.id)
+        .collect();
+    let mut inside_gone: HashMap<u32, usize> = HashMap::new();
+    let mut removed = Vec::new();
+    for entry in before
+        .entries
+        .iter()
+        .filter(|entry| gone.contains(&entry.id))
+    {
+        let mut top = entry.id;
+        let mut parent = entry.parent;
+        while let Some(id) = parent.filter(|id| gone.contains(id)) {
+            top = id;
+            parent = before_keys.get(&id).and_then(|entry| entry.parent);
+        }
+        if top == entry.id {
+            removed.push(entry);
+        } else {
+            *inside_gone.entry(top).or_default() += 1;
+        }
+    }
+    let removed: Vec<String> = removed
+        .into_iter()
+        .map(|entry| match inside_gone.get(&entry.id) {
+            Some(count) => format!("- {} (and {count} inside)", entry.label),
+            None => format!("- {}", entry.label),
+        })
         .collect();
 
     let mut out = String::new();
@@ -198,7 +250,7 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
         out.push_str(&format!(
             "page changed ({} added, {} removed); current outline:\n",
             added.len(),
-            removed.len()
+            gone.len()
         ));
         out.push_str(&after.outline());
     } else if total == 0 {
@@ -658,6 +710,22 @@ mod tests {
     }
 
     #[test]
+    fn visible_area_is_the_document_viewport_for_page_elements() {
+        let nodes = browser(vec![at(
+            node(11, Some(10), "button", "Ok"),
+            10,
+            5000,
+            50,
+            20,
+        )]);
+        let viewport = visible_area(&nodes, 11).map(|area| (area.y, area.height));
+        assert_eq!(viewport, Some((100, 700)));
+        // Browser UI is visible anywhere in the window.
+        let frame = visible_area(&nodes, 4).map(|area| (area.y, area.height));
+        assert_eq!(frame, Some((0, 800)));
+    }
+
+    #[test]
     fn non_browser_views_draw_children_under_their_parent() {
         // Breadth-first snapshot order; the view is depth-first.
         let nodes = vec![
@@ -728,6 +796,26 @@ mod tests {
              - [40] list item \"Marina\"\n\
              focus: [88] entry \"Corpo\" value=\"\"\n\
              title: \"Contrato - Chromium\"\n"
+        );
+    }
+
+    #[test]
+    fn a_closed_popup_is_one_removal() {
+        let mut list = vec![at(node(20, Some(10), "list box", "Hora"), 0, 200, 100, 300)];
+        list.extend((0..30).map(|row| {
+            at(
+                node(21 + row, Some(20), "list item", &format!("{row:02}:00")),
+                0,
+                200 + 10 * row as i32,
+                100,
+                10,
+            )
+        }));
+        let before = page_view(&browser(list), ViewOptions::default());
+        let after = page_view(&browser(Vec::new()), ViewOptions::default());
+        assert_eq!(
+            change_report(&before, &after),
+            "changes (1):\n- [20] list box \"Hora\" (and 30 inside)\n"
         );
     }
 
