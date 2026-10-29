@@ -55,11 +55,25 @@ const SHELL_RESPONSE_STREAM_BYTES: usize = 512 * 1024;
 struct CachedAccessibilitySnapshot {
     nodes: Vec<AccessibilityNode>,
     pid: Option<u32>,
+    /// What the snapshot covered, so a rescan reads the same elements.
+    scope: Option<SnapshotScope>,
+}
+
+/// The app filter and limits of an observation, reused when an action has
+/// to read the same part of the tree again.
+#[derive(Debug, Clone)]
+struct SnapshotScope {
+    app_filter: Option<String>,
+    target_pid: Option<u32>,
+    max_nodes: usize,
+    max_depth: u32,
 }
 
 #[derive(Clone, Default)]
 pub struct ComputerUseLinux {
     last_snapshot: Arc<Mutex<CachedAccessibilitySnapshot>>,
+    /// Stable `[n]` ids for every element reported so far.
+    element_ids: Arc<Mutex<crate::element_ids::ElementIds>>,
     input_operation_lock: Arc<tokio::sync::Mutex<()>>,
     /// Root window size from the latest capture or X11 query; used for
     /// off-screen warnings and window-relative coordinate clipping.
@@ -256,7 +270,7 @@ impl ComputerUseLinux {
         name = "get_app_state",
         output_schema = rmcp::handler::server::tool::schema_for_output::<GetAppStateOutput>()
             .expect("get_app_state output schema"),
-        description = "Screenshot plus accessibility tree of an app on the X11 display; call it first. Scope with app_name_or_bundle_identifier (AT-SPI app name, e.g. chrome) or a window target (window_id/pid/app_id/wm_class/title); unscoped it returns the whole desktop. accessibility_outline has one line per element, `[index] role \"name\" @x,y wxh {states} actions=...`, indented by depth; the index is what click, perform_action and set_value take (tree_format=json gives full nodes). find_elements is cheaper for one control. screenshot metadata has coordinate_width/coordinate_height and scale for mapping image pixels to screen coordinates. A window-targeted screenshot needs that window already focused.",
+        description = "Screenshot plus accessibility tree of an app on the X11 display; call it first. Scope with app_name_or_bundle_identifier (AT-SPI app name, e.g. chrome) or a window target (window_id/pid/app_id/wm_class/title); unscoped it returns the whole desktop. accessibility_outline has one line per element, `[index] role \"name\" @x,y wxh {states} actions=...`, indented by depth; `[n]` is the element's id, stable across calls, which click, perform_action and set_value take as element_index (tree_format=json gives full nodes). find_elements is cheaper for one control. screenshot metadata has coordinate_width/coordinate_height and scale for mapping image pixels to screen coordinates. A window-targeted screenshot needs that window already focused.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -371,11 +385,12 @@ impl ComputerUseLinux {
                         tree_root_pid = snapshot.root_pid;
                         accessibility_tree_truncated = snapshot.truncated;
                         let raw_count = snapshot.nodes.len();
-                        let (nodes, note) = compact_accessibility_tree_with_note(
+                        let (mut nodes, note) = compact_accessibility_tree_with_note(
                             snapshot.nodes,
                             tree_scoped,
                             accessibility_tree_truncated,
                         );
+                        self.assign_ids(&mut nodes);
                         shell_only_note = note;
                         (nodes, raw_count, None)
                     }
@@ -394,7 +409,13 @@ impl ComputerUseLinux {
             // match that can be another app entirely; recording the pid then
             // would let that app's index pass the target check instead of
             // taking the per-node owner lookup.
-            self.commit_snapshot(&accessibility_tree, tree_root_pid)
+            let scope = SnapshotScope {
+                app_filter: app_filter.clone(),
+                target_pid: window_context.as_ref().and_then(|window| window.pid),
+                max_nodes,
+                max_depth,
+            };
+            self.commit_observation(&accessibility_tree, tree_root_pid, Some(scope))
                 .await;
         } else {
             self.commit_snapshot(&[], None).await;
@@ -480,7 +501,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "find_elements",
-        description = "Search an app's accessibility tree and return only matching elements as outline lines `[index] role \"name\" @x,y wxh {states} actions=...`. Cheaper than get_app_state for locating a control. Scope with app_name_or_bundle_identifier or a window target. role/name/text/states must all match (case-insensitive substrings). The indices stay valid for click, perform_action and set_value until the next snapshot.",
+        description = "Search an app's accessibility tree and return only matching elements as outline lines `[index] role \"name\" @x,y wxh {states} actions=...`. Cheaper than get_app_state for locating a control. Scope with app_name_or_bundle_identifier or a window target. role/name/text/states must all match (case-insensitive substrings). Each `[n]` is the element's id, valid in every tool for the server's lifetime.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -872,6 +893,22 @@ impl ComputerUseLinux {
             }
         }
         if params.x.zip(params.y).is_none() {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::Click,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "click".to_string(),
+                    message,
+                    received,
+                });
+            }
             if let Some(node) = self.cached_node_for(
                 params.element_index,
                 &params.selector(),
@@ -1012,6 +1049,28 @@ impl ComputerUseLinux {
     ) -> Json<ActionOutput> {
         let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let received = Some(serde_json::json!(params.clone()));
+        if params
+            .element_identifier
+            .as_deref()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::SetValue,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "set_value".to_string(),
+                    message,
+                    received,
+                });
+            }
+        }
         let node = match self.resolve_field_node(
             params.element_index,
             params.element_identifier.as_deref(),
@@ -1085,9 +1144,19 @@ impl ComputerUseLinux {
         let mut ok_count = 0;
         for field in &params.fields {
             let selector = field.selector();
-            let resolved = self
-                .resolve_field_node(field.element_index, None, &selector)
-                .and_then(|node| node.ok_or_else(|| "no element given".to_string()));
+            let resolved = match self
+                .ensure_resolvable(
+                    field.element_index,
+                    &selector,
+                    ElementResolvePurpose::SetValue,
+                )
+                .await
+            {
+                Ok(()) => self
+                    .resolve_field_node(field.element_index, None, &selector)
+                    .and_then(|node| node.ok_or_else(|| "no element given".to_string())),
+                Err(message) => Err(message),
+            };
             let (label, outcome) = match resolved {
                 Ok(node) => (
                     crate::outline::element_label(&node),
@@ -1238,6 +1307,22 @@ impl ComputerUseLinux {
             }
         }
         if params.x.is_none() && params.y.is_none() {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &ElementSelector::default(),
+                    ElementResolvePurpose::Click,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message,
+                    received,
+                });
+            }
             if let Some(node) = self.cached_node_for(
                 params.element_index,
                 &ElementSelector::default(),
@@ -1434,6 +1519,16 @@ impl ComputerUseLinux {
             Err(message) => return failed(message),
         };
         let target = if params.element_index.is_some() || !params.selector().is_empty() {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::SetValue,
+                )
+                .await
+            {
+                return failed(message);
+            }
             match self.resolve_cached_node(
                 params.element_index,
                 &params.selector(),
@@ -2309,6 +2404,7 @@ struct GetAppStateOutput {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ClickParams {
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2384,6 +2480,7 @@ impl ClickParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ActionParams {
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2413,6 +2510,7 @@ impl ActionParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct SetValueParams {
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2443,6 +2541,7 @@ impl SetValueParams {
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct FormField {
     /// Element id `[n]` from an earlier result.
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     /// Role substring, when not using element_index.
@@ -2494,6 +2593,7 @@ fn form_field_line(label: &str, outcome: &FieldOutcome) -> String {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct ScrollParams {
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     #[serde(default)]
@@ -2594,6 +2694,7 @@ struct PressKeyParams {
 struct TypeTextParams {
     text: String,
     /// Element id `[n]` to focus before typing.
+    /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
     /// Role substring of the element to focus before typing.
@@ -3068,17 +3169,151 @@ impl ComputerUseLinux {
     /// or scroll again. Keep the snapshot stable for the whole input operation;
     /// otherwise a checked index could resolve to a different app's node.
     async fn commit_snapshot(&self, nodes: &[AccessibilityNode], target_pid: Option<u32>) {
-        let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
-        self.cache_snapshot(nodes, target_pid);
+        self.commit_observation(nodes, target_pid, None).await;
     }
 
+    async fn commit_observation(
+        &self,
+        nodes: &[AccessibilityNode],
+        target_pid: Option<u32>,
+        scope: Option<SnapshotScope>,
+    ) {
+        let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        self.cache_observation(nodes, target_pid, scope);
+    }
+
+    #[cfg(test)]
     fn cache_snapshot(&self, nodes: &[AccessibilityNode], target_pid: Option<u32>) {
+        self.cache_observation(nodes, target_pid, None);
+    }
+
+    fn cache_observation(
+        &self,
+        nodes: &[AccessibilityNode],
+        target_pid: Option<u32>,
+        scope: Option<SnapshotScope>,
+    ) {
         if let Ok(mut cached) = self.last_snapshot.lock() {
             *cached = CachedAccessibilitySnapshot {
                 nodes: nodes.to_vec(),
                 pid: target_pid,
+                scope,
             };
         }
+    }
+
+    /// Rewrites a compacted snapshot's positional indices to stable ids.
+    fn assign_ids(&self, nodes: &mut [AccessibilityNode]) {
+        if let Ok(mut ids) = self.element_ids.lock() {
+            ids.assign(nodes);
+        }
+    }
+
+    /// Reads the scope of the cached observation again (or, with none, the
+    /// app owning `hint_ref`, else the focused window's app), with stable ids.
+    async fn rescan(&self, hint_ref: Option<&str>) -> Result<Vec<AccessibilityNode>, String> {
+        let scope = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| cached.scope.clone());
+        let (app_filter, pid, max_nodes, max_depth) = match scope {
+            Some(scope) => (
+                scope.app_filter,
+                scope.target_pid,
+                scope.max_nodes,
+                scope.max_depth,
+            ),
+            None => {
+                let owner = match hint_ref {
+                    Some(object_ref) => object_ref_owner_pid(object_ref).await.ok().flatten(),
+                    None => None,
+                };
+                let pid = match owner {
+                    Some(pid) => Some(pid),
+                    None => focused_window()
+                        .await
+                        .ok()
+                        .flatten()
+                        .and_then(|window| window.pid),
+                };
+                let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
+                (None, pid, max_nodes, max_depth)
+            }
+        };
+        let snapshot =
+            snapshot_accessibility_tree(app_filter.as_deref(), pid, max_nodes, max_depth)
+                .await
+                .map_err(|error| format!("{error:#}"))?;
+        let mut nodes = compact_accessibility_tree(snapshot.nodes);
+        self.assign_ids(&mut nodes);
+        Ok(nodes)
+    }
+
+    /// Makes the element an action names resolvable from the cache. An id or
+    /// selector the cached snapshot lacks gets one rescan of the same scope:
+    /// a found element joins the cache (the whole rescan when nothing was
+    /// cached yet); an id whose element is gone is reported as such.
+    async fn ensure_resolvable(
+        &self,
+        element_index: Option<u32>,
+        selector: &ElementSelector<'_>,
+        purpose: ElementResolvePurpose,
+    ) -> std::result::Result<(), String> {
+        if element_index.is_none() && selector.is_empty() {
+            return Ok(());
+        }
+        let cached_error = match self.resolve_cached_node(element_index, selector, purpose) {
+            Ok(_) => return Ok(()),
+            Err(message) => message,
+        };
+        if element_index.is_none() && self.cache_matches(selector) {
+            // An ambiguous selector: a rescan cannot make it unique.
+            return Err(cached_error);
+        }
+        let hint = match element_index {
+            Some(id) => match self
+                .element_ids
+                .lock()
+                .ok()
+                .and_then(|ids| ids.object_ref(id).map(str::to_string))
+            {
+                Some(object_ref) => Some(object_ref),
+                None => {
+                    return Err(format!(
+                        "element [{id}] was never reported; use an id from an earlier result"
+                    ))
+                }
+            },
+            None => None,
+        };
+        let fresh = self.rescan(hint.as_deref()).await?;
+        let node = match element_index {
+            Some(id) => fresh
+                .iter()
+                .find(|node| node.index == id)
+                .cloned()
+                .ok_or_else(|| format!("element [{id}] no longer exists"))?,
+            None => resolve_semantic_node(&fresh, selector, purpose)?,
+        };
+        if let Ok(mut cached) = self.last_snapshot.lock() {
+            if cached.nodes.is_empty() {
+                cached.nodes = fresh;
+            } else {
+                cached.nodes.push(node);
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether any cached node matches the selector at all.
+    fn cache_matches(&self, selector: &ElementSelector<'_>) -> bool {
+        self.last_snapshot.lock().is_ok_and(|cached| {
+            cached
+                .nodes
+                .iter()
+                .any(|node| node_matches_selector(node, selector))
+        })
     }
 
     #[cfg(test)]
@@ -3277,6 +3512,28 @@ impl ComputerUseLinux {
     ) -> Json<ActionOutput> {
         let _input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let received = Some(serde_json::json!(params.clone()));
+        if params
+            .element_identifier
+            .as_deref()
+            .is_none_or(|value| value.trim().is_empty())
+        {
+            if let Err(message) = self
+                .ensure_resolvable(
+                    params.element_index,
+                    &params.selector(),
+                    ElementResolvePurpose::Action,
+                )
+                .await
+            {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "perform_action".to_string(),
+                    message,
+                    received,
+                });
+            }
+        }
         let object_ref = match self.resolve_object_ref(
             params.element_index,
             params.element_identifier.as_deref(),
@@ -3541,7 +3798,7 @@ impl ComputerUseLinux {
         radio_group: bool,
     ) -> FieldOutcome {
         let pid = object_ref_owner_pid(&node.object_ref).await.ok().flatten();
-        let mut nodes = match fresh_app_nodes(pid).await {
+        let mut nodes = match self.fresh_app_nodes(pid).await {
             Ok(nodes) => nodes,
             Err(error) => return FieldOutcome::failed(format!("{label}: {error}")),
         };
@@ -3576,7 +3833,7 @@ impl ComputerUseLinux {
             let started = std::time::Instant::now();
             loop {
                 sleep(Duration::from_millis(150)).await;
-                if let Ok(fresh) = fresh_app_nodes(pid).await {
+                if let Ok(fresh) = self.fresh_app_nodes(pid).await {
                     if let Some(at) = fresh
                         .iter()
                         .position(|candidate| candidate.object_ref == node.object_ref)
@@ -3648,6 +3905,18 @@ impl ComputerUseLinux {
             },
             value: Some(shown),
         }
+    }
+
+    /// A compacted snapshot of one app with stable ids, for internal lookups
+    /// that must not replace the agent's cached snapshot.
+    async fn fresh_app_nodes(&self, pid: Option<u32>) -> Result<Vec<AccessibilityNode>, String> {
+        let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
+        let snapshot = snapshot_accessibility_tree(None, pid, max_nodes, max_depth)
+            .await
+            .map_err(|error| format!("{error:#}"))?;
+        let mut nodes = compact_accessibility_tree(snapshot.nodes);
+        self.assign_ids(&mut nodes);
+        Ok(nodes)
     }
 
     /// Whether the combo box now shows the option (or the option reports
@@ -3791,16 +4060,6 @@ const TOGGLE_ACTIONS: &[&str] = &[
 const EXPAND_ACTIONS: &[&str] = &["open", "expand", "show", "click", "press", "activate"];
 /// Actions that choose an option.
 const OPTION_ACTIONS: &[&str] = &["select", "click", "press", "activate", "jump", "dodefault"];
-
-/// A compacted snapshot of one app (positional indices), for internal
-/// lookups that must not replace the agent's cached snapshot.
-async fn fresh_app_nodes(pid: Option<u32>) -> Result<Vec<AccessibilityNode>, String> {
-    let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
-    snapshot_accessibility_tree(None, pid, max_nodes, max_depth)
-        .await
-        .map(|snapshot| compact_accessibility_tree(snapshot.nodes))
-        .map_err(|error| format!("{error:#}"))
-}
 
 /// Rereads an element until `done` holds or `limit` passes. `None` when the
 /// element cannot be read at all; otherwise whether `done` held, and the last read.

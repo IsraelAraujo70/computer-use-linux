@@ -286,12 +286,20 @@ impl ElementQuery {
     }
 }
 
+/// Depth of `node` below the snapshot's roots. `parent_index` holds element
+/// ids, so parents are found by id; a cycle or missing parent ends the walk.
 fn node_depth_in(nodes: &[AccessibilityNode], node: &AccessibilityNode) -> usize {
     let mut depth = 0;
     let mut parent = node.parent_index;
-    while let Some(index) = parent {
+    while let Some(id) = parent {
+        if depth > nodes.len() {
+            break;
+        }
         depth += 1;
-        parent = nodes.get(index as usize).and_then(|p| p.parent_index);
+        parent = nodes
+            .iter()
+            .find(|candidate| candidate.index == id)
+            .and_then(|p| p.parent_index);
     }
     depth
 }
@@ -406,6 +414,22 @@ mod tests {
         assert_eq!(
             outline,
             "[0] frame \"App\"\n  [1] button \"Save\" @10,20 80x24 {focused} actions=click\n  [2] entry {editable} text=\"hello\"\n(1 elements outside the visible window omitted; find_elements searches them)\n"
+        );
+    }
+
+    #[test]
+    fn outline_indents_by_parent_id_not_position() {
+        let outline = render_outline(
+            &[
+                node(10, None, "frame", Some("App")),
+                node(30, Some(10), "panel", Some("Form")),
+                node(20, Some(30), "button", Some("Send")),
+            ],
+            None,
+        );
+        assert_eq!(
+            outline,
+            "[10] frame \"App\"\n  [30] panel \"Form\"\n    [20] button \"Send\"\n"
         );
     }
 

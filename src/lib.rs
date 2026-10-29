@@ -4,6 +4,7 @@ mod cli;
 mod command_runner;
 #[path = "diagnostics.rs"]
 mod diagnostics_impl;
+mod element_ids;
 mod fields;
 mod ocr;
 mod outline;
