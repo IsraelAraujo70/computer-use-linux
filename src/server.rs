@@ -336,7 +336,7 @@ impl ComputerUseLinux {
         params: GetAppStateParams,
     ) -> (GetAppStateOutput, Option<ScreenshotCapture>) {
         let verbose = params.verbose.unwrap_or(false);
-        let mut diagnostics = if verbose || params.include_screenshot.unwrap_or(true) {
+        let mut diagnostics = if verbose {
             self.diagnostics().await
         } else {
             self.cached_diagnostics().await
@@ -510,6 +510,10 @@ impl ComputerUseLinux {
                 || window_error.is_some())
         {
             message.push_str(" Pass verbose=true for full diagnostics.");
+        }
+        if accessibility_error.is_some() || screenshot_error.is_some() || window_error.is_some() {
+            // The cached readiness may be what is stale; probe again next time.
+            self.forget_diagnostics();
         }
         // What the text result prints besides the outline: only what is wrong
         // or incomplete, each with its fix.
@@ -3355,12 +3359,15 @@ impl ComputerUseLinux {
         report
     }
 
-    /// Like `diagnostics`, but reuses a report up to 15 s old.
+    /// Like `diagnostics`, but reuses the last report while it found the
+    /// session ready. A report with blockers is recomputed every time, so a
+    /// fix shows up at once, and a failed observation drops the cache
+    /// (`forget_diagnostics`).
     async fn cached_diagnostics(&self) -> DoctorReport {
         let cached = self.recent_diagnostics.lock().ok().and_then(|guard| {
             guard
                 .as_ref()
-                .filter(|(at, _)| at.elapsed() < Duration::from_secs(15))
+                .filter(|(_, report)| report.readiness.blockers.is_empty())
                 .map(|(_, report)| report.clone())
         });
         match cached {
@@ -3372,6 +3379,13 @@ impl ComputerUseLinux {
                 report
             }
             None => self.diagnostics().await,
+        }
+    }
+
+    /// Makes the next observation run every diagnostic probe again.
+    fn forget_diagnostics(&self) {
+        if let Ok(mut guard) = self.recent_diagnostics.lock() {
+            *guard = None;
         }
     }
 
