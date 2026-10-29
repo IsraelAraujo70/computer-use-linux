@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "661e903f26db7e47627be49291005c24d9731c183d23fb05f4d78abf1993ac0b";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "ef8711a88e42c1d23de0fa3a71f6f92526b3950068301e69e4db73d7cd7797db";
+export const GENERATED_TOOL_CATALOG_HASH = "23eef6e3c502cd9b088dd194e6bf13de2cf60d922370a1872cdd862c79850a33";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "da77ab62a69d0dd773bb5cba9fdbb90a21c6f36c4a08f32a9c8542bc989c652c";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -1057,7 +1057,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is visible and returns its line. Reports what changed.",
+    "description": "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is rendered, brings it into view and returns its line; with no direction it searches down, then up. Reports what changed.",
     "inputSchema": {
       "$defs": {
         "ElementQuery": {
@@ -1105,9 +1105,12 @@ export const GENERATED_MCP_TOOLS =
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "direction": {
-          "default": "down",
-          "description": "up, down, left or right (default down).",
-          "type": "string"
+          "default": null,
+          "description": "up, down, left or right (default down; with until and no direction,\ndown to the end, then up past the start).",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "element_index": {
           "default": null,
@@ -1162,7 +1165,7 @@ export const GENERATED_MCP_TOOLS =
             }
           ],
           "default": null,
-          "description": "Keep scrolling a page at a time until an element matching this is\non the visible page (or the end, or 80 scrolls); returns its line."
+          "description": "Keep scrolling (at most a page, about 60% of the scrolled area, per\nstep) until an element matching this is rendered, then bring it into\nview (or the end, or 80 scrolls each way); returns its line."
         },
         "window_id": {
           "default": null,
@@ -1200,7 +1203,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
+    "description": "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted; \"\\n\" starts a new line in text areas and rich-text editors, single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1274,7 +1277,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter. To replace a field's content use set_value. Reports what changed.",
+    "description": "Type text into the focused element, or first into element_index/role/name or a window target. Non-ASCII text is pasted (Ctrl+Shift+V in terminals); newline presses Enter (a new line in text areas and editors; inside the text of a single-line input it is refused). To replace a field's content use set_value. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
@@ -1395,7 +1398,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "Wait until an element appears or disappears (role/name/text/states), or until the tree changes (condition=changed). Actions already report their changes; use this for slow updates.",
+    "description": "Wait for a slow page (a spinner, \"Carregando…\") to update. Actions already wait for the page to settle and report what changed, so call this only after one whose result is still pending. When you do not know what will appear, call it with no query (condition=changed): it returns the changed lines. With role/name/text/states it waits until a match appears (or disappears with condition=disappears).",
     "inputSchema": {
       "$defs": {
         "WaitCondition": {
@@ -1429,8 +1432,16 @@ export const GENERATED_MCP_TOOLS =
           ]
         },
         "condition": {
-          "$ref": "#/$defs/WaitCondition",
-          "default": "appears"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WaitCondition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "appears (default with a query), disappears, or changed (default\nwithout one: wait for any change when you do not know what comes)."
         },
         "name": {
           "default": null,

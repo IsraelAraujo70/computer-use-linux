@@ -169,8 +169,17 @@ pub(crate) enum ReadBack {
 const MASK_CHARS: [char; 7] = ['-', '/', '.', '(', ')', '+', ':'];
 
 /// Compares a field's read-back text with the requested value. Case and
-/// accents always count: "nao" is not "não".
+/// accents always count: "nao" is not "não". A value of several lines is
+/// compared line by line (`comparable_lines`).
 pub(crate) fn compare_read_back(actual: Option<&str>, expected: &str) -> ReadBack {
+    let expected_lines = comparable_lines(expected);
+    if expected_lines.len() > 1 {
+        return if comparable_lines(actual.unwrap_or_default()) == expected_lines {
+            ReadBack::Same
+        } else {
+            ReadBack::Different
+        };
+    }
     let actual = clean(Some(&compose_latin(actual.unwrap_or_default()))).unwrap_or_default();
     let expected = clean(Some(&compose_latin(expected))).unwrap_or_default();
     if actual == expected {
@@ -187,6 +196,35 @@ pub(crate) fn compare_read_back(actual: Option<&str>, expected: &str) -> ReadBac
     } else {
         ReadBack::Different
     }
+}
+
+/// A text's lines as read-back compares them: Latin NFC, no-break spaces
+/// (Chromium puts them in contenteditable text) as spaces, each line trimmed
+/// with whitespace runs collapsed, blank lines at either end dropped.
+fn comparable_lines(text: &str) -> Vec<String> {
+    let text = compose_latin(text)
+        .replace("\r\n", "\n")
+        .replace(['\r', '\u{2028}'], "\n")
+        .replace('\u{a0}', " ");
+    let mut lines: Vec<String> = text
+        .split('\n')
+        .map(|line| clean(Some(line)).unwrap_or_default())
+        .collect();
+    while lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
+    let first = lines
+        .iter()
+        .position(|line| !line.is_empty())
+        .unwrap_or(lines.len());
+    lines.drain(..first);
+    lines
+}
+
+/// Read-back text as results quote it: `comparable_lines` joined with a
+/// literal `\n`, so a multi-line value reads like the JSON that set it.
+pub(crate) fn shown_text(text: Option<&str>) -> String {
+    comparable_lines(text.unwrap_or_default()).join("\\n")
 }
 
 /// Whether a field's read-back text is the requested value, as entered or
@@ -259,6 +297,129 @@ pub(crate) fn field_text(node: &AccessibilityNode) -> Option<String> {
         .as_ref()
         .and_then(|text| text.content.clone())
         .or_else(|| node.value.as_ref().and_then(|value| value.text.clone()))
+}
+
+/// The character AT-SPI Text puts where an embedded child object sits.
+pub(crate) const EMBEDDED_OBJECT: char = '\u{fffc}';
+
+/// Roles of the blocks a rich-text editor holds: each starts a new line.
+const BLOCK_ROLES: [&str; 13] = [
+    "paragraph",
+    "section",
+    "heading",
+    "list",
+    "list item",
+    "block quote",
+    "panel",
+    "article",
+    "form",
+    "table",
+    "table row",
+    "description list",
+    "footer",
+];
+
+/// The text a rich-text editor holds. Chromium reports a contenteditable's
+/// Text as U+FFFC for each child element (`<div>`, `<p>` lines); each one is
+/// replaced by that child's text, recursively, and block children
+/// (`BLOCK_ROLES`) go on lines of their own. `nodes` is a subtree in tree
+/// order: `nodes[0]` is the editor, `parent_index` values are positions.
+pub(crate) fn expanded_text(nodes: &[AccessibilityNode]) -> Option<String> {
+    let mut children = vec![Vec::new(); nodes.len()];
+    for (at, node) in nodes.iter().enumerate() {
+        if let Some(parent) = node
+            .parent_index
+            .and_then(|parent| usize::try_from(parent).ok())
+            .filter(|&parent| parent < at)
+        {
+            children[parent].push(at);
+        }
+    }
+    (!nodes.is_empty()).then(|| expand_node(nodes, &children, 0))
+}
+
+/// `expanded_text` of the node at `at`. A child always sits at a later
+/// position than its parent, so the recursion ends.
+fn expand_node(nodes: &[AccessibilityNode], children: &[Vec<usize>], at: usize) -> String {
+    let own = nodes[at]
+        .text
+        .as_ref()
+        .and_then(|text| text.content.as_deref())
+        .unwrap_or_default();
+    let kids = &children[at];
+    let mut out = String::new();
+    if kids.is_empty() || (!own.is_empty() && !own.contains(EMBEDDED_OBJECT)) {
+        // No children, or the node's own text already spells them out.
+        return own.to_string();
+    }
+    let push_child = |out: &mut String, child: usize| {
+        let text = expand_node(nodes, children, child);
+        if BLOCK_ROLES.contains(&nodes[child].role.to_ascii_lowercase().as_str()) {
+            if !out.is_empty() && !out.ends_with('\n') {
+                out.push('\n');
+            }
+            // A block's closing <br> is not a line of its own.
+            out.push_str(text.strip_suffix('\n').unwrap_or(&text));
+            out.push('\n');
+        } else {
+            out.push_str(&text);
+        }
+    };
+    if own.is_empty() {
+        for &child in kids {
+            push_child(&mut out, child);
+        }
+        return out;
+    }
+    let mut next_child = kids.iter();
+    for ch in own.chars() {
+        if ch != EMBEDDED_OBJECT {
+            out.push(ch);
+        } else if let Some(&child) = next_child.next() {
+            push_child(&mut out, child);
+        }
+    }
+    out
+}
+
+/// Whether a text field holds a single line: AT-SPI says `single-line`, or,
+/// with neither line state, it is a password or spin field. Text areas and
+/// contenteditable editors report `multi-line`.
+pub(crate) fn is_single_line(node: &AccessibilityNode) -> bool {
+    if has_state(node, "multi-line") {
+        return false;
+    }
+    has_state(node, "single-line")
+        || ["password text", "spin button"].contains(&node.role.to_ascii_lowercase().as_str())
+}
+
+/// Why `text` cannot go into a single-line field, or `None` when it can. A
+/// line break there would press Enter (submitting the form) instead of
+/// starting a line. When `typing`, newlines at the end are allowed: typing
+/// one is how type_text presses Enter.
+pub(crate) fn line_break_refusal(
+    node: &AccessibilityNode,
+    label: &str,
+    text: &str,
+    typing: bool,
+) -> Option<String> {
+    let checked = if typing {
+        text.trim_end_matches(['\n', '\r'])
+    } else {
+        text
+    };
+    if !checked.contains(['\n', '\r']) || !is_single_line(node) {
+        return None;
+    }
+    Some(if typing {
+        format!(
+            "{label} is a single-line field, so a line break inside the text would press Enter there; nothing was typed. Type one line (a newline at the end still presses Enter)."
+        )
+    } else {
+        format!(
+            "{label} is a single-line field and cannot hold a line break; nothing was entered. Pass one line, and press_key Enter if you mean to submit."
+        )
+    })
 }
 
 /// What a combo box currently shows: its text, else its value text, else
@@ -535,6 +696,119 @@ mod tests {
             Some("4111 1111 1111 1111"),
             "4111111111111111"
         ));
+    }
+
+    fn text_node(index: u32, parent: Option<u32>, role: &str, text: &str) -> AccessibilityNode {
+        let mut node = tree_node(index, parent, role, "", &[]);
+        node.text = Some(AccessibilityText {
+            character_count: text.chars().count() as i32,
+            caret_offset: None,
+            content: (!text.is_empty()).then(|| text.to_string()),
+            truncated: false,
+            selections: Vec::new(),
+        });
+        node
+    }
+
+    #[test]
+    fn multi_line_values_compare_line_by_line() {
+        let wanted = "Olá, Ana!\nSegue o relatório de outubro.";
+        // Chromium's no-break spaces, padding and blank lines at the ends.
+        assert_eq!(
+            compare_read_back(
+                Some("\n  Olá,\u{a0}Ana! \r\nSegue o relatório de\u{a0}outubro.\n\n"),
+                wanted
+            ),
+            ReadBack::Same
+        );
+        // Only the second line arrived.
+        assert_eq!(
+            compare_read_back(Some("Segue o relatório de outubro."), wanted),
+            ReadBack::Different
+        );
+        // Both lines on one line is not the requested text either.
+        assert_eq!(
+            compare_read_back(Some("Olá, Ana! Segue o relatório de outubro."), wanted),
+            ReadBack::Different
+        );
+        assert_eq!(compare_read_back(None, wanted), ReadBack::Different);
+        // A blank line in the middle counts.
+        assert_eq!(
+            compare_read_back(Some("a\nb"), "a\n\nb"),
+            ReadBack::Different
+        );
+        assert_eq!(compare_read_back(Some("a\n\nb"), "a\n\nb"), ReadBack::Same);
+        // One-line values still treat a no-break space as a space.
+        assert_eq!(
+            compare_read_back(Some("Olá,\u{a0}Ana!"), "Olá, Ana!"),
+            ReadBack::Same
+        );
+        assert_eq!(
+            shown_text(Some("Olá,\u{a0}Ana!\n Segue.\n")),
+            "Olá, Ana!\\nSegue."
+        );
+    }
+
+    #[test]
+    fn editor_text_expands_embedded_paragraphs_in_order() {
+        // <div contenteditable><div>Olá, Ana!</div><div>Segue …</div></div>
+        let editor = vec![
+            text_node(0, None, "entry", "\u{fffc}\u{fffc}"),
+            text_node(1, Some(0), "section", "Olá,\u{a0}Ana!"),
+            text_node(2, Some(0), "section", "Segue o relatório de outubro."),
+        ];
+        let text = expanded_text(&editor).unwrap();
+        assert_eq!(text, "Olá,\u{a0}Ana!\nSegue o relatório de outubro.\n");
+        assert!(values_match(
+            Some(&text),
+            "Olá, Ana!\nSegue o relatório de outubro."
+        ));
+
+        // Gmail: the first line is a bare text node, later lines are blocks
+        // holding a link and an empty line made of a lone <br>.
+        let gmail = vec![
+            text_node(0, None, "entry", "Oi\u{fffc}\u{fffc}\u{fffc}"),
+            text_node(1, Some(0), "section", "veja \u{fffc} hoje"),
+            text_node(2, Some(0), "section", "\n"),
+            text_node(3, Some(0), "paragraph", "Até"),
+            text_node(4, Some(1), "link", "o painel"),
+        ];
+        assert_eq!(
+            expanded_text(&gmail).unwrap(),
+            "Oi\nveja o painel hoje\n\nAté\n"
+        );
+
+        // A plain field's text needs no children; a container without its
+        // own text joins its blocks.
+        assert_eq!(
+            expanded_text(&[text_node(0, None, "entry", "abc")]).as_deref(),
+            Some("abc")
+        );
+        let bare = vec![
+            tree_node(0, None, "section", "", &[]),
+            text_node(1, Some(0), "paragraph", "um"),
+            text_node(2, Some(0), "paragraph", "dois"),
+        ];
+        assert_eq!(expanded_text(&bare).as_deref(), Some("um\ndois\n"));
+        assert_eq!(expanded_text(&[]), None);
+    }
+
+    #[test]
+    fn line_breaks_are_refused_only_in_single_line_fields() {
+        let input = node("entry", &["editable", "single-line"]);
+        let textarea = node("entry", &["editable", "multi-line"]);
+        let editor = node("section", &["editable"]);
+        let two_lines = "Olá\nAna";
+        let refusal = line_break_refusal(&input, "[3] entry \"Nome\"", two_lines, false).unwrap();
+        assert!(refusal.contains("single-line"), "{refusal}");
+        assert!(line_break_refusal(&textarea, "t", two_lines, false).is_none());
+        assert!(line_break_refusal(&editor, "e", two_lines, false).is_none());
+        assert!(line_break_refusal(&input, "i", "Olá Ana", false).is_none());
+        assert!(line_break_refusal(&node("password text", &[]), "p", "a\nb", false).is_some());
+        // Typing a newline at the end presses Enter; one inside does not fit.
+        assert!(line_break_refusal(&input, "i", "busca\n", true).is_none());
+        assert!(line_break_refusal(&input, "i", "busca\n", false).is_some());
+        assert!(line_break_refusal(&input, "i", "a\nb\n", true).is_some());
     }
 
     #[test]
