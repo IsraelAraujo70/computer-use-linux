@@ -1,0 +1,52 @@
+{
+ "run_id": "baseline-iframe-billing-r1",
+ "variant": "baseline",
+ "task": "iframe-billing",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.92,
+ "agent_tool_calls": 14,
+ "agent_tool_errors": 0,
+ "mcp_calls": 14,
+ "mcp_ms_total": 3571.8,
+ "mcp_bytes_total": 566351,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 178925,
+  "cached": 140288,
+  "output": 456
+ },
+ "final": "Preenchi e confirmei o endereço de cobrança.",
+ "state": {
+  "billing": {
+   "cep": "30130-010",
+   "street": "Avenida Afonso Pena",
+   "number": "1500",
+   "city": "Belo Horizonte",
+   "uf": "MG"
+  }
+ }
+}

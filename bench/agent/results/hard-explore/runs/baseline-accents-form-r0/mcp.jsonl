@@ -1,0 +1,2 @@
+{"t": 1793309656.9245374, "method": "initialize", "tool": null, "args": null, "ms": 26.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793309656.931917, "method": "tools/list", "tool": null, "args": null, "ms": 6.6, "bytes": 70991, "images": 0, "is_error": false}

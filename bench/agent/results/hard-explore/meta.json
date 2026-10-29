@@ -1,0 +1,26 @@
+{
+ "variants": {
+  "baseline": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux"
+ },
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "suite": "hard",
+ "chrome_mode": "bots",
+ "tasks": [
+  "accents-form",
+  "rich-compose",
+  "flaky-field",
+  "virtual-list",
+  "modal-focus",
+  "slow-page",
+  "drag-drop",
+  "file-upload",
+  "multi-tab",
+  "xorigin-iframe",
+  "recover-error",
+  "async-autocomplete"
+ ],
+ "reps": 1,
+ "timeout": 300
+}
