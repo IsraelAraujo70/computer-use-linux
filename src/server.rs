@@ -2172,6 +2172,13 @@ impl ComputerUseLinux {
             None => focused_window().await.ok().flatten(),
         };
         let paste_chord = paste_chord_for(window.as_ref());
+        // The target's text before typing, to tell whether the text arrived.
+        let before = match target.as_ref() {
+            Some(node) => read_field(&node.object_ref)
+                .await
+                .and_then(|(_, text)| text),
+            None => None,
+        };
         let text = params.text.clone();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
             enter_text(&text, paste_chord).await.map(|()| Vec::new())
@@ -2183,32 +2190,56 @@ impl ComputerUseLinux {
             return Json(output);
         }
         output.message = if crate::fields::typeable_ascii(&params.text) {
-            "Typed through xdotool (X11 XTEST).".to_string()
+            "Sent through xdotool (X11 XTEST).".to_string()
         } else {
-            format!("Pasted through the X11 clipboard ({paste_chord}).")
+            format!("Paste sent through the X11 clipboard ({paste_chord}).")
         };
         if let Some(node) = target {
+            let label = crate::outline::element_label(&node);
             sleep(Duration::from_millis(100)).await;
             let read_back = read_field(&node.object_ref)
                 .await
                 .and_then(|(_, text)| text);
             let shown = crate::fields::shown_text(read_back.as_deref());
-            output.message.push_str(&format!(
-                " {} now holds \"{}\".",
-                crate::outline::element_label(&node),
-                crate::outline::truncate(&shown, 200)
-            ));
-            if crate::fields::compare_read_back(read_back.as_deref(), &params.text)
-                == crate::fields::ReadBack::Formatted
-            {
-                output.message.push_str(&format!(
-                    " That matches the typed text (the field formatted it as \"{}\").",
-                    crate::outline::truncate(&shown, 200)
-                ));
+            let holds = crate::outline::truncate(&shown, 200);
+            match typed_delivery(before.as_deref(), read_back.as_deref(), &params.text) {
+                Delivery::Arrived => {
+                    output
+                        .message
+                        .push_str(&format!(" {label} now holds \"{holds}\"."));
+                    if crate::fields::compare_read_back(read_back.as_deref(), &params.text)
+                        == crate::fields::ReadBack::Formatted
+                    {
+                        output.message.push_str(&format!(
+                            " That matches the typed text (the field formatted it as \"{holds}\")."
+                        ));
+                    }
+                }
+                Delivery::Unchanged => {
+                    output.ok = false;
+                    output.message = format!(
+                        "The text did not arrive: {label} still holds \"{holds}\" after the input was sent. Check what has focus (a dialog?) and retry, or use set_value."
+                    );
+                }
+                Delivery::Unverified if read_back.is_none() => {
+                    output.message.push_str(&format!(
+                        " Dispatched; delivery not verified: {label} exposes no text to read back."
+                    ));
+                }
+                Delivery::Unverified => {
+                    output.message.push_str(&format!(
+                        " Dispatched; delivery not verified: Enter may have submitted {label}, which now holds \"{holds}\"."
+                    ));
+                }
             }
-        } else if focus.is_some() {
-            let notes = self.input_landing_notes(focus.as_ref(), true).await;
-            output = with_notes(output, notes);
+        } else {
+            output
+                .message
+                .push_str(" Dispatched; delivery not verified (no element was targeted).");
+            if focus.is_some() {
+                let notes = self.input_landing_notes(focus.as_ref(), true).await;
+                output = with_notes(output, notes);
+            }
         }
         Json(output)
     }
@@ -4750,7 +4781,11 @@ impl ComputerUseLinux {
             }
         })
         .await;
-        let (matched, read_back) = fresh.unwrap_or((false, None));
+        let Some((matched, read_back)) = fresh else {
+            return FieldOutcome::failed(format!(
+                "the value was sent to {label}, but its text cannot be read back, so delivery is not verified; check it with get_app_state"
+            ));
+        };
         if password {
             let count = read_back.map_or(0, |text| text.chars().count());
             return FieldOutcome {
@@ -5830,7 +5865,10 @@ const PASTE_SECOND_READ_WAIT: Duration = Duration::from_millis(250);
 /// Chromium reads a new clipboard owner once on its own and again when the
 /// paste lands, so with `more` text to follow (whose new owner would answer
 /// a late read) it waits up to `PASTE_SECOND_READ_WAIT` for that second
-/// read; apps that read once just cost the wait.
+/// read; apps that read once just cost the wait. No read at all means the
+/// paste did not land; a read does not mean it did (Chromium and clipboard
+/// managers read new owners on their own), so callers judge delivery by
+/// reading the field back.
 async fn paste_text(text: &str, paste_chord: &str, more: bool) -> Result<(), String> {
     let owned = text.to_string();
     let guard = tokio::task::spawn_blocking(move || {
@@ -6763,6 +6801,35 @@ fn window_in_the_way(
         None => Some(format!(
             "{under} is at {x},{y} and does not name its process, so it cannot be confirmed to be the window of {label} (pid {owner_pid})"
         )),
+    }
+}
+
+/// What type_text's read-back of its target element says about delivery.
+#[derive(Debug, PartialEq, Eq)]
+enum Delivery {
+    /// The element's text changed.
+    Arrived,
+    /// The element's text is what it was before, though characters were
+    /// sent: they went somewhere else.
+    Unchanged,
+    /// The read-back cannot tell: the element has no text, or only Enter
+    /// was sent, or a trailing Enter may have submitted and cleared it.
+    Unverified,
+}
+
+fn typed_delivery(before: Option<&str>, after: Option<&str>, text: &str) -> Delivery {
+    let Some(after) = after else {
+        return Delivery::Unverified;
+    };
+    let characters = text.trim_end_matches(['\n', '\r']);
+    if characters.is_empty() {
+        return Delivery::Unverified;
+    }
+    let unchanged = crate::fields::shown_text(before) == crate::fields::shown_text(Some(after));
+    match (unchanged, characters.len() < text.len()) {
+        (false, _) => Delivery::Arrived,
+        (true, true) => Delivery::Unverified,
+        (true, false) => Delivery::Unchanged,
     }
 }
 
@@ -10238,6 +10305,30 @@ mod node_target_scope_tests {
                 && result.message.contains("not the target pid 222"),
             "{}",
             result.message
+        );
+    }
+
+    #[test]
+    fn typed_text_counts_as_delivered_only_when_the_field_changed() {
+        assert_eq!(
+            typed_delivery(Some(""), Some("oi"), "oi"),
+            Delivery::Arrived
+        );
+        assert_eq!(typed_delivery(None, Some("oi"), "oi"), Delivery::Arrived);
+        // A clipboard read alone is no proof: the field did not change.
+        assert_eq!(
+            typed_delivery(Some("draft"), Some("draft"), "ção"),
+            Delivery::Unchanged
+        );
+        assert_eq!(typed_delivery(Some(""), None, "oi"), Delivery::Unverified);
+        // Enter may submit and clear the field.
+        assert_eq!(
+            typed_delivery(Some(""), Some(""), "oi\n"),
+            Delivery::Unverified
+        );
+        assert_eq!(
+            typed_delivery(Some("x"), Some("x"), "\n"),
+            Delivery::Unverified
         );
     }
 
