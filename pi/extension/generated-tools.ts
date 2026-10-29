@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "3c0fcc230bc1ebf0283c676f4d1efcfa5a1f3227766275d9221326b66b383ff0";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "2020e362d901ca874a3381ab609229753199e67ec57e5aa6ebefc56e78c8673b";
+export const GENERATED_TOOL_CATALOG_HASH = "661e903f26db7e47627be49291005c24d9731c183d23fb05f4d78abf1993ac0b";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "ef8711a88e42c1d23de0fa3a71f6f92526b3950068301e69e4db73d7cd7797db";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -238,17 +238,34 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Drag with the left button from start_x,start_y to end_x,end_y (screen coordinates). Reports what changed.",
+    "description": "Drag with the left button from an element (from_element_index) or start_x,start_y to an element (to_element_index) or end_x,end_y, in small steps so HTML5 drag and drop starts. Reports what changed.",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "end_x": {
+          "default": null,
           "format": "int32",
-          "type": "integer"
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "end_y": {
+          "default": null,
           "format": "int32",
-          "type": "integer"
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "from_element_index": {
+          "default": null,
+          "description": "Element id `[n]` to drag from (its centre), instead of start_x/start_y.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "observe": {
           "default": null,
@@ -259,20 +276,31 @@ export const GENERATED_MCP_TOOLS =
           ]
         },
         "start_x": {
+          "default": null,
           "format": "int32",
-          "type": "integer"
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "start_y": {
+          "default": null,
           "format": "int32",
-          "type": "integer"
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "to_element_index": {
+          "default": null,
+          "description": "Element id `[n]` to drop on (its centre), instead of end_x/end_y.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
-      "required": [
-        "start_x",
-        "start_y",
-        "end_x",
-        "end_y"
-      ],
       "type": "object"
     },
     "name": "drag"
@@ -284,7 +312,87 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Set several fields in order with set_value semantics; each field is {element_index or role/name, value}. Returns each field's value read back and one change report.",
+    "description": "Upload files: drop them (absolute paths) onto the page's file input or drop zone, given by element_index, role/name/text or x,y; there is no file dialog on this display. Reports what changed.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "element_index": {
+          "default": null,
+          "description": "Element id `[n]` of the file input or drop zone.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observe": {
+          "default": null,
+          "description": "false skips the report of what changed (default true).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "paths": {
+          "description": "Absolute paths of the files to drop.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "role": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "text": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "x": {
+          "default": null,
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "y": {
+          "default": null,
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "type": "object"
+    },
+    "name": "drop_files"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "Set several fields in one call, in order, like set_value: text, \"true\"/\"false\" for checkboxes, radios and switches, option text for selects and comboboxes, so several clicks become one call. Each field is {element_index or role/name, value}. Returns each value read back and one change report.",
     "inputSchema": {
       "$defs": {
         "FormField": {
@@ -949,11 +1057,56 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": false
     },
-    "description": "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. Reports what changed.",
+    "description": "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is visible and returns its line. Reports what changed.",
     "inputSchema": {
+      "$defs": {
+        "ElementQuery": {
+          "description": "Filter for `find_elements` and `wait_for`. Every given field must match;\nstring fields are case-insensitive substrings.",
+          "properties": {
+            "name": {
+              "default": null,
+              "description": "Name substring.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "role": {
+              "default": null,
+              "description": "Role substring, e.g. button, entry, link, check box.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "states": {
+              "default": null,
+              "description": "Required states, e.g. [\"checked\"].",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "text": {
+              "default": null,
+              "description": "Substring of the name, description, text or value.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "type": "object"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
         "direction": {
+          "default": "down",
+          "description": "up, down, left or right (default down).",
           "type": "string"
         },
         "element_index": {
@@ -999,6 +1152,18 @@ export const GENERATED_MCP_TOOLS =
             "null"
           ]
         },
+        "until": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ElementQuery"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Keep scrolling a page at a time until an element matching this is\non the visible page (or the end, or 80 scrolls); returns its line."
+        },
         "window_id": {
           "default": null,
           "minimum": 0,
@@ -1024,9 +1189,6 @@ export const GENERATED_MCP_TOOLS =
           ]
         }
       },
-      "required": [
-        "direction"
-      ],
       "type": "object"
     },
     "name": "scroll"

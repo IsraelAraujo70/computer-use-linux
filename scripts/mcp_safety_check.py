@@ -29,6 +29,7 @@ EXPECTED_TOOLS = {
     "activate_window",
     "click",
     "drag",
+    "drop_files",
     "scroll",
     "press_key",
     "type_text",
@@ -101,6 +102,7 @@ READ_ONLY_TOOLS = {
 DESTRUCTIVE_MUTATING_TOOLS = {
     "click",
     "drag",
+    "drop_files",
     "press_key",
     "type_text",
     "perform_action",

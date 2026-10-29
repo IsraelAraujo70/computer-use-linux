@@ -29,7 +29,7 @@ use std::{
     env,
     ffi::OsString,
     future::Future,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::{Arc, Mutex},
     time::Duration,
@@ -66,10 +66,15 @@ struct Rescan {
     scope: SnapshotScope,
 }
 
+// Settle timing after an action. The tree counts as settled once two
+// consecutive reads agree, so an action that changes nothing returns after
+// SETTLE_FIRST_WAIT + SETTLE_POLL plus two tree reads (was 120 + 150 ms,
+// most of a 0.45-0.65 s click). Each read takes tens of milliseconds
+// itself, so shorter gaps mostly add reads, not speed.
 /// Wait after an action before the first read, so the app has handled it.
-const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(120);
+const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(60);
 /// Gap between reads while waiting for the tree to stop changing.
-const SETTLE_POLL: Duration = Duration::from_millis(150);
+const SETTLE_POLL: Duration = Duration::from_millis(90);
 /// Longest wait for the tree to settle after an action.
 const SETTLE_LIMIT: Duration = Duration::from_secs(2);
 
@@ -1467,6 +1472,15 @@ impl ComputerUseLinux {
                     // Wheel input at an off-page point scrolls nothing; ask
                     // the toolkit to bring the element into view instead.
                     let label = crate::outline::element_label(&node);
+                    if params.until.is_some() {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "scroll".to_string(),
+                            message: format!("{label} is outside the visible window; scroll(element_index={}) first, then scroll inside it with until", node.index),
+                            received,
+                        });
+                    }
                     return Json(match crate::atspi_tree::scroll_into_view(&node.object_ref).await {
                         Ok(_) => ActionOutput {
                             ok: true,
@@ -1500,6 +1514,44 @@ impl ComputerUseLinux {
         // XTEST wheel buttons have no XI2 valuators, so GTK 3 takes its button
         // path instead of re-baselining smooth-scroll valuators (#184).
         let repeat = u32::try_from(units.max(1)).unwrap_or(1);
+        if let Some(query) = params.until.clone() {
+            if query.is_empty() {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message: "until needs at least one of role, name, text, or states.".to_string(),
+                    received,
+                });
+            }
+            let backend = self.clone();
+            let hint = self
+                .cached_node_for(
+                    params.element_index,
+                    &ElementSelector::default(),
+                    ElementResolvePurpose::Click,
+                )
+                .map(|node| node.object_ref);
+            let wheel = xdotool_pointer_scroll_args(target_point, repeat, direction);
+            let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
+                backend
+                    .scroll_until(&query, &wheel, repeat, hint.as_deref())
+                    .await
+            })
+            .await;
+            let _input_guard = input_guard;
+            let (ok, message) = match result {
+                Ok(message) => (true, message),
+                Err(message) => (false, message),
+            };
+            return Json(ActionOutput {
+                ok,
+                implemented: true,
+                action: "scroll".to_string(),
+                message,
+                received,
+            });
+        }
         let xdotool_args = xdotool_pointer_scroll_args(target_point, repeat, direction);
         let command_timeout = xdotool_scroll_timeout(repeat, XDOTOOL_SCROLL_CLICK_DELAY_MS);
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
@@ -1527,20 +1579,172 @@ impl ComputerUseLinux {
 
     async fn drag(&self, Parameters(params): Parameters<DragParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params));
+        let failed = |message: String| {
+            Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "drag".to_string(),
+                message,
+                received: received.clone(),
+            })
+        };
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let start = match self
+            .drag_end(
+                params.from_element_index,
+                params.start_x,
+                params.start_y,
+                "start",
+            )
+            .await
+        {
+            Ok(end) => end,
+            Err(message) => return failed(message),
+        };
+        let end = match self
+            .drag_end(params.to_element_index, params.end_x, params.end_y, "end")
+            .await
+        {
+            Ok(end) => end,
+            Err(message) => return failed(message),
+        };
+        for (x, y) in [start.1, end.1] {
+            if let Some(note) = self.off_screen_note_for_point(x, y).await {
+                return failed(format!("{note} Nothing was dragged."));
+            }
+        }
+        let (from, to) = (start.1, end.1);
+        let (input_guard, result) =
+            run_cancellation_safe_input(
+                input_guard,
+                async move { run_xdotool_drag(from, to).await },
+            )
+            .await;
+        let _input_guard = input_guard;
+        let mut output = action_result("drag", result, received.clone());
+        if output.ok {
+            output.message = format!("dragged {} to {} (xdotool, stepped)", start.0, end.0);
+        }
+        Json(output)
+    }
+
+    /// One end of a drag: an element's centre (it must be on the visible
+    /// page) or a screen point, with how the result names it.
+    async fn drag_end(
+        &self,
+        element_index: Option<u32>,
+        x: Option<i32>,
+        y: Option<i32>,
+        which: &str,
+    ) -> std::result::Result<(String, (i32, i32)), String> {
+        match (element_index, x.zip(y)) {
+            (Some(id), _) => self
+                .visible_element_center(Some(id), &ElementSelector::default())
+                .await
+                .map(|(label, point)| (format!("{label} @{},{}", point.0, point.1), point)),
+            (None, Some(point)) => Ok((format!("{},{}", point.0, point.1), point)),
+            (None, None) => Err(format!(
+                "Pass the drag {which} as {}_element_index or as {which}_x and {which}_y.",
+                if which == "start" { "from" } else { "to" }
+            )),
+        }
+    }
+
+    /// The centre of the element an action names, by id or selector. An
+    /// element whose centre is not on the visible page is refused with the
+    /// call that brings it into view, since input there would land elsewhere.
+    async fn visible_element_center(
+        &self,
+        element_index: Option<u32>,
+        selector: &ElementSelector<'_>,
+    ) -> std::result::Result<(String, (i32, i32)), String> {
+        self.ensure_resolvable(element_index, selector, ElementResolvePurpose::Click)
+            .await?;
+        let node =
+            self.resolve_cached_node(element_index, selector, ElementResolvePurpose::Click)?;
+        let label = crate::outline::element_label(&node);
+        if let Some(center) = node.bounds.as_ref().and_then(bounds_center) {
+            if self.point_visible_for(&node, center).await {
+                return Ok((label, center));
+            }
+        }
+        Err(format!(
+            "{label} is outside the visible window; scroll it into view with scroll(element_index={}) and retry",
+            node.index
+        ))
+    }
+
+    async fn drop_files(
+        &self,
+        Parameters(params): Parameters<DropFilesParams>,
+    ) -> Json<ActionOutput> {
+        let received = Some(serde_json::json!(params.clone()));
+        let failed = |message: String| {
+            Json(ActionOutput {
+                ok: false,
+                implemented: true,
+                action: "drop_files".to_string(),
+                message,
+                received: received.clone(),
+            })
+        };
+        let paths = match validate_drop_paths(&params.paths) {
+            Ok(paths) => paths,
+            Err(message) => return failed(message),
+        };
+        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let selector = params.selector();
+        let (label, point) = match params.x.zip(params.y) {
+            Some(point) => (format!("{},{}", point.0, point.1), point),
+            None if params.element_index.is_some() || !selector.is_empty() => {
+                match self
+                    .visible_element_center(params.element_index, &selector)
+                    .await
+                {
+                    Ok(target) => target,
+                    Err(message) => return failed(message),
+                }
+            }
+            None => {
+                return failed(
+                    "Pass element_index, role/name/text, or x and y: where to drop the files."
+                        .to_string(),
+                )
+            }
+        };
+        if let Some(note) = self.off_screen_note_for_point(point.0, point.1).await {
+            return failed(format!("{note} Nothing was dropped."));
+        }
+        let count = paths.len();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
-            run_xdotool_drag(params.start_x, params.start_y, params.end_x, params.end_y).await
+            tokio::task::spawn_blocking(move || {
+                crate::x11_dnd::drop_files(&paths, point, DROP_FINISH_TIMEOUT)
+            })
+            .await
+            .map_err(|error| format!("drop task failed: {error}"))?
+            .map_err(|error| format!("{error:#}"))
         })
         .await;
         let _input_guard = input_guard;
-        let mut output = action_result("drag", result, received);
-        if output.ok {
-            output.message = format!(
-                "dragged {},{} to {},{} (xdotool)",
-                params.start_x, params.start_y, params.end_x, params.end_y
-            );
+        let outcome = match result {
+            Ok(outcome) => outcome,
+            Err(message) => return failed(format!("Nothing was dropped: {message}")),
+        };
+        let steps = outcome.log.join("; ");
+        eprintln!("drop_files at {},{}: {steps}", point.0, point.1);
+        if outcome.succeeded() {
+            Json(ActionOutput {
+                ok: true,
+                implemented: true,
+                action: "drop_files".to_string(),
+                message: format!("dropped {count} file(s) onto {label} (XDND: {steps})"),
+                received,
+            })
+        } else {
+            failed(format!(
+                "the drop onto {label} was not taken (XDND: {steps}); drop onto the file input or drop zone itself"
+            ))
         }
-        Json(output)
     }
 
     async fn press_key(
@@ -1643,7 +1847,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "fill_form",
-        description = "Set several fields in order with set_value semantics; each field is {element_index or role/name, value}. Returns each field's value read back and one change report.",
+        description = "Set several fields in one call, in order, like set_value: text, \"true\"/\"false\" for checkboxes, radios and switches, option text for selects and comboboxes, so several clicks become one call. Each field is {element_index or role/name, value}. Returns each value read back and one change report.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1662,7 +1866,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "scroll",
-        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. Reports what changed.",
+        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is visible and returns its line. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -1678,7 +1882,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "drag",
-        description = "Drag with the left button from start_x,start_y to end_x,end_y (screen coordinates). Reports what changed.",
+        description = "Drag with the left button from an element (from_element_index) or start_x,start_y to an element (to_element_index) or end_x,end_y, in small steps so HTML5 drag and drop starts. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1689,6 +1893,25 @@ impl ComputerUseLinux {
     async fn drag_tool(&self, Parameters(params): Parameters<DragParams>) -> CallToolResult {
         let observe = params.observe != Some(false);
         let Json(output) = self.drag(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "drop_files",
+        description = "Upload files: drop them (absolute paths) onto the page's file input or drop zone, given by element_index, role/name/text or x,y; there is no file dialog on this display. Reports what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn drop_files_tool(
+        &self,
+        Parameters(params): Parameters<DropFilesParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.drop_files(Parameters(params)).await;
         self.finish_action(output, observe).await
     }
 
@@ -2947,10 +3170,16 @@ struct ScrollParams {
     x: Option<i32>,
     #[serde(default)]
     y: Option<i32>,
+    /// up, down, left or right (default down).
+    #[serde(default = "default_scroll_direction")]
     direction: String,
     #[serde(default)]
     #[schemars(range(min = -100, max = 100))]
     pages: Option<f64>,
+    /// Keep scrolling a page at a time until an element matching this is
+    /// on the visible page (or the end, or 80 scrolls); returns its line.
+    #[serde(default)]
+    until: Option<ElementQuery>,
     // Optional window target (parity with click): the window is raised/focused
     // before scrolling so the wheel events land on the intended app.
     #[serde(default)]
@@ -2969,6 +3198,10 @@ struct ScrollParams {
     /// x/y are relative to the targeted window's screenshot.
     #[serde(default)]
     relative: Option<bool>,
+}
+
+fn default_scroll_direction() -> String {
+    "down".to_string()
 }
 
 fn scroll_units(pages: Option<f64>) -> std::result::Result<i32, String> {
@@ -3006,15 +3239,83 @@ impl ScrollParams {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct DragParams {
     /// false skips the report of what changed (default true).
     #[serde(default)]
     observe: Option<bool>,
-    start_x: i32,
-    start_y: i32,
-    end_x: i32,
-    end_y: i32,
+    /// Element id `[n]` to drag from (its centre), instead of start_x/start_y.
+    #[serde(default)]
+    from_element_index: Option<u32>,
+    /// Element id `[n]` to drop on (its centre), instead of end_x/end_y.
+    #[serde(default)]
+    to_element_index: Option<u32>,
+    #[serde(default)]
+    start_x: Option<i32>,
+    #[serde(default)]
+    start_y: Option<i32>,
+    #[serde(default)]
+    end_x: Option<i32>,
+    #[serde(default)]
+    end_y: Option<i32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct DropFilesParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
+    /// Absolute paths of the files to drop.
+    paths: Vec<String>,
+    /// Element id `[n]` of the file input or drop zone.
+    #[serde(default)]
+    element_index: Option<u32>,
+    #[serde(default)]
+    role: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    text: Option<String>,
+    #[serde(default)]
+    x: Option<i32>,
+    #[serde(default)]
+    y: Option<i32>,
+}
+
+impl DropFilesParams {
+    fn selector(&self) -> ElementSelector<'_> {
+        ElementSelector {
+            role: self.role.as_deref(),
+            name: self.name.as_deref(),
+            text: self.text.as_deref(),
+            states: &[],
+        }
+    }
+}
+
+/// How long the drop target gets to read the files and finish the drop.
+const DROP_FINISH_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// The paths `drop_files` was given, each an absolute path of an existing
+/// regular file; the first that is not is the error.
+fn validate_drop_paths(paths: &[String]) -> std::result::Result<Vec<PathBuf>, String> {
+    if paths.is_empty() {
+        return Err("Pass at least one absolute file path in paths.".to_string());
+    }
+    paths
+        .iter()
+        .map(|raw| {
+            let path = Path::new(raw);
+            if !path.is_absolute() {
+                return Err(format!("{raw:?} is not an absolute path"));
+            }
+            match std::fs::metadata(path) {
+                Ok(metadata) if metadata.is_file() => Ok(path.to_path_buf()),
+                Ok(_) => Err(format!("{raw:?} is not a regular file")),
+                Err(error) => Err(format!("{raw:?}: {error}")),
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -4475,6 +4776,73 @@ impl ComputerUseLinux {
         }
     }
 
+    /// Runs the wheel command `wheel` step by step, reading the tree after
+    /// each, until an element matching `query` is on the visible page:
+    /// returns its lines and the scroll count. Ends with an error when the
+    /// tree stops changing (the end of the list) or after
+    /// `SCROLL_UNTIL_MAX_STEPS`; the last read then becomes the cached
+    /// snapshot, since the page has moved. Steps report no changes.
+    async fn scroll_until(
+        &self,
+        query: &ElementQuery,
+        wheel: &[String],
+        repeat: u32,
+        hint_ref: Option<&str>,
+    ) -> std::result::Result<String, String> {
+        let found_message = |scrolls: u32, found: &[&AccessibilityNode]| {
+            let lines = found
+                .iter()
+                .take(5)
+                .map(|node| crate::outline::render_line(node))
+                .collect::<Vec<_>>()
+                .join("\n");
+            match scrolls {
+                0 => format!("already on the visible page:\n{lines}"),
+                n => format!("found after {n} scroll(s):\n{lines}"),
+            }
+        };
+        let mut last = self.rescan(hint_ref).await?;
+        let found = visible_matches(&last.nodes, query);
+        if !found.is_empty() {
+            return Ok(found_message(0, &found));
+        }
+        let command_timeout = xdotool_scroll_timeout(repeat, XDOTOOL_SCROLL_CLICK_DELAY_MS);
+        let mut previous = crate::outline::element_contents(&last.nodes);
+        let mut unchanged = 0;
+        let mut scrolls = 0;
+        let outcome = loop {
+            if scrolls >= SCROLL_UNTIL_MAX_STEPS {
+                break format!(
+                    "no element matched until within {scrolls} scrolls; the list goes on"
+                );
+            }
+            run_xdotool(wheel, command_timeout).await?;
+            scrolls += 1;
+            sleep(SCROLL_UNTIL_STEP_WAIT).await;
+            last = self.rescan(hint_ref).await?;
+            let found = visible_matches(&last.nodes, query);
+            if !found.is_empty() {
+                return Ok(found_message(scrolls, &found));
+            }
+            let contents = crate::outline::element_contents(&last.nodes);
+            if contents == previous {
+                unchanged += 1;
+                if unchanged >= 2 {
+                    break format!(
+                        "reached the end after {scrolls} scroll(s) without an element matching until"
+                    );
+                }
+                // A list that loads more rows may still be fetching them.
+                sleep(SCROLL_UNTIL_END_WAIT).await;
+            } else {
+                unchanged = 0;
+            }
+            previous = contents;
+        };
+        self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
+        Err(outcome)
+    }
+
     /// Whether a point inside an element's bounds is on the visible page:
     /// inside its web document's viewport (else its window frame) and on the
     /// desktop.
@@ -4583,6 +4951,34 @@ impl ComputerUseLinux {
             sleep(Duration::from_millis(120)).await;
         }
     }
+}
+
+/// Most page scrolls one `scroll(until=…)` call makes.
+const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
+/// Wait after each scroll before reading the tree, so new rows exist.
+const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(150);
+/// Extra wait after a scroll that changed nothing, before trying once more:
+/// an infinite list may still be loading its next rows.
+const SCROLL_UNTIL_END_WAIT: Duration = Duration::from_millis(500);
+
+/// Elements matching `query` whose centre lies where they can be seen: in
+/// their document's viewport, else their window frame.
+fn visible_matches<'a>(
+    nodes: &'a [AccessibilityNode],
+    query: &ElementQuery,
+) -> Vec<&'a AccessibilityNode> {
+    nodes
+        .iter()
+        .filter(|node| query.matches(node))
+        .filter(|node| {
+            let Some((x, y)) = node.bounds.as_ref().and_then(bounds_center) else {
+                return false;
+            };
+            crate::page_view::visible_area(nodes, node.index).is_none_or(|area| {
+                x >= area.x && y >= area.y && x < area.x + area.width && y < area.y + area.height
+            })
+        })
+        .collect()
 }
 
 /// Actions that flip a check box, radio button or switch.
@@ -4792,6 +5188,12 @@ impl ElementSelector<'_> {
     }
 }
 
+/// Picks the one cached node a role/name/text selector means. The matches
+/// are narrowed in turn to nodes fit for the purpose, (for fields) nodes
+/// that are not plain text, actionable nodes (a specific action, editable,
+/// or a value), exact name matches, and showing nodes. The first narrowing
+/// that leaves exactly one node picks it; one that leaves none is skipped.
+/// Several left at the end is an error listing them as `[id] role "name"`.
 fn resolve_semantic_node(
     nodes: &[AccessibilityNode],
     selector: &ElementSelector<'_>,
@@ -4809,43 +5211,35 @@ fn resolve_semantic_node(
         ));
     }
 
-    if let Some(node) =
-        unique_preferred_node(&matches, |node| node_matches_resolve_purpose(node, purpose))
-    {
-        return Ok(node.clone());
-    }
-
-    let useful_matches = matches
-        .iter()
-        .copied()
-        .filter(|node| node_matches_resolve_purpose(node, purpose))
-        .collect::<Vec<_>>();
-    if !useful_matches.is_empty() {
-        matches = useful_matches;
-    } else if matches!(purpose, ElementResolvePurpose::SetValue) {
+    let wanted_name = selector
+        .name
+        .or(selector.text)
+        .map(str::trim)
+        .filter(|name| !name.is_empty());
+    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 5] = [
+        &|node| node_matches_resolve_purpose(node, purpose),
         // A radio group's legend repeats its name as plain text; the group
         // is the field.
-        let containers = matches
+        &|node| {
+            !matches!(purpose, ElementResolvePurpose::SetValue)
+                || !TEXT_ONLY_ROLES.contains(&node.role.as_str())
+        },
+        &node_is_actionable,
+        &|node| wanted_name.is_some_and(|name| node_has_exact_name(node, name)),
+        &node_is_showing,
+    ];
+    for keep in narrowings {
+        if matches.len() == 1 {
+            break;
+        }
+        let kept = matches
             .iter()
             .copied()
-            .filter(|node| !TEXT_ONLY_ROLES.contains(&node.role.as_str()))
+            .filter(|node| keep(node))
             .collect::<Vec<_>>();
-        if !containers.is_empty() {
-            matches = containers;
+        if !kept.is_empty() {
+            matches = kept;
         }
-    }
-
-    if let Some(node) = unique_preferred_node(&matches, node_is_showing) {
-        return Ok(node.clone());
-    }
-
-    let visible_matches = matches
-        .iter()
-        .copied()
-        .filter(|node| node_is_showing(node))
-        .collect::<Vec<_>>();
-    if !visible_matches.is_empty() {
-        matches = visible_matches;
     }
 
     if matches.len() == 1 {
@@ -4853,23 +5247,30 @@ fn resolve_semantic_node(
     }
 
     Err(format!(
-        "Semantic selector {} matched multiple cached nodes: {}. Pass element_index or add more selector fields.",
+        "Semantic selector {} matched {} elements; pass element_index of the one you mean:\n{}",
         describe_selector(selector),
+        matches.len(),
         describe_matching_nodes(&matches),
     ))
 }
 
+/// Whether the node does something beyond showing text: a specific action,
+/// an editable field (Chromium web fields carry only the state), or a value.
+fn node_is_actionable(node: &AccessibilityNode) -> bool {
+    is_actionable_accessibility_node(node) || node.states.iter().any(|state| state == "editable")
+}
+
+/// Whether the node's name, or its text when it has no name, is exactly
+/// `name` up to case and whitespace.
+fn node_has_exact_name(node: &AccessibilityNode, name: &str) -> bool {
+    node.name
+        .as_deref()
+        .or_else(|| node.text.as_ref().and_then(|text| text.content.as_deref()))
+        .is_some_and(|actual| normalized_equals(actual, name))
+}
+
 /// Roles that only carry text, never a value to set.
 const TEXT_ONLY_ROLES: [&str; 6] = ["static", "label", "heading", "paragraph", "caption", "text"];
-
-fn unique_preferred_node<'a>(
-    nodes: &[&'a AccessibilityNode],
-    predicate: impl Fn(&AccessibilityNode) -> bool,
-) -> Option<&'a AccessibilityNode> {
-    let mut matches = nodes.iter().copied().filter(|node| predicate(node));
-    let first = matches.next()?;
-    matches.next().is_none().then_some(first)
-}
 
 fn node_matches_selector(node: &AccessibilityNode, selector: &ElementSelector<'_>) -> bool {
     selector
@@ -4970,18 +5371,18 @@ fn describe_selector(selector: &ElementSelector<'_>) -> String {
     }
 }
 
+/// Up to five candidates as `[id] role "name"` lines, then how many more.
 fn describe_matching_nodes(nodes: &[&AccessibilityNode]) -> String {
-    nodes
+    const SHOWN: usize = 5;
+    let mut lines = nodes
         .iter()
-        .take(8)
-        .map(|node| {
-            format!(
-                "element_index {} role={:?} name={:?}",
-                node.index, node.role, node.name
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("; ")
+        .take(SHOWN)
+        .map(|node| crate::outline::element_label(node))
+        .collect::<Vec<_>>();
+    if nodes.len() > SHOWN {
+        lines.push(format!("(and {} more)", nodes.len() - SHOWN));
+    }
+    lines.join("\n")
 }
 
 fn is_plain_left_click(button: Option<&str>, click_count: Option<u32>) -> bool {
@@ -5784,12 +6185,10 @@ async fn run_xdotool_program(
 /// Press, move and release the left button. The release is retried alone
 /// when the chained command fails, so a failure never leaves it held.
 async fn run_xdotool_drag(
-    start_x: i32,
-    start_y: i32,
-    end_x: i32,
-    end_y: i32,
+    start: (i32, i32),
+    end: (i32, i32),
 ) -> std::result::Result<Vec<Output>, String> {
-    let args = xdotool_drag_args((start_x, start_y), (end_x, end_y));
+    let args = xdotool_drag_args(start, end);
     match run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await {
         Ok(output) => Ok(vec![output]),
         Err(error) => {
@@ -5808,29 +6207,45 @@ async fn run_xdotool_drag(
     }
 }
 
-/// Pauses between steps let toolkits see a press, a motion and a release.
+/// Moves on the way to the drop point, after the opening nudges.
+const DRAG_STEPS: i32 = 8;
+
+/// A drag the way a hand makes one, in one xdotool command (about 1.1 s).
+/// Chrome starts an HTML5 drag only after the pointer moves past a threshold
+/// while held and then keeps moving: a press, one jump and a release starts
+/// nothing (measured on Xvfb). So: press, two small nudges 0.1 s apart,
+/// `DRAG_STEPS` moves toward the target 0.05 s apart, then a pause on the
+/// target before the release so dragover handlers run.
 fn xdotool_drag_args(start: (i32, i32), end: (i32, i32)) -> Vec<String> {
-    [
-        "mousemove",
-        "--",
-        &start.0.to_string(),
-        &start.1.to_string(),
-        "mousedown",
-        "1",
-        "sleep",
-        "0.05",
-        "mousemove",
-        "--",
-        &end.0.to_string(),
-        &end.1.to_string(),
-        "sleep",
-        "0.05",
-        "mouseup",
-        "1",
-    ]
-    .into_iter()
-    .map(str::to_string)
-    .collect()
+    fn move_to(args: &mut Vec<String>, (x, y): (i32, i32)) {
+        args.extend(["mousemove", "--"].map(str::to_string));
+        args.extend([x.to_string(), y.to_string()]);
+    }
+    fn pause(args: &mut Vec<String>, seconds: &str) {
+        args.extend(["sleep", seconds].map(str::to_string));
+    }
+    let mut args = Vec::new();
+    move_to(&mut args, start);
+    args.extend(["mousedown", "1"].map(str::to_string));
+    pause(&mut args, "0.1");
+    let nudged = (start.0 + 30, start.1 + 15);
+    for point in [(start.0 + 10, start.1 + 5), nudged] {
+        move_to(&mut args, point);
+        pause(&mut args, "0.1");
+    }
+    for index in 1..=DRAG_STEPS {
+        let toward = |from: i32, to: i32| from + (to - from) * index / (DRAG_STEPS + 1);
+        move_to(
+            &mut args,
+            (toward(nudged.0, end.0), toward(nudged.1, end.1)),
+        );
+        pause(&mut args, "0.05");
+    }
+    pause(&mut args, "0.2");
+    move_to(&mut args, end);
+    pause(&mut args, "0.2");
+    args.extend(["mouseup", "1"].map(str::to_string));
+    args
 }
 
 /// Default per-character delay for `xdotool type`, in milliseconds (xdotool's
@@ -6109,10 +6524,13 @@ mod tests {
         let commands = std::fs::read_to_string(&log).unwrap_or_default();
         assert_eq!(
             commands,
-            "xdotool mousemove -- 5536 700 click --repeat 1 1\n\
-             xdotool mousemove -- 5536 700 click --delay 12 --repeat 5 5\n\
-             xdotool mousemove -- 100 100 mousedown 1 sleep 0.05 mousemove -- 200 200 sleep 0.05 mouseup 1\n\
-             xdotool click --delay 12 --repeat 5 5\n"
+            format!(
+                "xdotool mousemove -- 5536 700 click --repeat 1 1\n\
+                 xdotool mousemove -- 5536 700 click --delay 12 --repeat 5 5\n\
+                 xdotool {}\n\
+                 xdotool click --delay 12 --repeat 5 5\n",
+                xdotool_drag_args((100, 100), (200, 200)).join(" ")
+            )
         );
     }
 
@@ -6130,11 +6548,11 @@ mod tests {
             serde_json::from_value(serde_json::json!({"x":5536,"y":700,"direction":"down"}))
                 .unwrap();
         let drag = DragParams {
-            observe: None,
-            start_x: 100,
-            start_y: 100,
-            end_x: 200,
-            end_y: 200,
+            start_x: Some(100),
+            start_y: Some(100),
+            end_x: Some(200),
+            end_y: Some(200),
+            ..Default::default()
         };
         let results = [
             backend.click(Parameters(click)).await.0,
@@ -7245,6 +7663,188 @@ mod tests {
     }
 
     #[test]
+    fn drag_presses_nudges_steps_and_pauses_before_release() {
+        let args = xdotool_drag_args((100, 100), (400, 205)).join(" ");
+        assert_eq!(
+            args,
+            "mousemove -- 100 100 mousedown 1 sleep 0.1 \
+             mousemove -- 110 105 sleep 0.1 mousemove -- 130 115 sleep 0.1 \
+             mousemove -- 160 125 sleep 0.05 mousemove -- 190 135 sleep 0.05 \
+             mousemove -- 220 145 sleep 0.05 mousemove -- 250 155 sleep 0.05 \
+             mousemove -- 280 165 sleep 0.05 mousemove -- 310 175 sleep 0.05 \
+             mousemove -- 340 185 sleep 0.05 mousemove -- 370 195 sleep 0.05 \
+             sleep 0.2 mousemove -- 400 205 sleep 0.2 mouseup 1"
+        );
+    }
+
+    #[tokio::test]
+    async fn drag_needs_both_ends() {
+        let backend = ComputerUseLinux::default();
+        let result = backend
+            .drag(Parameters(DragParams {
+                start_x: Some(1),
+                start_y: Some(1),
+                ..Default::default()
+            }))
+            .await
+            .0;
+        assert!(!result.ok);
+        assert!(
+            result
+                .message
+                .contains("to_element_index or as end_x and end_y"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[tokio::test]
+    async fn drag_refuses_an_element_outside_the_visible_page() {
+        let backend = ComputerUseLinux::default();
+        let mut frame = node(
+            1,
+            Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            }),
+        );
+        frame.role = "frame".to_string();
+        let mut below = node(
+            2,
+            Some(Bounds {
+                x: 10,
+                y: 900,
+                width: 50,
+                height: 20,
+            }),
+        );
+        below.parent_index = Some(1);
+        backend.cache_nodes(&[frame, below]);
+        let result = backend
+            .drag(Parameters(DragParams {
+                from_element_index: Some(2),
+                end_x: Some(5),
+                end_y: Some(5),
+                ..Default::default()
+            }))
+            .await
+            .0;
+        assert!(!result.ok);
+        assert!(
+            result.message.contains("scroll(element_index=2)"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn scroll_until_counts_only_matches_inside_the_visible_page() {
+        let at = |index: u32, y: i32| {
+            let mut row = node(
+                index,
+                Some(Bounds {
+                    x: 10,
+                    y,
+                    width: 200,
+                    height: 20,
+                }),
+            );
+            row.role = "list item".to_string();
+            row.name = Some(format!("Row {index}"));
+            row.parent_index = Some(1);
+            row
+        };
+        let mut frame = node(
+            1,
+            Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            }),
+        );
+        frame.role = "frame".to_string();
+        let nodes = [frame, at(2, 100), at(3, 900), at(4, 590)];
+        let query = |name: &str| ElementQuery {
+            name: Some(name.to_string()),
+            ..Default::default()
+        };
+        let ids = |name: &str| {
+            visible_matches(&nodes, &query(name))
+                .iter()
+                .map(|node| node.index)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ids("Row 2"), [2]);
+        // Below the frame, and with its centre (y=600) just past the edge.
+        assert!(ids("Row 3").is_empty());
+        assert!(ids("Row 4").is_empty());
+        assert_eq!(ids("Row"), [2]);
+    }
+
+    #[test]
+    fn scroll_defaults_to_down_and_takes_an_until_query() {
+        let params: ScrollParams =
+            serde_json::from_value(serde_json::json!({"until": {"name": "Item 42"}})).unwrap();
+        assert_eq!(params.direction, "down");
+        assert_eq!(params.until.unwrap().name.as_deref(), Some("Item 42"));
+    }
+
+    #[tokio::test]
+    async fn scroll_until_needs_a_query() {
+        let backend = ComputerUseLinux::default();
+        let params: ScrollParams =
+            serde_json::from_value(serde_json::json!({"x": 5, "y": 5, "until": {}})).unwrap();
+        let result = backend.scroll(Parameters(params)).await.0;
+        assert!(!result.ok);
+        assert!(result.message.contains("until needs"), "{}", result.message);
+    }
+
+    #[test]
+    fn drop_paths_must_be_absolute_existing_files() {
+        let dir = std::env::temp_dir().join(format!("cul-drop-paths-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("Comprovante ação.pdf");
+        std::fs::write(&file, b"%PDF").unwrap();
+        let file_str = file.to_string_lossy().to_string();
+        assert_eq!(
+            validate_drop_paths(std::slice::from_ref(&file_str)).unwrap(),
+            std::slice::from_ref(&file)
+        );
+        let relative = validate_drop_paths(&["Comprovante.pdf".to_string()]).unwrap_err();
+        assert!(relative.contains("not an absolute path"), "{relative}");
+        let directory = validate_drop_paths(&[dir.to_string_lossy().to_string()]).unwrap_err();
+        assert!(directory.contains("not a regular file"), "{directory}");
+        let missing = dir.join("missing.pdf").to_string_lossy().to_string();
+        assert!(validate_drop_paths(&[file_str, missing]).is_err());
+        assert!(validate_drop_paths(&[]).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn drop_files_needs_a_target_before_touching_the_display() {
+        let file = std::env::temp_dir().join(format!("cul-drop-target-{}", std::process::id()));
+        std::fs::write(&file, b"x").unwrap();
+        let backend = ComputerUseLinux::default();
+        let result = backend
+            .drop_files(Parameters(DropFilesParams {
+                paths: vec![file.to_string_lossy().to_string()],
+                ..Default::default()
+            }))
+            .await
+            .0;
+        let _ = std::fs::remove_file(&file);
+        assert!(!result.ok);
+        assert!(
+            result.message.contains("where to drop"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[test]
     fn xdotool_pointer_supports_only_standard_buttons() {
         assert!(xdotool_pointer_click_args(10, 20, 1, None).is_some());
         assert!(xdotool_pointer_click_args(10, 20, 1, Some("middle")).is_some());
@@ -7795,9 +8395,106 @@ mod tests {
             )
             .unwrap_err();
 
-        assert!(error.contains("matched multiple cached nodes"));
-        assert!(error.contains("element_index 7"));
-        assert!(error.contains("element_index 9"));
+        assert!(error.contains("matched 2 elements"), "{error}");
+        assert!(error.contains("\n[7] push button \"Close\""), "{error}");
+        assert!(error.contains("\n[9] push button \"Close\""), "{error}");
+    }
+
+    fn named(index: u32, role: &str, name: &str) -> AccessibilityNode {
+        let mut node = node(index, None);
+        node.role = role.to_string();
+        node.name = Some(name.to_string());
+        node
+    }
+
+    fn pick(nodes: &[AccessibilityNode], name: &str, purpose: ElementResolvePurpose) -> u32 {
+        let selector = ElementSelector {
+            name: Some(name),
+            ..Default::default()
+        };
+        resolve_semantic_node(nodes, &selector, purpose)
+            .map(|node| node.index)
+            .unwrap_or_else(|error| panic!("{error}"))
+    }
+
+    #[test]
+    fn a_label_and_its_file_button_resolve_to_the_button() {
+        // Chrome: <label>Comprovante</label><input type=file>, both with
+        // bounds and Chromium's generic actions; only the button can press.
+        let bounds = Some(Bounds {
+            x: 10,
+            y: 10,
+            width: 80,
+            height: 20,
+        });
+        let generic = AccessibilityAction {
+            name: "doDefault".to_string(),
+            ..click_action()
+        };
+        let mut label = named(3, "static", "Comprovante");
+        label.bounds = bounds.clone();
+        label.actions = vec![generic.clone()];
+        let mut button = named(4, "push button", "Comprovante: No file chosen");
+        button.bounds = bounds;
+        button.actions = vec![
+            generic,
+            AccessibilityAction {
+                name: "press".to_string(),
+                ..click_action()
+            },
+        ];
+        let nodes = [label, button];
+        assert_eq!(pick(&nodes, "Comprovante", ElementResolvePurpose::Click), 4);
+        assert_eq!(
+            pick(&nodes, "Comprovante", ElementResolvePurpose::Action),
+            4
+        );
+    }
+
+    #[test]
+    fn among_actionable_matches_the_exact_name_wins() {
+        let mut save = named(5, "push button", "Save");
+        save.actions = vec![click_action()];
+        let mut save_all = named(6, "push button", "Save all");
+        save_all.actions = vec![click_action()];
+        assert_eq!(
+            pick(&[save_all, save], "save", ElementResolvePurpose::Click),
+            5
+        );
+    }
+
+    #[test]
+    fn among_same_named_matches_the_showing_one_wins() {
+        let mut hidden = named(5, "push button", "Next");
+        hidden.actions = vec![click_action()];
+        let mut shown = hidden.clone();
+        shown.index = 6;
+        shown.states = vec!["showing".to_string(), "visible".to_string()];
+        assert_eq!(
+            pick(&[hidden, shown], "next", ElementResolvePurpose::Click),
+            6
+        );
+    }
+
+    #[test]
+    fn an_ambiguous_selector_lists_five_candidates_and_the_rest_count() {
+        let nodes = (1..=7)
+            .map(|index| {
+                let mut button = named(index, "push button", "Delete");
+                button.actions = vec![click_action()];
+                button
+            })
+            .collect::<Vec<_>>();
+        let selector = ElementSelector {
+            name: Some("delete"),
+            ..Default::default()
+        };
+        let error =
+            resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap_err();
+        assert!(error.contains("matched 7 elements"), "{error}");
+        assert!(error.contains("[5] push button \"Delete\""), "{error}");
+        assert!(!error.contains("[6]"), "{error}");
+        assert!(error.ends_with("(and 2 more)"), "{error}");
     }
 
     #[test]
@@ -7912,6 +8609,7 @@ mod tests {
             window_title: None,
             relative: Some(true),
             observe: None,
+            until: None,
         };
         apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(110));
@@ -7933,6 +8631,7 @@ mod tests {
             window_title: None,
             relative: None,
             observe: None,
+            until: None,
         };
         apply_window_center_scroll_point(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(500));
@@ -7954,6 +8653,7 @@ mod tests {
             window_title: None,
             relative: None,
             observe: None,
+            until: None,
         };
         let error = apply_window_center_scroll_point(&mut params, (0, 0, 0, 0)).unwrap_err();
         assert!(error.contains("pass x/y explicitly"));
@@ -7976,6 +8676,7 @@ mod tests {
             window_title: None,
             relative: Some(true),
             observe: None,
+            until: None,
         };
         assert!(
             apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).is_err()

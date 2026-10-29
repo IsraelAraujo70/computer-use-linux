@@ -17,6 +17,7 @@ mod windowing;
 mod windows;
 mod x11_clipboard;
 mod x11_display;
+mod x11_dnd;
 
 pub mod atspi_tree {
     pub(crate) use crate::atspi_tree_impl::{
