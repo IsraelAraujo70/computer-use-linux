@@ -158,15 +158,13 @@ fn comparable(value: &str) -> String {
 pub(crate) enum ReadBack {
     /// The same text, up to Unicode composition and whitespace runs.
     Same,
-    /// The same characters once whitespace and `MASK_CHARS` are dropped:
-    /// an input mask formatted the value (`4111 1111 1111 1111`).
+    /// An input mask formatted the value (`4111 1111 1111 1111`): the same
+    /// letters and digits, with every other non-space character entered
+    /// still there in order. The field may add separators and drop spaces,
+    /// but never a sign, a decimal point or an `@` that was asked for.
     Formatted,
     Different,
 }
-
-/// Separators input masks put between digits: card and phone numbers,
-/// dates, times, CEP and CPF. Whitespace counts too.
-const MASK_CHARS: [char; 7] = ['-', '/', '.', '(', ')', '+', ':'];
 
 /// Compares a field's read-back text with the requested value. Case and
 /// accents always count: "nao" is not "não". A value of several lines is
@@ -185,13 +183,19 @@ pub(crate) fn compare_read_back(actual: Option<&str>, expected: &str) -> ReadBac
     if actual == expected {
         return ReadBack::Same;
     }
-    let unmasked = |text: &str| -> String {
+    let alphanumeric =
+        |text: &str| -> String { text.chars().filter(|ch| ch.is_alphanumeric()).collect() };
+    let separators = |text: &str| -> Vec<char> {
         text.chars()
-            .filter(|ch| !ch.is_whitespace() && !MASK_CHARS.contains(ch))
+            .filter(|ch| !ch.is_alphanumeric() && !ch.is_whitespace())
             .collect()
     };
-    let core = unmasked(&expected);
-    if !core.is_empty() && core == unmasked(&actual) {
+    let core = alphanumeric(&expected);
+    let mut kept = separators(&actual).into_iter();
+    let nothing_dropped = separators(&expected)
+        .into_iter()
+        .all(|wanted| kept.any(|found| found == wanted));
+    if !core.is_empty() && core == alphanumeric(&actual) && nothing_dropped {
         ReadBack::Formatted
     } else {
         ReadBack::Different
@@ -655,6 +659,8 @@ mod tests {
             ("12/28", "1228"),
             ("123.456.789-09", "12345678909"),
             ("4111111111111111", "4111 1111 1111 1111"),
+            ("-1.234,50", "-1234,50"),
+            ("(11) 91234-5678", "11 91234-5678"),
         ] {
             assert_eq!(
                 compare_read_back(Some(shown), entered),
@@ -684,6 +690,11 @@ mod tests {
             ("Nao chegou", "não chegou"),
             ("Recebido obrigado", "recebido obrigado"),
             ("", "-"),
+            // The field dropped a character that was asked for.
+            ("123", "-123"),
+            ("10000", "100.00"),
+            ("alicebob@example.com", "alice.bob@example.com"),
+            ("12/28", "12-28"),
         ] {
             assert_eq!(
                 compare_read_back(Some(shown), entered),
