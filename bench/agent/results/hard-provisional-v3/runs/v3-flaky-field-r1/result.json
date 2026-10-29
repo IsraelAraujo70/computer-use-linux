@@ -1,0 +1,42 @@
+{
+ "run_id": "v3-flaky-field-r1",
+ "variant": "v3",
+ "task": "flaky-field",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.42,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2909.4,
+ "mcp_bytes_total": 3742,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click",
+  "set_value",
+  "click"
+ ],
+ "tools_list_bytes": 22246,
+ "tokens": {
+  "input": 189265,
+  "cached": 175488,
+  "output": 314
+ },
+ "final": "Pagamento aprovado com o cartão informado.",
+ "state": {
+  "paid": {
+   "name": "MARIA S OLIVEIRA",
+   "card_digits": "4111111111111111",
+   "expiry": "12/28",
+   "cvv": "123"
+  }
+ }
+}

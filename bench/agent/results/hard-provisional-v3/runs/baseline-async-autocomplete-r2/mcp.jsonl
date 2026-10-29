@@ -1,0 +1,19 @@
+{"t": 1793314639.3502367, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793314639.3555562, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793314649.6890588, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 624.4, "bytes": 155574, "images": 1, "is_error": false}
+{"t": 1793314651.865873, "method": "tools/call", "tool": "set_value", "args": {"element_index": 92, "value": "88010-000"}, "ms": 24.5, "bytes": 649, "images": 0, "is_error": false}
+{"t": 1793314651.891528, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Rua Felipe Schmidt"}, "ms": 23.9, "bytes": 667, "images": 0, "is_error": false}
+{"t": 1793314651.9165826, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "200"}, "ms": 23.4, "bytes": 637, "images": 0, "is_error": false}
+{"t": 1793314651.9416857, "method": "tools/call", "tool": "set_value", "args": {"element_index": 109, "value": "Florian\u00f3polis"}, "ms": 23.5, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793314654.5511065, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 385}, "ms": 206.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793314654.8981295, "method": "tools/call", "tool": "type_text", "args": {"text": "88010-000"}, "ms": 345.3, "bytes": 857, "images": 0, "is_error": false}
+{"t": 1793314655.105026, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 462}, "ms": 205.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793314655.511332, "method": "tools/call", "tool": "type_text", "args": {"text": "Rua Felipe Schmidt"}, "ms": 404.8, "bytes": 876, "images": 0, "is_error": false}
+{"t": 1793314655.7155032, "method": "tools/call", "tool": "click", "args": {"x": 750, "y": 537}, "ms": 202.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793314656.020423, "method": "tools/call", "tool": "type_text", "args": {"text": "200"}, "ms": 303.0, "bytes": 846, "images": 0, "is_error": false}
+{"t": 1793314656.2325764, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 614}, "ms": 210.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793314656.5595727, "method": "tools/call", "tool": "type_text", "args": {"text": "Florian"}, "ms": 325.3, "bytes": 854, "images": 0, "is_error": false}
+{"t": 1793314660.1746848, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 578.4, "bytes": 145024, "images": 1, "is_error": false}
+{"t": 1793314662.5654635, "method": "tools/call", "tool": "click", "args": {"x": 760, "y": 695}, "ms": 210.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793314662.774423, "method": "tools/call", "tool": "click", "args": {"x": 745, "y": 683}, "ms": 207.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793314663.3282604, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 552.3, "bytes": 152511, "images": 1, "is_error": false}

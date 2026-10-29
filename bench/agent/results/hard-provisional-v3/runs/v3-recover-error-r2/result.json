@@ -1,0 +1,47 @@
+{
+ "run_id": "v3-recover-error-r2",
+ "variant": "v3",
+ "task": "recover-error",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 25.08,
+ "agent_tool_calls": 11,
+ "agent_tool_errors": 0,
+ "mcp_calls": 11,
+ "mcp_ms_total": 7468.2,
+ "mcp_bytes_total": 6616,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "press_key",
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22246,
+ "tokens": {
+  "input": 308523,
+  "cached": 280960,
+  "output": 603
+ },
+ "final": "A página confirmou o salvamento, mas o telefone voltou ao valor anterior ao recarregar; não pude confirmar a alteração.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

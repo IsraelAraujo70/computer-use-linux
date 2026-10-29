@@ -1,0 +1,47 @@
+{
+ "run_id": "v3-recover-error-r1",
+ "variant": "v3",
+ "task": "recover-error",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 34.65,
+ "agent_tool_calls": 11,
+ "agent_tool_errors": 0,
+ "mcp_calls": 11,
+ "mcp_ms_total": 7721.6,
+ "mcp_bytes_total": 6616,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "press_key",
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22246,
+ "tokens": {
+  "input": 255213,
+  "cached": 216192,
+  "output": 517
+ },
+ "final": "O app confirmou o salvamento, mas o telefone voltou ao valor anterior após recarregar; não consegui confirmar a alteração.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

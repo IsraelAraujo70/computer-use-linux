@@ -1,0 +1,13 @@
+{"t": 1793314562.3363707, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793314562.3389742, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22246, "images": 0, "is_error": false}
+{"t": 1793314566.3849566, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 190.3, "bytes": 1052, "images": 0, "is_error": false}
+{"t": 1793314568.0862844, "method": "tools/call", "tool": "set_value", "args": {"element_index": 60, "value": "(11) 91234-5678"}, "ms": 536.2, "bytes": 377, "images": 0, "is_error": false}
+{"t": 1793314570.044576, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1128.8, "bytes": 546, "images": 0, "is_error": false}
+{"t": 1793314572.4942093, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1297.3, "bytes": 431, "images": 0, "is_error": false}
+{"t": 1793314574.81548, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R"}, "ms": 357.4, "bytes": 1009, "images": 0, "is_error": false}
+{"t": 1793314576.8957155, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 104.8, "bytes": 1064, "images": 0, "is_error": false}
+{"t": 1793314579.1396112, "method": "tools/call", "tool": "set_value", "args": {"element_index": 122, "value": "(11) 91234-5678"}, "ms": 612.4, "bytes": 381, "images": 0, "is_error": false}
+{"t": 1793314580.2720094, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 1130.9, "bytes": 551, "images": 0, "is_error": false}
+{"t": 1793314583.0735252, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 1295.9, "bytes": 435, "images": 0, "is_error": false}
+{"t": 1793314583.4837468, "method": "tools/call", "tool": "click", "args": {"element_index": 108}, "ms": 408.7, "bytes": 430, "images": 0, "is_error": false}
+{"t": 1793314583.8906088, "method": "tools/call", "tool": "click", "args": {"name": "Meu perfil", "role": "link"}, "ms": 405.5, "bytes": 340, "images": 0, "is_error": false}

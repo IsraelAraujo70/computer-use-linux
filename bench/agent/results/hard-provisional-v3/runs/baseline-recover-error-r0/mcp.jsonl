@@ -1,0 +1,29 @@
+{"t": 1793312640.7533476, "method": "initialize", "tool": null, "args": null, "ms": 23.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793312640.758218, "method": "tools/list", "tool": null, "args": null, "ms": 4.4, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793312650.8206868, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 643.2, "bytes": 152393, "images": 1, "is_error": false}
+{"t": 1793312653.0381172, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(11) 91234-5678"}, "ms": 24.2, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793312656.4041514, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 207.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793312656.6100528, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 204.2, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793312657.0069485, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678"}, "ms": 395.3, "bytes": 869, "images": 0, "is_error": false}
+{"t": 1793312658.836038, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 326.6, "bytes": 13389, "images": 0, "is_error": false}
+{"t": 1793312660.7945647, "method": "tools/call", "tool": "click", "args": {"element_index": 77}, "ms": 25.0, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793312661.1931643, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 395.6, "bytes": 13367, "images": 0, "is_error": false}
+{"t": 1793312663.322422, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "name": "Salvar altera\u00e7\u00f5es", "role": "button", "timeout_ms": 10000}, "ms": 356.0, "bytes": 480, "images": 0, "is_error": false}
+{"t": 1793312665.37728, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 388.3, "bytes": 13758, "images": 0, "is_error": false}
+{"t": 1793312668.1672392, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 24.1, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793312669.4425929, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "role": "button", "name": "Salvar altera\u00e7\u00f5es", "timeout_ms": 10000}, "ms": 1272.0, "bytes": 484, "images": 0, "is_error": false}
+{"t": 1793312669.792751, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 348.6, "bytes": 13656, "images": 0, "is_error": false}
+{"t": 1793312671.8957741, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 357.4, "bytes": 13656, "images": 0, "is_error": false}
+{"t": 1793312673.7071447, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Reload"}, "ms": 24.5, "bytes": 910, "images": 0, "is_error": false}
+{"t": 1793312674.1590455, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 449.9, "bytes": 17032, "images": 0, "is_error": false}
+{"t": 1793312681.6355724, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "role": "entry", "name": "Telefone", "text": "91234", "timeout_ms": 5000}, "ms": 5666.4, "bytes": 338, "images": 0, "is_error": false}
+{"t": 1793312684.7997456, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 599.5, "bytes": 17032, "images": 0, "is_error": false}
+{"t": 1793312687.5461283, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 208.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793312687.7516034, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 203.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793312688.132495, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678"}, "ms": 379.1, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793312688.1576462, "method": "tools/call", "tool": "click", "args": {"element_index": 99}, "ms": 23.8, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793312689.268703, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "name": "Salvar altera\u00e7\u00f5es", "role": "button", "timeout_ms": 10000}, "ms": 1108.7, "bytes": 484, "images": 0, "is_error": false}
+{"t": 1793312689.577485, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 307.4, "bytes": 13758, "images": 0, "is_error": false}
+{"t": 1793312691.6899743, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 24.8, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793312692.7213862, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "name": "Salvar altera\u00e7\u00f5es", "role": "button", "timeout_ms": 10000}, "ms": 1029.4, "bytes": 484, "images": 0, "is_error": false}
+{"t": 1793312693.008963, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 286.1, "bytes": 13656, "images": 0, "is_error": false}

@@ -1,0 +1,15 @@
+{"t": 1793313728.0704055, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793313728.0773053, "method": "tools/list", "tool": null, "args": null, "ms": 6.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793313732.2432413, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 673.7, "bytes": 152393, "images": 1, "is_error": false}
+{"t": 1793313734.2495403, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(11) 91234-5678"}, "ms": 23.9, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793313735.30509, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 209.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793313735.3858178, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.2, "bytes": 1265, "images": 0, "is_error": false}
+{"t": 1793313737.9583144, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A", "window_id": 8388610}, "ms": 274.8, "bytes": 791, "images": 0, "is_error": false}
+{"t": 1793313738.4154599, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678", "window_id": 8388610}, "ms": 455.5, "bytes": 1171, "images": 0, "is_error": false}
+{"t": 1793313740.526099, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 574.1, "bytes": 137751, "images": 1, "is_error": false}
+{"t": 1793313741.1682699, "method": "tools/call", "tool": "click", "args": {"element_index": 77}, "ms": 25.4, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793313744.7134962, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 647.2, "bytes": 145292, "images": 1, "is_error": false}
+{"t": 1793313745.8666058, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 25.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793313746.4702177, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 601.9, "bytes": 132012, "images": 1, "is_error": false}
+{"t": 1793313757.631758, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "condition": "appears", "text": "salvo", "timeout_ms": 10000}, "ms": 10074.8, "bytes": 346, "images": 0, "is_error": false}
+{"t": 1793313759.3261578, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 590.7, "bytes": 138620, "images": 1, "is_error": false}

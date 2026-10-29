@@ -1,0 +1,27 @@
+{"t": 1793312980.894085, "method": "initialize", "tool": null, "args": null, "ms": 26.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793312980.9015045, "method": "tools/list", "tool": null, "args": null, "ms": 7.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793312988.5898826, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 670.8, "bytes": 174044, "images": 1, "is_error": false}
+{"t": 1793312990.8097203, "method": "tools/call", "tool": "set_value", "args": {"element_index": 102, "value": "MARIA S OLIVEIRA"}, "ms": 24.5, "bytes": 665, "images": 0, "is_error": false}
+{"t": 1793312990.8349555, "method": "tools/call", "tool": "set_value", "args": {"element_index": 104, "value": "4111 1111 1111 1111"}, "ms": 23.4, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793312990.859815, "method": "tools/call", "tool": "set_value", "args": {"element_index": 106, "value": "12/28"}, "ms": 23.5, "bytes": 643, "images": 0, "is_error": false}
+{"t": 1793312990.8843055, "method": "tools/call", "tool": "set_value", "args": {"element_index": 108, "value": "123"}, "ms": 23.3, "bytes": 639, "images": 0, "is_error": false}
+{"t": 1793312996.579505, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 80.7, "bytes": 1259, "images": 0, "is_error": false}
+{"t": 1793312998.3561244, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 420}, "ms": 210.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793312998.847314, "method": "tools/call", "tool": "type_text", "args": {"text": "MARIA S OLIVEIRA", "window_id": 8388610}, "ms": 489.0, "bytes": 1379, "images": 0, "is_error": false}
+{"t": 1793312999.051875, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 500}, "ms": 202.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793312999.545339, "method": "tools/call", "tool": "type_text", "args": {"text": "4111 1111 1111 1111", "window_id": 8388610}, "ms": 491.4, "bytes": 1180, "images": 0, "is_error": false}
+{"t": 1793312999.7466235, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 590}, "ms": 199.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793313000.1722164, "method": "tools/call", "tool": "type_text", "args": {"text": "12/28", "window_id": 8388610}, "ms": 424.1, "bytes": 1358, "images": 0, "is_error": false}
+{"t": 1793313000.3795414, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 590}, "ms": 205.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793313000.798796, "method": "tools/call", "tool": "type_text", "args": {"text": "123", "window_id": 8388610}, "ms": 416.6, "bytes": 1354, "images": 0, "is_error": false}
+{"t": 1793313002.9637597, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 959.2, "bytes": 177901, "images": 1, "is_error": false}
+{"t": 1793313006.5904157, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 420}, "ms": 210.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793313006.8691204, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A", "window_id": 8388610}, "ms": 276.7, "bytes": 792, "images": 0, "is_error": false}
+{"t": 1793313007.3960905, "method": "tools/call", "tool": "type_text", "args": {"text": "MARIA S OLIVEIRA", "window_id": 8388610}, "ms": 525.6, "bytes": 1380, "images": 0, "is_error": false}
+{"t": 1793313007.7031946, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab", "window_id": 8388610}, "ms": 305.4, "bytes": 992, "images": 0, "is_error": false}
+{"t": 1793313008.2249522, "method": "tools/call", "tool": "type_text", "args": {"text": "4111 1111 1111 1111", "window_id": 8388610}, "ms": 519.8, "bytes": 1180, "images": 0, "is_error": false}
+{"t": 1793313009.8901908, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 485.8, "bytes": 15709, "images": 0, "is_error": false}
+{"t": 1793313012.0977075, "method": "tools/call", "tool": "type_text", "args": {"text": "4111 1111 1111 1111", "window_id": 8388610}, "ms": 507.4, "bytes": 1180, "images": 0, "is_error": false}
+{"t": 1793313012.567313, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 468.0, "bytes": 15771, "images": 0, "is_error": false}
+{"t": 1793313014.068502, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 24.8, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793313014.6130233, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 542.2, "bytes": 20052, "images": 0, "is_error": false}

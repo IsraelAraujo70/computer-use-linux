@@ -1,0 +1,44 @@
+{
+ "run_id": "v3-drag-drop-r2",
+ "variant": "v3",
+ "task": "drag-drop",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 13.1,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1723.1,
+ "mcp_bytes_total": 4246,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "drag",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22246,
+ "tokens": {
+  "input": 121540,
+  "cached": 111360,
+  "output": 191
+ },
+ "final": "Movi o cartão “Revisar contrato” de “A fazer” para “Concluído”.",
+ "state": {
+  "columns": {
+   "k1": "done",
+   "k2": "todo",
+   "k3": "todo",
+   "k4": "doing",
+   "k5": "doing",
+   "k6": "doing",
+   "k7": "done",
+   "k8": "done"
+  }
+ }
+}

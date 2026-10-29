@@ -1,0 +1,5 @@
+{"t": 1793313864.1739388, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793313864.1769333, "method": "tools/list", "tool": null, "args": null, "ms": 2.5, "bytes": 22246, "images": 0, "is_error": false}
+{"t": 1793313872.7722232, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 196.5, "bytes": 1023, "images": 0, "is_error": false}
+{"t": 1793313875.719688, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 54, "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, {"element_index": 57, "value": "S\u00e3o Paulo"}, {"element_index": 60, "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}]}, "ms": 1096.5, "bytes": 889, "images": 0, "is_error": false}
+{"t": 1793313877.9722407, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 478.9, "bytes": 462, "images": 0, "is_error": false}

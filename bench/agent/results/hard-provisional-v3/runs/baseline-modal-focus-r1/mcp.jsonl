@@ -1,0 +1,17 @@
+{"t": 1793313245.6414738, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793313245.6459632, "method": "tools/list", "tool": null, "args": null, "ms": 3.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793313252.5863302, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 626.6, "bytes": 151995, "images": 1, "is_error": false}
+{"t": 1793313256.1631098, "method": "tools/call", "tool": "set_value", "args": {"element_index": 103, "value": "Carlos Mendes"}, "ms": 23.8, "bytes": 659, "images": 0, "is_error": false}
+{"t": 1793313256.1872547, "method": "tools/call", "tool": "set_value", "args": {"element_index": 105, "value": "carlos@example.com"}, "ms": 22.8, "bytes": 669, "images": 0, "is_error": false}
+{"t": 1793313256.2111537, "method": "tools/call", "tool": "set_value", "args": {"element_index": 107, "value": "Quero cancelar minha assinatura."}, "ms": 22.7, "bytes": 697, "images": 0, "is_error": false}
+{"t": 1793313258.258189, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 211.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793313258.6279125, "method": "tools/call", "tool": "type_text", "args": {"text": "Carlos Mendes"}, "ms": 368.0, "bytes": 865, "images": 0, "is_error": false}
+{"t": 1793313258.8319077, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 495}, "ms": 202.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793313259.2288468, "method": "tools/call", "tool": "type_text", "args": {"text": "carlos@example.com"}, "ms": 395.3, "bytes": 875, "images": 0, "is_error": false}
+{"t": 1793313259.4420147, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 580}, "ms": 211.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793313259.9223008, "method": "tools/call", "tool": "type_text", "args": {"text": "Quero cancelar minha assinatura."}, "ms": 478.9, "bytes": 904, "images": 0, "is_error": false}
+{"t": 1793313261.7920864, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 590.4, "bytes": 175957, "images": 1, "is_error": false}
+{"t": 1793313263.4486127, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 24.5, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793313264.041629, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 590.2, "bytes": 149026, "images": 1, "is_error": false}
+{"t": 1793313265.8439, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 25.2, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793313266.4113786, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 562.3, "bytes": 155308, "images": 1, "is_error": false}

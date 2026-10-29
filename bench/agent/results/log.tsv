@@ -4,3 +4,4 @@ date	variant	change	binary_commit	runs	success_rate	tasks_per_min	mean_wall_s	me
 2026-10-29	v1	working web fields+fill_form, clipboard paste, stable ids, change reports, page-scoped text outline, auto screenshot, lean tools/list	a4d9eb5	30	1.00	2.842	21	6.1	0.2	210	not interleaved; 2.27x vs baseline
 2026-10-29	baseline-noa11y	baseline binary, Chrome with chrome-perfil flags as today (no a11y flag), 2 reps	f669057	20	0.95	1.389	41	18.6	6.2	485	real before-condition; Terra falls back to screenshots+coordinates
 2026-10-29	v2 (hard, explore)	+stepped drag, drop_files (XDND), selector disambiguation, scroll until, faster settle	ccc841e	12	0.92	2.030	27	6.0	0.2	204	hard suite 1 rep; baseline same run: 0.67 success, 1.170 tasks/min
+2026-10-29	v3 (hard, provisional)	+mask-tolerant read-back, busy-aware settle, robust scroll until, wait_for defaults	71bf287	36	1.00	2.705	22	5.6	0.1	190	interleaved vs baseline (36 eps, 0.67, 1.094): +33pp, 2.47x

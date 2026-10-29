@@ -1,0 +1,42 @@
+{
+ "run_id": "baseline-file-upload-r0",
+ "variant": "baseline",
+ "task": "file-upload",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": false,
+ "detail": "nothing uploaded",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 51.0,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 8034.4,
+ "mcp_bytes_total": 929282,
+ "screenshots": 6,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "list_windows",
+  "click",
+  "get_app_state",
+  "press_key",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 682561,
+  "cached": 632832,
+  "output": 759
+ },
+ "final": "Não consegui enviar: o seletor de arquivo não abriu ao clicar em “Comprovante”.",
+ "state": {}
+}

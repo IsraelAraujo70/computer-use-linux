@@ -1,0 +1,13 @@
+{"t": 1793313690.0963752, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793313690.0993876, "method": "tools/list", "tool": null, "args": null, "ms": 2.6, "bytes": 22246, "images": 0, "is_error": false}
+{"t": 1793313698.1949048, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 192.2, "bytes": 1052, "images": 0, "is_error": false}
+{"t": 1793313700.7720554, "method": "tools/call", "tool": "set_value", "args": {"element_index": 60, "value": "(11) 91234-5678"}, "ms": 607.2, "bytes": 377, "images": 0, "is_error": false}
+{"t": 1793313705.2438636, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1123.6, "bytes": 546, "images": 0, "is_error": false}
+{"t": 1793313708.098908, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1345.4, "bytes": 431, "images": 0, "is_error": false}
+{"t": 1793313709.9440577, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R"}, "ms": 538.1, "bytes": 1009, "images": 0, "is_error": false}
+{"t": 1793313712.036334, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 100.5, "bytes": 1064, "images": 0, "is_error": false}
+{"t": 1793313714.3808994, "method": "tools/call", "tool": "set_value", "args": {"element_index": 122, "value": "(11) 91234-5678"}, "ms": 540.8, "bytes": 381, "images": 0, "is_error": false}
+{"t": 1793313715.5260427, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 1143.6, "bytes": 551, "images": 0, "is_error": false}
+{"t": 1793313719.279579, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 1315.1, "bytes": 435, "images": 0, "is_error": false}
+{"t": 1793313719.6915147, "method": "tools/call", "tool": "click", "args": {"element_index": 108}, "ms": 410.2, "bytes": 430, "images": 0, "is_error": false}
+{"t": 1793313720.0979993, "method": "tools/call", "tool": "click", "args": {"element_index": 110}, "ms": 404.9, "bytes": 340, "images": 0, "is_error": false}

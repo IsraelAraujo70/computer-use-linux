@@ -1,0 +1,40 @@
+{
+ "run_id": "baseline-slow-page-r0",
+ "variant": "baseline",
+ "task": "slow-page",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 21.7,
+ "agent_tool_calls": 6,
+ "agent_tool_errors": 0,
+ "mcp_calls": 6,
+ "mcp_ms_total": 3620.7,
+ "mcp_bytes_total": 631017,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "wait_for",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 302653,
+  "cached": 260992,
+  "output": 392
+ },
+ "final": "Relatório gerado e exportado somente para março.",
+ "state": {
+  "exported": [
+   "Março"
+  ]
+ }
+}

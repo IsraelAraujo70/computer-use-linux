@@ -1,0 +1,13 @@
+{"t": 1793313603.0908113, "method": "initialize", "tool": null, "args": null, "ms": 24.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793313603.0952282, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793313611.5499518, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 705.9, "bytes": 175073, "images": 1, "is_error": false}
+{"t": 1793313614.463531, "method": "tools/call", "tool": "click", "args": {"element_index": 99}, "ms": 212.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793313617.8683121, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 705.6, "bytes": 235964, "images": 1, "is_error": false}
+{"t": 1793313621.8066485, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 209.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793313624.7572107, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 395.0, "bytes": 14502, "images": 0, "is_error": false}
+{"t": 1793313628.0472987, "method": "tools/call", "tool": "set_value", "args": {"element_index": 82, "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 25.7, "bytes": 739, "images": 0, "is_error": false}
+{"t": 1793313632.782938, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 206.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793313633.4177969, "method": "tools/call", "tool": "type_text", "args": {"text": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 633.1, "bytes": 947, "images": 0, "is_error": false}
+{"t": 1793313636.609348, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 571.0, "bytes": 14639, "images": 0, "is_error": false}
+{"t": 1793313638.990994, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 24.1, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793313642.5721993, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 376.6, "bytes": 14901, "images": 0, "is_error": false}

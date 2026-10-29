@@ -1,0 +1,18 @@
+{"t": 1793313370.6706123, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793313370.6763768, "method": "tools/list", "tool": null, "args": null, "ms": 5.4, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793313380.3518422, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 696.1, "bytes": 166457, "images": 1, "is_error": false}
+{"t": 1793313383.073088, "method": "tools/call", "tool": "click", "args": {"element_index": 96}, "ms": 24.6, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793313385.9854083, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 591.0, "bytes": 166457, "images": 1, "is_error": false}
+{"t": 1793313389.461716, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.7, "bytes": 1277, "images": 0, "is_error": false}
+{"t": 1793313399.6602795, "method": "tools/call", "tool": "type_text", "args": {"text": "/tmp/agent-cu-bench/files/comprovante-outubro.pdf"}, "ms": 600.1, "bytes": 937, "images": 0, "is_error": false}
+{"t": 1793313406.795217, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 192.7, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793313410.4235709, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 684.1, "bytes": 162523, "images": 1, "is_error": false}
+{"t": 1793313414.4873936, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 614.1, "bytes": 162523, "images": 1, "is_error": false}
+{"t": 1793313418.7481408, "method": "tools/call", "tool": "click", "args": {"x": 728, "y": 413}, "ms": 209.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793313422.2264938, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 622.0, "bytes": 148766, "images": 1, "is_error": false}
+{"t": 1793313428.0042284, "method": "tools/call", "tool": "click", "args": {"x": 728, "y": 413}, "ms": 203.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793313433.4693882, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 594.3, "bytes": 148766, "images": 1, "is_error": false}
+{"t": 1793313439.902096, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 78.4, "bytes": 1278, "images": 0, "is_error": false}
+{"t": 1793313447.1396987, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 25.3, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793313447.3349197, "method": "tools/call", "tool": "press_key", "args": {"key": "Space"}, "ms": 192.7, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793313453.1190078, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 598.1, "bytes": 148814, "images": 1, "is_error": false}

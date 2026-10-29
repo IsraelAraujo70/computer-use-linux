@@ -1,0 +1,6 @@
+{"t": 1793312255.25194, "method": "initialize", "tool": null, "args": null, "ms": 23.4, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793312255.2621207, "method": "tools/list", "tool": null, "args": null, "ms": 9.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793312261.656128, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 917.7, "bytes": 197069, "images": 1, "is_error": false}
+{"t": 1793312263.2887337, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 360, "end_x": 1500, "end_y": 520}, "ms": 211.1, "bytes": 465, "images": 0, "is_error": false}
+{"t": 1793312265.0971682, "method": "tools/call", "tool": "click", "args": {"x": 180, "y": 355}, "ms": 450.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793312267.7736938, "method": "tools/call", "tool": "get_app_state", "args": {"title": "Quadro - Projeto Aurora"}, "ms": 1381.7, "bytes": 183291, "images": 1, "is_error": false}

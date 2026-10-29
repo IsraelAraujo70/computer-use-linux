@@ -1,0 +1,58 @@
+{
+ "run_id": "baseline-async-autocomplete-r0",
+ "variant": "baseline",
+ "task": "async-autocomplete",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 30.34,
+ "agent_tool_calls": 20,
+ "agent_tool_errors": 0,
+ "mcp_calls": 20,
+ "mcp_ms_total": 5648.4,
+ "mcp_bytes_total": 621263,
+ "screenshots": 4,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "set_value",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "get_app_state",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 448815,
+  "cached": 401152,
+  "output": 694
+ },
+ "final": "Preenchi e salvei o endereço de entrega em Florianópolis, SC.",
+ "state": {
+  "saved": {
+   "cep": "88010-000",
+   "street": "Rua Felipe Schmidt",
+   "number": "200",
+   "city": "Florianópolis",
+   "uf": "SC"
+  }
+ }
+}

@@ -1,0 +1,7 @@
+{"t": 1793314429.569498, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793314429.5713658, "method": "tools/list", "tool": null, "args": null, "ms": 1.4, "bytes": 22246, "images": 0, "is_error": false}
+{"t": 1793314436.259455, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 192.8, "bytes": 990, "images": 0, "is_error": false}
+{"t": 1793314438.012461, "method": "tools/call", "tool": "click", "args": {"element_index": 58}, "ms": 639.6, "bytes": 1700, "images": 0, "is_error": false}
+{"t": 1793314440.3489082, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+Tab"}, "ms": 538.1, "bytes": 1050, "images": 0, "is_error": false}
+{"t": 1793314442.4950492, "method": "tools/call", "tool": "set_value", "args": {"element_index": 62, "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 871.7, "bytes": 533, "images": 0, "is_error": false}
+{"t": 1793314444.0807023, "method": "tools/call", "tool": "click", "args": {"element_index": 63}, "ms": 477.8, "bytes": 454, "images": 0, "is_error": false}

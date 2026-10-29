@@ -1,0 +1,33 @@
+{"t": 1793311833.0412478, "method": "initialize", "tool": null, "args": null, "ms": 440.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793311833.0797524, "method": "tools/list", "tool": null, "args": null, "ms": 37.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793311838.7097113, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 967.6, "bytes": 191565, "images": 1, "is_error": false}
+{"t": 1793311842.05692, "method": "tools/call", "tool": "set_value", "args": {"element_index": 116, "value": "ana.souza@example.com"}, "ms": 26.0, "bytes": 675, "images": 0, "is_error": false}
+{"t": 1793311842.092161, "method": "tools/call", "tool": "set_value", "args": {"element_index": 93, "value": "Relat\u00f3rio de outubro"}, "ms": 33.2, "bytes": 673, "images": 0, "is_error": false}
+{"t": 1793311842.1239572, "method": "tools/call", "tool": "set_value", "args": {"element_index": 95, "value": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 30.3, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793311844.7203498, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 96.7, "bytes": 1289, "images": 0, "is_error": false}
+{"t": 1793311844.9858747, "method": "tools/call", "tool": "click", "args": {"x": 1400, "y": 670}, "ms": 262.8, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793311845.579869, "method": "tools/call", "tool": "type_text", "args": {"text": "ana.souza@example.com"}, "ms": 588.8, "bytes": 881, "images": 0, "is_error": false}
+{"t": 1793311847.3260791, "method": "tools/call", "tool": "click", "args": {"x": 1400, "y": 710}, "ms": 312.6, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793311847.8806345, "method": "tools/call", "tool": "type_text", "args": {"text": "Relat\u00f3rio de outubro"}, "ms": 550.8, "bytes": 882, "images": 0, "is_error": false}
+{"t": 1793311848.2121956, "method": "tools/call", "tool": "click", "args": {"x": 1400, "y": 800}, "ms": 271.1, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793311848.9150226, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 700.6, "bytes": 925, "images": 0, "is_error": false}
+{"t": 1793311852.9992917, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 2484.4, "bytes": 189956, "images": 1, "is_error": false}
+{"t": 1793311860.4185581, "method": "tools/call", "tool": "click", "args": {"x": 1400, "y": 710}, "ms": 271.5, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793311860.7670972, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 346.2, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793311861.2204797, "method": "tools/call", "tool": "type_text", "args": {"text": "Relat"}, "ms": 451.7, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793311861.5354843, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+U"}, "ms": 311.1, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793311861.9717734, "method": "tools/call", "tool": "type_text", "args": {"text": "f3"}, "ms": 433.9, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793311862.2869494, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 314.0, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793311863.033593, "method": "tools/call", "tool": "type_text", "args": {"text": "rio de outubro"}, "ms": 744.5, "bytes": 868, "images": 0, "is_error": false}
+{"t": 1793311863.3971686, "method": "tools/call", "tool": "click", "args": {"x": 1400, "y": 800}, "ms": 358.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793311863.7350936, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 330.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793311864.1808743, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol"}, "ms": 444.0, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793311864.4706483, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+U"}, "ms": 288.7, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793311864.90588, "method": "tools/call", "tool": "type_text", "args": {"text": "e1"}, "ms": 433.9, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793311865.1225588, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 214.6, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793311865.693934, "method": "tools/call", "tool": "type_text", "args": {"text": ", Ana!\nSegue o relat"}, "ms": 569.7, "bytes": 883, "images": 0, "is_error": false}
+{"t": 1793311866.025367, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+U"}, "ms": 329.4, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793311866.4708786, "method": "tools/call", "tool": "type_text", "args": {"text": "f3"}, "ms": 443.9, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793311866.7264876, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 253.6, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793311867.1966052, "method": "tools/call", "tool": "type_text", "args": {"text": "rio de outubro."}, "ms": 468.3, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793311871.716556, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1430.0, "bytes": 192370, "images": 1, "is_error": false}

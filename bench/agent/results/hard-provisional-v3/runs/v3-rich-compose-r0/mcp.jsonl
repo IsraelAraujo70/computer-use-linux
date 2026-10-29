@@ -1,0 +1,10 @@
+{"t": 1793311795.9696572, "method": "initialize", "tool": null, "args": null, "ms": 71.1, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793311795.9822044, "method": "tools/list", "tool": null, "args": null, "ms": 9.9, "bytes": 22246, "images": 0, "is_error": false}
+{"t": 1793311801.6973383, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 707.5, "bytes": 2077, "images": 0, "is_error": false}
+{"t": 1793311808.604241, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 74, "value": "ana.souza@example.com"}, {"element_index": 75, "value": "Relat\u00f3rio de outubro"}, {"element_index": 80, "value": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}]}, "ms": 5583.0, "bytes": 953, "images": 0, "is_error": true}
+{"t": 1793311810.5025537, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 619.5, "bytes": 2280, "images": 0, "is_error": false}
+{"t": 1793311812.6567667, "method": "tools/call", "tool": "type_text", "args": {"element_index": 74, "text": "ana.souza@example.com"}, "ms": 1146.0, "bytes": 462, "images": 0, "is_error": false}
+{"t": 1793311814.5317485, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 804.6, "bytes": 560, "images": 0, "is_error": false}
+{"t": 1793311817.198653, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 692.6, "bytes": 187, "images": 0, "is_error": false}
+{"t": 1793311820.2468252, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 1994.7, "bytes": 613, "images": 0, "is_error": false}
+{"t": 1793311822.7081678, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 1580.2, "bytes": 394, "images": 0, "is_error": false}

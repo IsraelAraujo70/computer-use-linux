@@ -1,0 +1,9 @@
+{"t": 1793314594.2882307, "method": "initialize", "tool": null, "args": null, "ms": 24.4, "bytes": 980, "images": 0, "is_error": false}
+{"t": 1793314594.2896042, "method": "tools/list", "tool": null, "args": null, "ms": 1.0, "bytes": 22246, "images": 0, "is_error": false}
+{"t": 1793314601.2753928, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 193.5, "bytes": 1065, "images": 0, "is_error": false}
+{"t": 1793314605.404915, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 52, "value": "88010-000"}, {"element_index": 55, "value": "Rua Felipe Schmidt"}, {"element_index": 58, "value": "200"}, {"element_index": 61, "value": "Florian\u00f3polis"}]}, "ms": 2800.3, "bytes": 832, "images": 0, "is_error": true}
+{"t": 1793314606.9827929, "method": "tools/call", "tool": "type_text", "args": {"element_index": 61, "text": "Florian\u00f3polis"}, "ms": 464.9, "bytes": 436, "images": 0, "is_error": false}
+{"t": 1793314611.9316366, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "condition": "changed"}, "ms": 3649.6, "bytes": 2039, "images": 0, "is_error": false}
+{"t": 1793314615.1365983, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 91.6, "bytes": 1344, "images": 0, "is_error": false}
+{"t": 1793314616.7019386, "method": "tools/call", "tool": "click", "args": {"element_index": 105}, "ms": 406.7, "bytes": 397, "images": 0, "is_error": false}
+{"t": 1793314620.5536768, "method": "tools/call", "tool": "click", "args": {"element_index": 62}, "ms": 479.9, "bytes": 444, "images": 0, "is_error": false}

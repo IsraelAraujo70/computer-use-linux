@@ -1,0 +1,14 @@
+{"t": 1793312448.3611426, "method": "initialize", "tool": null, "args": null, "ms": 28.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793312448.369037, "method": "tools/list", "tool": null, "args": null, "ms": 7.4, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793312460.7498095, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1923.2, "bytes": 166457, "images": 1, "is_error": false}
+{"t": 1793312463.0823314, "method": "tools/call", "tool": "click", "args": {"element_index": 96}, "ms": 35.3, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793312467.501258, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1667.3, "bytes": 162459, "images": 1, "is_error": false}
+{"t": 1793312470.240209, "method": "tools/call", "tool": "click", "args": {"x": 729, "y": 412}, "ms": 268.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793312472.5722573, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 642.6, "bytes": 148749, "images": 1, "is_error": false}
+{"t": 1793312474.7619514, "method": "tools/call", "tool": "click", "args": {"x": 729, "y": 412}, "ms": 254.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793312477.2133272, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 788.6, "bytes": 148749, "images": 1, "is_error": false}
+{"t": 1793312481.9252634, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 98.4, "bytes": 1277, "images": 0, "is_error": false}
+{"t": 1793312484.414452, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 288.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793312487.3259296, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 617.1, "bytes": 148762, "images": 1, "is_error": false}
+{"t": 1793312491.0198936, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 251.7, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793312493.6294858, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1199.3, "bytes": 148826, "images": 1, "is_error": false}
