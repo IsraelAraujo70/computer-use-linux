@@ -20,6 +20,7 @@ mod server;
 mod terminal;
 mod windowing;
 mod windows;
+mod x11_clipboard;
 mod x11_display;
 mod ydotool;
 
