@@ -1915,7 +1915,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "set_value",
-        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII is pasted; \"\\n\" starts a new line in text areas and rich-text editors, single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
+        description = "Set a field and read it back: text for text fields (\"\" clears; non-ASCII and multi-line text is pasted in one piece, so \"\\n\" is a line break in text areas and rich-text editors and never presses Enter; single-line inputs refuse it), the option name for combo boxes, selects and radio groups, \"true\"/\"false\" for check boxes and radios. ok only when the field then holds the value. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -4735,7 +4735,7 @@ impl ComputerUseLinux {
         let entered = if value.is_empty() {
             send_key_chord("BackSpace").await
         } else {
-            enter_text(value, "ctrl+v").await
+            insert_text(value).await
         };
         if let Err(message) = entered {
             return FieldOutcome::failed(message);
@@ -5761,12 +5761,13 @@ async fn send_key_chord(chord: &str) -> Result<(), String> {
     run_xdotool(&args, INPUT_COMMAND_TIMEOUT).await.map(|_| ())
 }
 
-/// Types printable ASCII with `xdotool type`; anything else is pasted from
-/// an X11 CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or
-/// Ctrl+Shift+V in terminals), since XTEST drops non-ASCII text on Xvfb.
-/// Pasted text goes line by line with Return in between, as typing does:
-/// a newline inside a paste is inert in shells with bracketed paste, and
-/// Return starts a line in text areas and rich-text editors.
+/// Types text the way type_text promises, newlines as the Return key:
+/// printable ASCII with `xdotool type`; anything else is pasted from an X11
+/// CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or Ctrl+Shift+V
+/// in terminals), since XTEST drops non-ASCII text on Xvfb. Pasted text
+/// goes line by line with Return in between, as typing does: a newline
+/// inside a paste is inert in shells with bracketed paste. set_value
+/// enters values literally instead (`insert_text`).
 async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
     if crate::fields::typeable_ascii(text) {
         let delay_ms = xdotool_type_delay_ms();
@@ -5787,6 +5788,36 @@ async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Enters `value` into the focused field as literal text, as set_value and
+/// fill_form promise: printable ASCII on one line is typed, and anything
+/// else, line breaks included, goes in as one clipboard paste, so no Return
+/// key is pressed (Enter sends a message in chat editors). Chromium text
+/// areas keep the pasted newlines; contenteditable editors turn them into
+/// line breaks.
+async fn insert_text(value: &str) -> Result<(), String> {
+    match literal_insertion(value) {
+        Insertion::Type => enter_text(value, "ctrl+v").await,
+        Insertion::Paste(text) => paste_text(&text, "ctrl+v", false).await,
+    }
+}
+
+/// How `insert_text` enters a value.
+#[derive(Debug, PartialEq, Eq)]
+enum Insertion {
+    /// `xdotool type`: one line of printable ASCII, so no key but characters.
+    Type,
+    /// One clipboard paste of this text, CRLF folded to LF.
+    Paste(String),
+}
+
+fn literal_insertion(value: &str) -> Insertion {
+    if crate::fields::typeable_ascii(value) && !value.contains(['\n', '\r']) {
+        Insertion::Type
+    } else {
+        Insertion::Paste(value.replace("\r\n", "\n").replace('\r', "\n"))
+    }
 }
 
 /// How long the clipboard stays owned after a paste was first served.
@@ -9965,6 +9996,24 @@ mod field_entry_tests {
             backend: "i3".to_string(),
             terminal: None,
         }
+    }
+
+    #[test]
+    fn set_value_pastes_multi_line_and_non_ascii_values_in_one_piece() {
+        assert_eq!(
+            literal_insertion("Olá Ana"),
+            Insertion::Paste("Olá Ana".into())
+        );
+        // No Return key: chat editors send on Enter.
+        assert_eq!(
+            literal_insertion("Hi Ana,\r\nsee you"),
+            Insertion::Paste("Hi Ana,\nsee you".into())
+        );
+        assert_eq!(
+            literal_insertion("line\n"),
+            Insertion::Paste("line\n".into())
+        );
+        assert_eq!(literal_insertion("plain text"), Insertion::Type);
     }
 
     #[test]
