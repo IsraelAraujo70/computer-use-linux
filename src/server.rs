@@ -4017,28 +4017,68 @@ impl ComputerUseLinux {
     /// Turns an action's outcome into its text result: `ok: …` or
     /// `error: …`, then (when `observe`) what the action changed, so the
     /// agent need not look again. Failures report changes only when input
-    /// may already have reached the app.
+    /// may already have reached the app, or a dialog may be in the way: a
+    /// failed element action names a blocking dialog (`page_view::blocking_dialog`),
+    /// and so does a click that changed nothing while a modal one is open.
     async fn finish_action(&self, output: ActionOutput, observe: bool) -> CallToolResult {
+        let dialog = if !output.ok && DIALOG_CHECKED_ACTIONS.contains(&output.action.as_str()) {
+            self.blocking_dialog_note().await
+        } else {
+            None
+        };
         let input_reached_app = output.ok
             || matches!(
                 output.action.as_str(),
                 "set_value" | "fill_form" | "type_text"
             )
-            || output.message.contains("no longer exists");
+            || output.message.contains("no longer exists")
+            || dialog.is_some();
         let mut text = if output.ok {
             format!("ok: {}", output.message)
         } else {
             format!("error: {}", output.message)
         };
-        if observe && input_reached_app {
+        if let Some(dialog) = &dialog {
             text.push('\n');
-            text.push_str(&self.observe_changes().await);
+            text.push_str(dialog);
+        }
+        if observe && input_reached_app {
+            let report = self.observe_changes().await;
+            let landed_nowhere = output.ok
+                && matches!(output.action.as_str(), "click" | "perform_action")
+                && report.starts_with("changes: none");
+            text.push('\n');
+            text.push_str(&report);
+            if landed_nowhere {
+                let nodes = self
+                    .last_snapshot
+                    .lock()
+                    .map(|cached| cached.nodes.clone())
+                    .unwrap_or_default();
+                // The same snapshot twice: only a modal dialog counts.
+                if let Some(dialog) = crate::page_view::blocking_dialog(&nodes, &nodes) {
+                    text.push_str(&format!("note: nothing changed and {dialog}\n"));
+                }
+            }
         }
         let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
         if !output.ok {
             result.is_error = Some(true);
         }
         result
+    }
+
+    /// `page_view::blocking_dialog` for a failed action: the observed scope
+    /// read again, against the snapshot the agent last saw. Nothing is
+    /// cached; the change report that follows commits the new read.
+    async fn blocking_dialog_note(&self) -> Option<String> {
+        let before = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
+        let now = self.rescan(None).await.ok()?;
+        crate::page_view::blocking_dialog(&before, &now.nodes)
     }
 
     /// Waits for the app to settle after an action, then reports what changed
@@ -5193,6 +5233,16 @@ impl ComputerUseLinux {
         }
     }
 }
+
+/// Actions whose failure may come from a dialog in front of their target,
+/// so their errors name one when it is open.
+const DIALOG_CHECKED_ACTIONS: [&str; 5] = [
+    "click",
+    "set_value",
+    "fill_form",
+    "perform_action",
+    "type_text",
+];
 
 /// Whether the settle loop keeps reading because of `busy`: always for a
 /// strong sign, and for a button that only became disabled until the tree

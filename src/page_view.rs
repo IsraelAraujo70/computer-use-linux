@@ -317,6 +317,81 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
     out
 }
 
+/// Roles of a dialog that can stand in front of the rest of a page.
+const DIALOG_ROLES: [&str; 3] = ["dialog", "alert dialog", "alert"];
+/// Most buttons a blocking-dialog note lists.
+const DIALOG_BUTTONS_SHOWN: usize = 8;
+
+/// A dialog in `after` that is likely in the way of an action, as a note:
+/// `a dialog is open: [id] dialog "name" — buttons: [id] "label", …`.
+/// It must be shown, inside the visible web document when there is one
+/// (browser bubbles do not count), and modal (`modal` state, or an alert
+/// dialog) or new since `before` (elements matched by id). A plain `alert`
+/// counts only with a button, so status messages are not taken for dialogs.
+/// Modal ones win over new ones; among equals the last in the tree, which
+/// pages usually add on top.
+pub fn blocking_dialog(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+) -> Option<String> {
+    let tree = Tree::new(after);
+    let document = tree.visible_document();
+    let earlier: std::collections::HashSet<u32> = before.iter().map(|node| node.index).collect();
+    let buttons = |dialog: usize| -> Vec<usize> {
+        (0..after.len())
+            .filter(|&at| at != dialog && tree.inside(at, dialog))
+            .filter(|&at| tree.role(at).ends_with("button"))
+            .filter(|&at| shown_label(&after[at]).is_some())
+            .collect()
+    };
+    let candidates: Vec<(usize, bool)> = (0..after.len())
+        .filter(|&at| DIALOG_ROLES.contains(&tree.role(at).as_str()))
+        .filter(|&at| has_state(&after[at], "showing") || after[at].bounds.is_some())
+        .filter(|&at| document.is_none_or(|document| at != document && tree.inside(at, document)))
+        .filter(|&at| tree.role(at) != "alert" || !buttons(at).is_empty())
+        .filter_map(|at| {
+            let modal = has_state(&after[at], "modal") || tree.role(at) == "alert dialog";
+            (modal || !earlier.contains(&after[at].index)).then_some((at, modal))
+        })
+        .collect();
+    let (dialog, _) = candidates
+        .iter()
+        .rev()
+        .find(|(_, modal)| *modal)
+        .or_else(|| candidates.last())
+        .copied()?;
+    let node = &after[dialog];
+    let name = clean(node.name.as_deref()).or_else(|| {
+        (0..after.len())
+            .filter(|&at| tree.role(at) == "heading" && tree.inside(at, dialog))
+            .find_map(|at| shown_label(&after[at]))
+    });
+    let mut note = format!("a dialog is open: [{}] {}", node.index, node.role);
+    if let Some(name) = name {
+        note.push_str(&format!(" \"{}\"", truncate(&name, 80)));
+    }
+    let buttons = buttons(dialog);
+    if !buttons.is_empty() {
+        let listed: Vec<String> = buttons
+            .iter()
+            .take(DIALOG_BUTTONS_SHOWN)
+            .filter_map(|&at| {
+                shown_label(&after[at])
+                    .map(|label| format!("[{}] \"{}\"", after[at].index, truncate(&label, 40)))
+            })
+            .collect();
+        note.push_str(" — buttons: ");
+        note.push_str(&listed.join(", "));
+        if buttons.len() > DIALOG_BUTTONS_SHOWN {
+            note.push_str(&format!(
+                ", … ({} more)",
+                buttons.len() - DIALOG_BUTTONS_SHOWN
+            ));
+        }
+    }
+    Some(note)
+}
+
 /// Lower-case words a control or status shows while the app is still
 /// working on a request (Portuguese and English, the languages of the apps
 /// agents drive here). A changed label ending in "…" or "..." counts too.
@@ -354,7 +429,7 @@ pub fn busy_reason(before: &[AccessibilityNode], after: &[AccessibilityNode]) ->
     let mut weak = None;
     for node in after {
         let old = earlier.get(&node.index).copied();
-        let label = busy_label(node);
+        let label = shown_label(node);
         let strong = |what: &str| {
             Some(Busy {
                 reason: format!("{} {what}", element_label(node)),
@@ -371,7 +446,7 @@ pub fn busy_reason(before: &[AccessibilityNode], after: &[AccessibilityNode]) ->
             (_, None) => false,
             (None, Some(label)) => has_busy_word(label),
             (Some(old), Some(label)) => {
-                busy_label(old).as_deref() != Some(label)
+                shown_label(old).as_deref() != Some(label)
                     && (has_busy_word(label) || label.ends_with('…') || label.ends_with("..."))
             }
         };
@@ -391,8 +466,9 @@ pub fn busy_reason(before: &[AccessibilityNode], after: &[AccessibilityNode]) ->
     weak
 }
 
-/// The name, else the text, a busy check reads.
-fn busy_label(node: &AccessibilityNode) -> Option<String> {
+/// The name, else the text, an element shows: what a busy check reads and
+/// what a dialog note calls a button or heading.
+fn shown_label(node: &AccessibilityNode) -> Option<String> {
     clean(node.name.as_deref()).or_else(|| node_text(node))
 }
 
@@ -729,6 +805,63 @@ mod tests {
         ];
         nodes.extend(page);
         nodes
+    }
+
+    /// A contact form, and (when `dialog`) the newsletter dialog that opens
+    /// over it with the given extra states.
+    fn contact_page(dialog: Option<&[&str]>) -> Vec<AccessibilityNode> {
+        let mut page = vec![
+            node(20, Some(10), "form", "Contato"),
+            node(21, Some(20), "entry", "Nome"),
+            node(22, Some(20), "push button", "Enviar mensagem"),
+        ];
+        if let Some(states) = dialog {
+            let mut dialog = node(30, Some(10), "dialog", "");
+            dialog
+                .states
+                .extend(states.iter().map(|state| state.to_string()));
+            page.extend([
+                dialog,
+                node(31, Some(30), "heading", "Receba nossas novidades"),
+                node(32, Some(30), "entry", "E-mail"),
+                node(33, Some(30), "push button", "Agora não"),
+                node(34, Some(30), "push button", "Assinar"),
+                node(35, Some(30), "push button", "Fechar"),
+            ]);
+        }
+        browser(page)
+    }
+
+    #[test]
+    fn a_modal_or_new_dialog_in_the_page_is_named_with_its_buttons() {
+        let before = contact_page(None);
+        let expected = "a dialog is open: [30] dialog \"Receba nossas novidades\" — buttons: [33] \"Agora não\", [34] \"Assinar\", [35] \"Fechar\"";
+        // New since the snapshot the agent saw.
+        assert_eq!(
+            blocking_dialog(&before, &contact_page(Some(&[]))).as_deref(),
+            Some(expected)
+        );
+        // Already known but modal.
+        let modal = contact_page(Some(&["modal"]));
+        assert_eq!(blocking_dialog(&modal, &modal).as_deref(), Some(expected));
+        // Already known and not modal: not in the way.
+        let open = contact_page(Some(&[]));
+        assert_eq!(blocking_dialog(&open, &open), None);
+        // No dialog at all; the browser's translate bubble (an alert outside
+        // the page) does not count either.
+        assert_eq!(blocking_dialog(&[], &before), None);
+        // A closed dialog left in the tree is not shown.
+        let mut closed = contact_page(Some(&["modal"]));
+        for node in &mut closed {
+            if node.index == 30 {
+                node.states.retain(|state| state != "showing");
+            }
+        }
+        assert_eq!(blocking_dialog(&closed, &closed), None);
+        // A new status alert without buttons is not a dialog.
+        let mut status = before.clone();
+        status.push(node(40, Some(10), "alert", "Mensagem enviada"));
+        assert_eq!(blocking_dialog(&before, &status), None);
     }
 
     #[test]
