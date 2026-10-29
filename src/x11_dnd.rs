@@ -51,10 +51,28 @@ pub(crate) struct DropOutcome {
 }
 
 impl DropOutcome {
-    /// A drop counts when the target accepted it and then either finished it
-    /// or at least read the files.
+    /// A drop counts when the target accepted it and then finished it with
+    /// accept, or, when no `XdndFinished` came, at least read the files. A
+    /// `XdndFinished` that refuses is a failure even after a read.
     pub(crate) fn succeeded(&self) -> bool {
-        self.accepted && (self.finished.is_some() || self.served)
+        self.accepted
+            && match self.finished {
+                Some(accepted) => accepted,
+                None => self.served,
+            }
+    }
+
+    /// Why the drop failed, for the tool result: `None` when it succeeded.
+    pub(crate) fn failure(&self) -> Option<&'static str> {
+        if self.succeeded() {
+            None
+        } else if self.accepted && self.finished == Some(false) {
+            Some("the page refused the drop")
+        } else if self.accepted {
+            Some("the page accepted the drag but never read the files")
+        } else {
+            Some("the page did not accept the drag")
+        }
     }
 }
 
@@ -546,5 +564,31 @@ mod tests {
         assert!(outcome.succeeded());
         outcome.accepted = false;
         assert!(!outcome.succeeded());
+    }
+
+    #[test]
+    fn an_explicitly_refused_drop_fails_even_after_the_files_were_read() {
+        let refused = DropOutcome {
+            accepted: true,
+            served: true,
+            finished: Some(false),
+            ..Default::default()
+        };
+        assert!(!refused.succeeded());
+        assert_eq!(refused.failure(), Some("the page refused the drop"));
+        let unread = DropOutcome {
+            accepted: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            unread.failure(),
+            Some("the page accepted the drag but never read the files")
+        );
+        let finished = DropOutcome {
+            accepted: true,
+            finished: Some(true),
+            ..Default::default()
+        };
+        assert_eq!(finished.failure(), None);
     }
 }

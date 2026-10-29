@@ -1754,18 +1754,17 @@ impl ComputerUseLinux {
         };
         let steps = outcome.log.join("; ");
         eprintln!("drop_files at {},{}: {steps}", point.0, point.1);
-        if outcome.succeeded() {
-            Json(ActionOutput {
+        match outcome.failure() {
+            None => Json(ActionOutput {
                 ok: true,
                 implemented: true,
                 action: "drop_files".to_string(),
                 message: format!("dropped {count} file(s) onto {label} (XDND: {steps})"),
                 received,
-            })
-        } else {
-            failed(format!(
-                "the drop onto {label} was not taken (XDND: {steps}); drop onto the file input or drop zone itself"
-            ))
+            }),
+            Some(reason) => failed(format!(
+                "the drop onto {label} was not taken: {reason} (XDND: {steps}); drop onto the file input or drop zone itself"
+            )),
         }
     }
 
