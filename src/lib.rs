@@ -8,6 +8,7 @@ mod element_ids;
 mod fields;
 mod ocr;
 mod outline;
+mod page_view;
 #[path = "screenshot.rs"]
 mod screenshot_impl;
 mod server;

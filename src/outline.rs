@@ -160,7 +160,9 @@ pub fn render_line(node: &AccessibilityNode) -> String {
         .map(String::as_str)
         .filter(|state| SIGNIFICANT_STATES.contains(state))
         .collect();
-    if node.supports_editable_text {
+    // Chromium web fields carry the `editable` state without the
+    // EditableText interface; either makes the field writable.
+    if node.supports_editable_text || node.states.iter().any(|state| state == "editable") {
         flags.push("editable");
     }
     if !node.states.iter().any(|state| state == "enabled") && !node.actions.is_empty() {
@@ -203,9 +205,11 @@ pub fn render_line(node: &AccessibilityNode) -> String {
     line
 }
 
-/// Short reference to an element for action results: `[id] role "name"`.
+/// Short reference to an element for action results: `[id] role "name"`,
+/// with the start of its text standing in for a missing name.
 pub fn element_label(node: &AccessibilityNode) -> String {
-    match clean(node.name.as_deref()) {
+    let text = || clean(node.text.as_ref().and_then(|text| text.content.as_deref()));
+    match clean(node.name.as_deref()).or_else(text) {
         Some(name) => format!(
             "[{}] {} \"{}\"",
             node.index,

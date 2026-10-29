@@ -44,18 +44,25 @@ impl ElementIds {
     }
 
     /// Rewrites a snapshot whose `index`/`parent_index` are positions in
-    /// `nodes` so that both carry stable ids instead.
-    pub(crate) fn assign(&mut self, nodes: &mut [AccessibilityNode]) {
+    /// `nodes` so that both carry stable ids instead. An object listed twice
+    /// (Chromium parents some bubbles under both the app and its window)
+    /// keeps only its first occurrence, so every id names one node.
+    pub(crate) fn assign(&mut self, nodes: &mut Vec<AccessibilityNode>) {
         let ids: Vec<u32> = nodes
             .iter()
             .map(|node| self.id_for(&node.object_ref))
             .collect();
-        for (node, &id) in nodes.iter_mut().zip(&ids) {
+        let mut seen = std::collections::HashSet::new();
+        let mut position = 0;
+        nodes.retain_mut(|node| {
+            let id = ids[position];
+            position += 1;
             node.index = id;
             node.parent_index = node
                 .parent_index
                 .and_then(|parent| ids.get(parent as usize).copied());
-        }
+            seen.insert(id)
+        });
     }
 }
 
@@ -116,5 +123,25 @@ mod tests {
         assert_eq!(ids.object_ref(2), Some(":1.5/a"));
         assert_eq!(ids.id_for(":1.5/a"), 2);
         assert_eq!(ids.object_ref(99), None);
+    }
+
+    #[test]
+    fn an_object_listed_twice_keeps_its_first_occurrence() {
+        let mut ids = ElementIds::default();
+        let mut nodes = vec![
+            node(0, None, ":1.5/app"),
+            node(1, Some(0), ":1.5/alert"),
+            node(2, Some(0), ":1.5/frame"),
+            node(3, Some(2), ":1.5/alert"),
+            node(4, Some(1), ":1.5/close"),
+        ];
+        ids.assign(&mut nodes);
+        assert_eq!(
+            nodes
+                .iter()
+                .map(|node| (node.index, node.parent_index))
+                .collect::<Vec<_>>(),
+            [(1, None), (2, Some(1)), (3, Some(1)), (4, Some(2))]
+        );
     }
 }

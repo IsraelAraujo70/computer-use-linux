@@ -59,6 +59,20 @@ struct CachedAccessibilitySnapshot {
     scope: Option<SnapshotScope>,
 }
 
+/// One read of an observed scope, with stable ids.
+struct Rescan {
+    nodes: Vec<AccessibilityNode>,
+    root_pid: Option<u32>,
+    scope: SnapshotScope,
+}
+
+/// Wait after an action before the first read, so the app has handled it.
+const SETTLE_FIRST_WAIT: Duration = Duration::from_millis(120);
+/// Gap between reads while waiting for the tree to stop changing.
+const SETTLE_POLL: Duration = Duration::from_millis(150);
+/// Longest wait for the tree to settle after an action.
+const SETTLE_LIMIT: Duration = Duration::from_secs(2);
+
 /// The app filter and limits of an observation, reused when an action has
 /// to read the same part of the tree again.
 #[derive(Debug, Clone)]
@@ -813,16 +827,6 @@ impl ComputerUseLinux {
         ]))
     }
 
-    #[tool(
-        name = "click",
-        description = "Click an element by element_index or semantic selector (role/name/text/states), or at screen coordinates x/y (screenshot coordinate pixels; with relative=true and a window target, relative to that window's crop). A plain left click on an element invokes its AT-SPI click/press/toggle action; coordinates, right/middle buttons and click_count>1 send an xdotool pointer click.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn click(&self, Parameters(mut params): Parameters<ClickParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
@@ -937,6 +941,17 @@ impl ComputerUseLinux {
                 });
             }
         };
+        let label = if params.x.zip(params.y).is_none() {
+            self.cached_node_for(
+                params.element_index,
+                &params.selector(),
+                ElementResolvePurpose::Click,
+            )
+            .map(|node| crate::outline::element_label(&node))
+        } else {
+            None
+        };
+        let clicked = label.as_deref().unwrap_or("the element");
         if let ClickTarget::PrimaryAction {
             object_ref,
             action_name,
@@ -958,12 +973,11 @@ impl ComputerUseLinux {
                     action: "click".to_string(),
                     message: if invocation.ok {
                         format!(
-                            "Invoked the primary AT-SPI action{} without pointer-coordinate conversion.",
+                            "clicked {clicked} (AT-SPI {})",
                             action_name
                                 .as_deref()
                                 .filter(|name| !name.is_empty())
-                                .map(|name| format!(" ({name})"))
-                                .unwrap_or_default()
+                                .unwrap_or("action")
                         )
                     } else {
                         format!(
@@ -1009,22 +1023,16 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        Json(with_notes(
-            action_result("click", result.map(|output| vec![output]), received),
-            off_screen_note,
-        ))
+        let mut output = action_result("click", result.map(|output| vec![output]), received);
+        if output.ok {
+            output.message = match &label {
+                Some(label) => format!("clicked {label} at {x},{y} (xdotool)"),
+                None => format!("clicked {x},{y} (xdotool)"),
+            };
+        }
+        Json(with_notes(output, off_screen_note))
     }
 
-    #[tool(
-        name = "perform_action",
-        description = "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn perform_action(
         &self,
         Parameters(params): Parameters<ActionParams>,
@@ -1033,16 +1041,6 @@ impl ComputerUseLinux {
         self.perform_element_action(&params, requested_action).await
     }
 
-    #[tool(
-        name = "set_value",
-        description = "Set a field and read it back. Text fields (web fields included; non-ASCII is pasted): the text, \"\" clears. Combo boxes, selects, list boxes and radio groups: the option name. Check boxes, radios, switches: \"true\"/\"false\". ok only when the field then holds the value; the result shows what it holds.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn set_value(
         &self,
         Parameters(params): Parameters<SetValueParams>,
@@ -1115,16 +1113,6 @@ impl ComputerUseLinux {
         })
     }
 
-    #[tool(
-        name = "fill_form",
-        description = "Set several fields in one call, in order, with set_value semantics (text fields, combo boxes and selects by option name, check boxes and radios with \"true\"/\"false\", a radio group by option name). Each field is {element_index or role/name, value}. Returns each field's read-back value and whether it matches.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn fill_form(
         &self,
         Parameters(params): Parameters<FillFormParams>,
@@ -1180,16 +1168,6 @@ impl ComputerUseLinux {
         })
     }
 
-    #[tool(
-        name = "scroll",
-        description = "Scroll an element in a direction by a number of pages. With a window target and no x/y/element_index, scrolls at the centre of the targeted window.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = false,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn scroll(&self, Parameters(mut params): Parameters<ScrollParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
         let units = match scroll_units(params.pages) {
@@ -1382,22 +1360,24 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        Json(with_notes(
-            action_result("scroll", result.map(|output| vec![output]), received),
-            off_screen_note,
-        ))
+        let mut output = action_result("scroll", result.map(|output| vec![output]), received);
+        if output.ok {
+            output.message = match target_point {
+                Some((x, y)) => format!(
+                    "scrolled {} {} page(s) at {x},{y} (xdotool)",
+                    params.direction.to_ascii_lowercase(),
+                    params.pages.unwrap_or(1.0)
+                ),
+                None => format!(
+                    "scrolled {} {} page(s) under the pointer (xdotool)",
+                    params.direction.to_ascii_lowercase(),
+                    params.pages.unwrap_or(1.0)
+                ),
+            };
+        }
+        Json(with_notes(output, off_screen_note))
     }
 
-    #[tool(
-        name = "drag",
-        description = "Drag with the left button from start_x,start_y to end_x,end_y in screen coordinates (xdotool).",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn drag(&self, Parameters(params): Parameters<DragParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params));
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
@@ -1406,19 +1386,16 @@ impl ComputerUseLinux {
         })
         .await;
         let _input_guard = input_guard;
-        Json(action_result("drag", result, received))
+        let mut output = action_result("drag", result, received);
+        if output.ok {
+            output.message = format!(
+                "dragged {},{} to {},{} (xdotool)",
+                params.start_x, params.start_y, params.end_x, params.end_y
+            );
+        }
+        Json(output)
     }
 
-    #[tool(
-        name = "press_key",
-        description = "Press a key or chord with xdotool, optionally after focusing a target window or terminal selector. Grammar (case-insensitive; hyphens/spaces ignored): combos join with '+', e.g. Ctrl+L or Ctrl+Shift+T. Modifiers: ctrl/control, alt/option, shift, meta/super/cmd/command. Named keys: enter/return, escape/esc, tab, backspace, delete/del, space, home, end, pageup, pagedown, arrowleft/left, arrowright/right, arrowup/up, arrowdown/down, f1-f12, plus single letters a-z and digits 0-9. Anything else is an error. i3 may consume its own bindings (Super+...) before the app sees them.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn press_key(
         &self,
         Parameters(params): Parameters<PressKeyParams>,
@@ -1453,11 +1430,157 @@ impl ComputerUseLinux {
         .await;
         let _input_guard = input_guard;
         let mut output = action_result("press_key", result.map(|output| vec![output]), received);
+        if output.ok {
+            output.message = format!("pressed {} (xdotool)", params.key.trim());
+        }
         if output.ok && focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), false).await;
             output = with_notes(output, notes);
         }
         Json(output)
+    }
+
+    #[tool(
+        name = "click",
+        description = "Click an element by element_index or semantic selector (role/name/text/states), or at screen coordinates x/y (screenshot coordinate pixels; with relative=true and a window target, relative to that window's crop). A plain left click on an element invokes its AT-SPI click/press/toggle action; coordinates, right/middle buttons and click_count>1 send an xdotool pointer click.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn click_tool(&self, Parameters(params): Parameters<ClickParams>) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.click(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "perform_action",
+        description = "Invoke an accessibility action exposed by an element selected by index, identifier, or semantic selector. Defaults to the primary action unless action is provided.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn perform_action_tool(
+        &self,
+        Parameters(params): Parameters<ActionParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.perform_action(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "set_value",
+        description = "Set a field and read it back. Text fields (web fields included; non-ASCII is pasted): the text, \"\" clears. Combo boxes, selects, list boxes and radio groups: the option name. Check boxes, radios, switches: \"true\"/\"false\". ok only when the field then holds the value; the result shows what it holds.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn set_value_tool(
+        &self,
+        Parameters(params): Parameters<SetValueParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.set_value(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "fill_form",
+        description = "Set several fields in one call, in order, with set_value semantics (text fields, combo boxes and selects by option name, check boxes and radios with \"true\"/\"false\", a radio group by option name). Each field is {element_index or role/name, value}. Returns each field's read-back value and whether it matches.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn fill_form_tool(
+        &self,
+        Parameters(params): Parameters<FillFormParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.fill_form(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "scroll",
+        description = "Scroll an element in a direction by a number of pages. With a window target and no x/y/element_index, scrolls at the centre of the targeted window.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn scroll_tool(&self, Parameters(params): Parameters<ScrollParams>) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.scroll(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "drag",
+        description = "Drag with the left button from start_x,start_y to end_x,end_y in screen coordinates (xdotool).",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn drag_tool(&self, Parameters(params): Parameters<DragParams>) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.drag(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "press_key",
+        description = "Press a key or chord with xdotool, optionally after focusing a target window or terminal selector. Grammar (case-insensitive; hyphens/spaces ignored): combos join with '+', e.g. Ctrl+L or Ctrl+Shift+T. Modifiers: ctrl/control, alt/option, shift, meta/super/cmd/command. Named keys: enter/return, escape/esc, tab, backspace, delete/del, space, home, end, pageup, pagedown, arrowleft/left, arrowright/right, arrowup/up, arrowdown/down, f1-f12, plus single letters a-z and digits 0-9. Anything else is an error. i3 may consume its own bindings (Super+...) before the app sees them.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn press_key_tool(
+        &self,
+        Parameters(params): Parameters<PressKeyParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.press_key(Parameters(params)).await;
+        self.finish_action(output, observe).await
+    }
+
+    #[tool(
+        name = "type_text",
+        description = "Type text into the focused element, or first focus element_index/role/name or a window/terminal selector. Printable ASCII is typed (newline presses Return); other text is pasted through the clipboard (Ctrl+Shift+V in terminals). The result reads the field back when it can. To replace a field's content use set_value.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn type_text_tool(
+        &self,
+        Parameters(params): Parameters<TypeTextParams>,
+    ) -> CallToolResult {
+        let observe = params.observe != Some(false);
+        let Json(output) = self.type_text(Parameters(params)).await;
+        self.finish_action(output, observe).await
     }
 
     #[tool(
@@ -1477,16 +1600,6 @@ impl ComputerUseLinux {
         Json(execute_shell(params).await)
     }
 
-    #[tool(
-        name = "type_text",
-        description = "Type text into the focused element, or first focus element_index/role/name or a window/terminal selector. Printable ASCII is typed (newline presses Return); other text is pasted through the clipboard (Ctrl+Shift+V in terminals). The result reads the field back when it can. To replace a field's content use set_value.",
-        annotations(
-            read_only_hint = false,
-            destructive_hint = true,
-            idempotent_hint = false,
-            open_world_hint = true
-        )
-    )]
     async fn type_text(
         &self,
         Parameters(params): Parameters<TypeTextParams>,
@@ -2404,6 +2517,9 @@ struct GetAppStateOutput {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ClickParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
@@ -2480,6 +2596,9 @@ impl ClickParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ActionParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
@@ -2510,6 +2629,9 @@ impl ActionParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct SetValueParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
@@ -2574,6 +2696,9 @@ impl FormField {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct FillFormParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     fields: Vec<FormField>,
 }
 
@@ -2593,6 +2718,9 @@ fn form_field_line(label: &str, outcome: &FieldOutcome) -> String {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct ScrollParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     /// Element id `[n]` from any earlier result.
     #[serde(default)]
     element_index: Option<u32>,
@@ -2661,6 +2789,9 @@ impl ScrollParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct DragParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     start_x: i32,
     start_y: i32,
     end_x: i32,
@@ -2669,6 +2800,9 @@ struct DragParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct PressKeyParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     key: String,
     #[serde(default)]
     window_id: Option<u64>,
@@ -2692,6 +2826,9 @@ struct PressKeyParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct TypeTextParams {
+    /// false skips the report of what changed (default true).
+    #[serde(default)]
+    observe: Option<bool>,
     text: String,
     /// Element id `[n]` to focus before typing.
     /// Element id `[n]` from any earlier result.
@@ -3203,7 +3340,7 @@ impl ComputerUseLinux {
     }
 
     /// Rewrites a compacted snapshot's positional indices to stable ids.
-    fn assign_ids(&self, nodes: &mut [AccessibilityNode]) {
+    fn assign_ids(&self, nodes: &mut Vec<AccessibilityNode>) {
         if let Ok(mut ids) = self.element_ids.lock() {
             ids.assign(nodes);
         }
@@ -3211,7 +3348,7 @@ impl ComputerUseLinux {
 
     /// Reads the scope of the cached observation again (or, with none, the
     /// app owning `hint_ref`, else the focused window's app), with stable ids.
-    async fn rescan(&self, hint_ref: Option<&str>) -> Result<Vec<AccessibilityNode>, String> {
+    async fn rescan(&self, hint_ref: Option<&str>) -> Result<Rescan, String> {
         let scope = self
             .last_snapshot
             .lock()
@@ -3247,7 +3384,92 @@ impl ComputerUseLinux {
                 .map_err(|error| format!("{error:#}"))?;
         let mut nodes = compact_accessibility_tree(snapshot.nodes);
         self.assign_ids(&mut nodes);
-        Ok(nodes)
+        Ok(Rescan {
+            nodes,
+            root_pid: snapshot.root_pid,
+            scope: SnapshotScope {
+                app_filter,
+                target_pid: pid,
+                max_nodes,
+                max_depth,
+            },
+        })
+    }
+
+    /// Turns an action's outcome into its text result: `ok: …` or
+    /// `error: …`, then (when `observe`) what the action changed, so the
+    /// agent need not look again. Failures report changes only when input
+    /// may already have reached the app.
+    async fn finish_action(&self, output: ActionOutput, observe: bool) -> CallToolResult {
+        let input_reached_app = output.ok
+            || matches!(
+                output.action.as_str(),
+                "set_value" | "fill_form" | "type_text"
+            )
+            || output.message.contains("no longer exists");
+        let mut text = if output.ok {
+            format!("ok: {}", output.message)
+        } else {
+            format!("error: {}", output.message)
+        };
+        if observe && input_reached_app {
+            text.push('\n');
+            text.push_str(&self.observe_changes().await);
+        }
+        let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
+        if !output.ok {
+            result.is_error = Some(true);
+        }
+        result
+    }
+
+    /// Waits for the app to settle after an action, then reports what changed
+    /// against the snapshot the agent last saw and makes the settled snapshot
+    /// the cached one. Settled means two consecutive reads of the observed
+    /// scope agree, or `SETTLE_LIMIT` passed.
+    async fn observe_changes(&self) -> String {
+        sleep(SETTLE_FIRST_WAIT).await;
+        let started = std::time::Instant::now();
+        let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
+        let mut settled: Option<Rescan> = None;
+        let mut last_error = None;
+        loop {
+            match self.rescan(None).await {
+                Ok(rescan) => {
+                    let contents = crate::outline::element_contents(&rescan.nodes);
+                    let stable = previous.as_ref() == Some(&contents);
+                    previous = Some(contents);
+                    settled = Some(rescan);
+                    if stable {
+                        break;
+                    }
+                }
+                Err(error) => last_error = Some(error),
+            }
+            if started.elapsed() >= SETTLE_LIMIT {
+                break;
+            }
+            sleep(SETTLE_POLL).await;
+        }
+        let Some(settled) = settled else {
+            return format!(
+                "changes: unknown (the tree could not be read: {})\n",
+                last_error.unwrap_or_default()
+            );
+        };
+        let before = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
+        let options = crate::page_view::ViewOptions::default();
+        let report = crate::page_view::change_report(
+            &crate::page_view::page_view(&before, options),
+            &crate::page_view::page_view(&settled.nodes, options),
+        );
+        self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
+            .await;
+        report
     }
 
     /// Makes the element an action names resolvable from the cache. An id or
@@ -3287,7 +3509,7 @@ impl ComputerUseLinux {
             },
             None => None,
         };
-        let fresh = self.rescan(hint.as_deref()).await?;
+        let fresh = self.rescan(hint.as_deref()).await?.nodes;
         let node = match element_index {
             Some(id) => fresh
                 .iter()
@@ -3552,6 +3774,18 @@ impl ComputerUseLinux {
             }
         };
 
+        let label = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| {
+                cached
+                    .nodes
+                    .iter()
+                    .find(|node| node.object_ref == object_ref)
+                    .map(crate::outline::element_label)
+            })
+            .unwrap_or_else(|| object_ref.clone());
         match invoke_accessibility_action(&object_ref, requested_action).await {
             Ok(invocation) => Json(ActionOutput {
                 ok: invocation.ok,
@@ -3559,13 +3793,12 @@ impl ComputerUseLinux {
                 action: "perform_action".to_string(),
                 message: if invocation.ok {
                     format!(
-                        "AT-SPI action {} ({}) invoked.",
-                        invocation.action_index,
+                        "invoked {} on {label}",
                         invocation
                             .action_name
                             .as_deref()
                             .filter(|name| !name.is_empty())
-                            .unwrap_or("unnamed")
+                            .unwrap_or("the primary action")
                     )
                 } else {
                     format!(
@@ -5528,6 +5761,7 @@ mod tests {
             serde_json::from_value(serde_json::json!({"x":5536,"y":700,"direction":"down"}))
                 .unwrap();
         let drag = DragParams {
+            observe: None,
             start_x: 100,
             start_y: 100,
             end_x: 200,
@@ -7290,6 +7524,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: Some(true),
+            observe: None,
         };
         apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(110));
@@ -7310,6 +7545,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: None,
+            observe: None,
         };
         apply_window_center_scroll_point(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(500));
@@ -7330,6 +7566,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: None,
+            observe: None,
         };
         let error = apply_window_center_scroll_point(&mut params, (0, 0, 0, 0)).unwrap_err();
         assert!(error.contains("pass x/y explicitly"));
@@ -7351,6 +7588,7 @@ mod tests {
             wm_class: None,
             window_title: None,
             relative: Some(true),
+            observe: None,
         };
         assert!(
             apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).is_err()
