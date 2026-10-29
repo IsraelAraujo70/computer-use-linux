@@ -115,16 +115,12 @@ const TOOL_ALIASES: Record<string, string[]> = {
 	get_app_state: ["accessibility", "observe", "snapshot", "screen state"],
 	list_apps: ["applications", "processes"],
 	list_windows: ["windows", "titles"],
-	move_window: ["position window"],
 	perform_action: ["activate element", "press element", "toggle"],
 	press_key: ["keyboard", "shortcut", "hotkey"],
-	resize_window: ["window size"],
 	run_shell: ["shell", "command", "terminal"],
 	screenshot: ["image", "screen capture"],
 	scroll: ["wheel", "page"],
 	set_value: ["input value", "text field", "slider"],
-	setup_accessibility: ["at-spi", "accessibility setup"],
-	setup_window_targeting: ["gnome extension", "window setup"],
 	type_text: ["write text", "keyboard text"],
 };
 
@@ -201,7 +197,6 @@ function runtimeEnvironment(): Record<string, string> {
 		"TERM",
 		"TMPDIR",
 		"DISPLAY",
-		"WAYLAND_DISPLAY",
 		"XAUTHORITY",
 		"DBUS_SESSION_BUS_ADDRESS",
 		"XDG_RUNTIME_DIR",
@@ -214,10 +209,7 @@ function runtimeEnvironment(): Record<string, string> {
 		"XDG_STATE_HOME",
 		"DESKTOP_SESSION",
 		"GDMSESSION",
-		"HYPRLAND_INSTANCE_SIGNATURE",
 		"I3SOCK",
-		"SWAYSOCK",
-		"YDOTOOL_SOCKET",
 		"GSETTINGS_SCHEMA_DIR",
 		"GIO_EXTRA_MODULES",
 		"GI_TYPELIB_PATH",
@@ -225,20 +217,8 @@ function runtimeEnvironment(): Record<string, string> {
 		"NIX_LD",
 		"NIX_LD_LIBRARY_PATH",
 		"RUST_LOG",
-		"COMPUTER_USE_LINUX_COSMIC_HELPER",
 		"COMPUTER_USE_LINUX_AGENT_NAME",
-		"COMPUTER_USE_LINUX_INDICATOR",
-		"COMPUTER_USE_LINUX_INDICATOR_BIN",
-		"COMPUTER_USE_LINUX_INDICATOR_HIDE_TEXT",
 		"COMPUTER_USE_LINUX_ENABLE_SHELL",
-		"COMPUTER_USE_LINUX_FORCE_PORTAL_KEYBOARD",
-		"COMPUTER_USE_LINUX_FORCE_PORTAL_POINTER",
-		"COMPUTER_USE_LINUX_FORCE_XDOTOOL_KEYBOARD",
-		"COMPUTER_USE_LINUX_FORCE_YDOTOOL_KEYBOARD",
-		"COMPUTER_USE_LINUX_FORCE_YDOTOOL_POINTER",
-		"COMPUTER_USE_LINUX_PORTAL_SCROLL_INVERT",
-		"COMPUTER_USE_LINUX_SCREENSHOT_BACKEND",
-		"CU_DISABLE_ABS_POINTER",
 	]);
 	const env = Object.fromEntries(
 		Object.entries(process.env).filter(
@@ -270,28 +250,6 @@ function defaultFindBinary(): BinaryLaunch | null {
 		`computer-use-linux-${process.platform}-${process.arch}`,
 	);
 	if (executable(bundledBinary)) {
-		const cosmicHelper = join(
-			__dirname,
-			"..",
-			"..",
-			"npm",
-			"bin",
-			"computer-use-linux-cosmic",
-		);
-		if (!env.COMPUTER_USE_LINUX_COSMIC_HELPER && executable(cosmicHelper)) {
-			env.COMPUTER_USE_LINUX_COSMIC_HELPER = cosmicHelper;
-		}
-		const indicator = join(
-			__dirname,
-			"..",
-			"..",
-			"npm",
-			"bin",
-			"computer-use-linux-indicator",
-		);
-		if (!env.COMPUTER_USE_LINUX_INDICATOR_BIN && executable(indicator)) {
-			env.COMPUTER_USE_LINUX_INDICATOR_BIN = indicator;
-		}
 		return { binaryPath: bundledBinary, env };
 	}
 

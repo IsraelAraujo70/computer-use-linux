@@ -12,4 +12,4 @@ Only the latest released version is supported with security updates.
 
 ## Scope
 
-`computer-use-linux` can observe and mutate the local Linux desktop through MCP, AT-SPI, portals, compositor APIs, and `ydotoold`. Security reports about unintended desktop access, tool annotation drift, unsafe defaults, packaging integrity, or release asset verification are in scope.
+`computer-use-linux` can observe and mutate apps on an X11 display through MCP, AT-SPI, X11 screenshots, i3 IPC, and `xdotool`. Security reports about unintended desktop access, tool annotation drift, unsafe defaults, packaging integrity, or release asset verification are in scope.

@@ -57,7 +57,7 @@ computer_use_linux_type_text({ text: "hello", title: "Notes" })
 
 Pi does not start the desktop process when the loader runs. The first real tool
 call starts one computer-use-linux process, and the package reuses it for the
-session so `get_app_state` element indices and portal sessions remain valid.
+session so `get_app_state` element indices remain valid.
 
 Codemode scripts receive `{ text, images, isError }`. Each image is an MCP image
 block that can be passed directly to `image()`:

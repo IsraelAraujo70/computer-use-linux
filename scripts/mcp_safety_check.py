@@ -10,7 +10,6 @@ import pathlib
 import re
 import select
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
@@ -19,16 +18,15 @@ from typing import Any
 
 EXPECTED_TOOLS = {
     "doctor",
-    "setup_accessibility",
-    "setup_window_targeting",
     "list_apps",
     "get_app_state",
+    "find_elements",
+    "wait_for",
+    "ocr",
     "list_windows",
     "focused_window",
     "screenshot",
     "activate_window",
-    "move_window",
-    "resize_window",
     "click",
     "drag",
     "scroll",
@@ -38,7 +36,6 @@ EXPECTED_TOOLS = {
     "set_value",
 }
 SHELL_TOOL = "run_shell"
-COMPLETION_TOOL = "complete_interaction"
 
 INJECTION_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
@@ -93,6 +90,9 @@ READ_ONLY_TOOLS = {
     "doctor",
     "list_apps",
     "get_app_state",
+    "find_elements",
+    "wait_for",
+    "ocr",
     "list_windows",
     "focused_window",
 }
@@ -109,26 +109,15 @@ DESTRUCTIVE_MUTATING_TOOLS = {
 
 NON_DESTRUCTIVE_MUTATING_TOOLS = EXPECTED_TOOLS - READ_ONLY_TOOLS - DESTRUCTIVE_MUTATING_TOOLS
 
-IDEMPOTENT_TOOLS = READ_ONLY_TOOLS | {
-    "setup_accessibility",
-    "setup_window_targeting",
-    "activate_window",
-    "move_window",
-    "resize_window",
-}
+IDEMPOTENT_TOOLS = READ_ONLY_TOOLS | {"activate_window"}
 
-OPEN_WORLD_TOOLS = (EXPECTED_TOOLS | {SHELL_TOOL, COMPLETION_TOOL}) - {
-    "doctor",
-    "setup_accessibility",
-    "setup_window_targeting",
-}
+OPEN_WORLD_TOOLS = (EXPECTED_TOOLS | {SHELL_TOOL}) - {"doctor"}
 
 
 class McpClient:
     def __init__(self, binary: pathlib.Path, extra_env: dict[str, str] | None = None):
         child_env = os.environ.copy()
         child_env["COMPUTER_USE_LINUX_ENABLE_SHELL"] = "0"
-        child_env["COMPUTER_USE_LINUX_NOTIFY_ON_COMPLETE"] = "0"
         if extra_env:
             child_env.update(extra_env)
         self.process = subprocess.Popen(
@@ -250,9 +239,8 @@ def assert_tool_annotations(tool: dict[str, Any]) -> None:
 
 
 def assert_screenshot_error_contract(binary: pathlib.Path) -> None:
-    # Supply an unfocused window without connecting to the user's desktop.
-    # niri validates the socket's type before invoking its CLI, so keep a
-    # private socket bound even though the fixture CLI answers every query.
+    # Window listing fails against stub clients and an unreachable display, so
+    # a targeted screenshot fails without connecting to the user's desktop.
     with tempfile.TemporaryDirectory(prefix="cul-mcp-") as temporary:
         fixture = pathlib.Path(temporary)
         # The plugin launcher still needs these commands for cached startup.
@@ -268,93 +256,66 @@ def assert_screenshot_error_contract(binary: pathlib.Path) -> None:
         node = shutil.which("node")
         if node is not None:
             (fixture / "node").symlink_to(node)
-        for name in ["hyprctl", "i3-msg", "systemctl"]:
+        for name in ["i3-msg", "wmctrl", "xprop", "systemctl"]:
             command = fixture / name
             command.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
             command.chmod(0o700)
-        niri = fixture / "niri"
-        windows_json = json.dumps(
-            [{
-                "id": 210,
-                "title": "MCP regression window",
-                "app_id": "mcp-regression",
-                "is_focused": False,
-            }]
+        client = McpClient(
+            binary,
+            {
+                "PATH": str(fixture),
+                "XDG_RUNTIME_DIR": str(fixture),
+                "DBUS_SESSION_BUS_ADDRESS": f"unix:path={fixture / 'absent-bus'}",
+                "AT_SPI_BUS_ADDRESS": f"unix:path={fixture / 'absent-atspi-bus'}",
+                "I3SOCK": str(fixture / "absent-i3.sock"),
+                "DISPLAY": "absent-x11",
+                "XDG_SESSION_TYPE": "x11",
+            },
         )
-        niri.write_text(
-            "#!/bin/sh\n"
-            'case "$*" in\n'
-            f"  'msg --json windows') printf '%s\\n' '{windows_json}' ;;\n"
-            "  'msg --json outputs') printf '%s\\n' '{}' ;;\n"
-            "  'msg --json workspaces') printf '%s\\n' '[]' ;;\n"
-            "  *) exit 1 ;;\n"
-            "esac\n",
-            encoding="utf-8",
-        )
-        niri.chmod(0o700)
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as niri_socket:
-            socket_path = fixture / "niri.sock"
-            niri_socket.bind(str(socket_path))
-            client = McpClient(
-                binary,
+        try:
+            client.request(
+                "initialize",
                 {
-                    "PATH": str(fixture),
-                    "COMPUTER_USE_LINUX_COSMIC_HELPER": str(niri),
-                    "NIRI_SOCKET": str(socket_path),
-                    "XDG_RUNTIME_DIR": str(fixture),
-                    "DBUS_SESSION_BUS_ADDRESS": f"unix:path={fixture / 'absent-bus'}",
-                    "AT_SPI_BUS_ADDRESS": f"unix:path={fixture / 'absent-atspi-bus'}",
-                    "WAYLAND_DISPLAY": "absent-wayland",
-                    "DISPLAY": "absent-x11",
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "screenshot-error-contract", "version": "0"},
                 },
             )
-            try:
-                client.request(
-                    "initialize",
-                    {
-                        "protocolVersion": "2024-11-05",
-                        "capabilities": {},
-                        "clientInfo": {"name": "screenshot-error-contract", "version": "0"},
-                    },
-                )
-                client.notify("notifications/initialized", {})
-                result = client.request(
-                    "tools/call",
-                    {
-                        "name": "screenshot",
-                        "arguments": {"window_id": 210, "raise_window": False},
-                    },
-                )["result"]
-                expected_error = (
-                    "targeted screenshot failed: "
-                    "raise_window=false requires the requested window to already be focused"
-                )
-                if result.get("isError") is not True or result.get("content") != [
-                    {"type": "text", "text": expected_error}
-                ]:
-                    raise AssertionError(f"screenshot execution error contract changed: {result!r}")
+            client.notify("notifications/initialized", {})
+            result = client.request(
+                "tools/call",
+                {"name": "screenshot", "arguments": {"window_id": 210}},
+            )["result"]
+            content = result.get("content") or []
+            if (
+                result.get("isError") is not True
+                or len(content) != 1
+                or content[0].get("type") != "text"
+                or not content[0].get("text", "").startswith("targeted screenshot failed: ")
+            ):
+                raise AssertionError(f"screenshot execution error contract changed: {result!r}")
 
-                # A tool execution failure must leave the same MCP process usable.
-                tools = client.request("tools/list", {})["result"]["tools"]
-                if {tool["name"] for tool in tools} != EXPECTED_TOOLS:
-                    raise AssertionError("MCP tool listing changed after screenshot failure")
+            # A tool execution failure must leave the same MCP process usable.
+            tools = client.request("tools/list", {})["result"]["tools"]
+            if {tool["name"] for tool in tools} != EXPECTED_TOOLS:
+                raise AssertionError("MCP tool listing changed after screenshot failure")
 
-                malformed = client.request(
-                    "tools/call",
-                    {"name": "screenshot", "arguments": {"window_id": "invalid"}},
-                )["result"]
-                if malformed.get("isError") is not True:
-                    raise AssertionError(f"malformed tool arguments lost isError: {malformed!r}")
+            malformed = client.request(
+                "tools/call",
+                {"name": "screenshot", "arguments": {"window_id": "invalid"}},
+            )["result"]
+            if malformed.get("isError") is not True:
+                raise AssertionError(f"malformed tool arguments lost isError: {malformed!r}")
 
-                unknown = client.request(
-                    "tools/call",
-                    {"name": "nonexistent_tool", "arguments": {}},
-                    allow_protocol_error=True,
-                )
-                if "result" in unknown or (unknown.get("error") or {}).get("code") != -32602:
-                    raise AssertionError(f"unknown tool lost its JSON-RPC error: {unknown!r}")
-            finally:
-                client.close()
+            unknown = client.request(
+                "tools/call",
+                {"name": "nonexistent_tool", "arguments": {}},
+                allow_protocol_error=True,
+            )
+            if "result" in unknown or (unknown.get("error") or {}).get("code") != -32602:
+                raise AssertionError(f"unknown tool lost its JSON-RPC error: {unknown!r}")
+        finally:
+            client.close()
 
 
 def main() -> int:
@@ -403,10 +364,9 @@ def main() -> int:
         instructions = initialize.get("instructions") or ""
         assert_no_injection_text("server instructions", instructions)
         for required in [
-            "Begin every turn that uses Computer Use by calling get_app_state",
-            "Use list_windows/focused_window before targeted keyboard input",
-            "Tools with readOnlyHint=false may mutate local desktop or application state",
-            "refuse targeted input if focus cannot be verified",
+            "Start each turn with get_app_state",
+            "refuse to send input when focus cannot be verified",
+            "Tools with readOnlyHint=false change app state",
         ]:
             if required not in instructions:
                 raise AssertionError(f"server instructions are missing safety guidance: {required!r}")
@@ -440,30 +400,13 @@ def main() -> int:
         if not content or content[0].get("type") != "text":
             raise AssertionError(f"doctor did not return text content: {doctor!r}")
         report = json.loads(content[0].get("text") or "{}")
-        for section in ["platform", "accessibility", "windowing", "input", "portals", "readiness"]:
+        for section in ["platform", "accessibility", "windowing", "commands", "readiness"]:
             if section not in report:
                 raise AssertionError(f"doctor report missing {section!r}: {report.keys()}")
     finally:
         client.close()
 
     assert_screenshot_error_contract(binary)
-
-    notification_client = McpClient(binary, {"COMPUTER_USE_LINUX_NOTIFY_ON_COMPLETE": "1"})
-    try:
-        notification_client.request("initialize", {
-            "protocolVersion": "2024-11-05", "capabilities": {},
-            "clientInfo": {"name": "completion-contract", "version": "0"},
-        })
-        notification_client.notify("notifications/initialized", {})
-        tools = notification_client.request("tools/list", {})["result"]["tools"]
-        if {tool["name"] for tool in tools} != EXPECTED_TOOLS | {COMPLETION_TOOL}:
-            raise AssertionError("completion opt-in changed the wrong tool set")
-        completion = next(tool for tool in tools if tool["name"] == COMPLETION_TOOL)
-        assert_tool_annotations(completion)
-        if schema_properties(completion):
-            raise AssertionError("completion notification must not accept process parameters")
-    finally:
-        notification_client.close()
 
     shell_home = tempfile.TemporaryDirectory(prefix="computer-use-linux-shell-home-")
     pathlib.Path(shell_home.name, ".profile").write_text(

@@ -1,7 +1,7 @@
 {
   "name": "@agent-sh/computer-use-linux",
   "version": "0.7.17",
-  "description": "Linux desktop-control MCP server: AT-SPI accessibility trees, Wayland/X11 input, screenshots, and compositor window targeting.",
+  "description": "Desktop-control MCP server for a virtual X11 display (Xvfb + i3): AT-SPI accessibility trees, X11 screenshots, i3 window targeting, and xdotool input.",
   "license": "MIT",
   "type": "commonjs",
   "homepage": "https://github.com/agent-sh/computer-use-linux#readme",
@@ -16,7 +16,7 @@
     "mcp",
     "computer-use",
     "linux",
-    "wayland",
+    "x11",
     "accessibility",
     "hermes-agent",
     "codex",

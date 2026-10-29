@@ -12,7 +12,6 @@ on:
     paths:
       - 'src/**'
       - 'Cargo.toml'
-      - 'gnome-shell-extension/**'
 
 permissions:
   contents: read

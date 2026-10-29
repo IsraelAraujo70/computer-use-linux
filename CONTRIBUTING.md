@@ -49,7 +49,7 @@ npm pack --dry-run
 ## PR Guidelines
 
 - Keep changes focused and explain the desktop/session you tested on.
-- Include `computer-use-linux doctor` output for compositor, portal, or accessibility issues.
+- Include `computer-use-linux doctor` output for X display, window manager, or accessibility issues.
 - Preserve the MCP safety annotations when adding or changing tools.
 - Update `README.md`, `npm/README.md`, and `skills/computer-use-linux/SKILL.md` when user-facing commands change.
 - After editing `skills/computer-use-linux/`, copy it into `plugins/computer-use-linux/skills/`. A release bumps the version in `Cargo.toml`, `package.json`, the plugin launcher, both plugin manifests, and `.claude-plugin/marketplace.json`. `scripts/check_plugins.sh` enforces both.

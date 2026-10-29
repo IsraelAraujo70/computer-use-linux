@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Target only a virtual X11 display (Xvfb + i3). Input is xdotool only, screenshots are X11 `GetImage` only, and window targeting uses i3 IPC with X11/EWMH as the second backend.
+- `doctor` reports the X display, window manager IPC, AT-SPI bus, `xdotool` and `tesseract`; each blocker names its fix, and `readiness` gains `ready`, `can_send_input` and `can_ocr`.
+- `drag` sends one xdotool press-move-release sequence. Before, its only backends were the uinput pointer, the desktop portal and ydotool.
+- `ocr` with a window target focuses and crops that window. Before, it required in-place Hyprland capture.
+- Shorter server instructions and tool descriptions.
+
+### Removed
+- Wayland, GNOME, KDE/KWin, Hyprland, niri and COSMIC backends, the desktop portal, ydotool/uinput, wtype and KDE clipboard text paths.
+- The on-screen indicator, the GNOME Shell extension and the `computer-use-linux-cosmic` and `computer-use-linux-indicator` binaries.
+- Tools `setup_accessibility`, `setup_window_targeting`, `move_window`, `resize_window` and `complete_interaction`, and the `screenshot` `raise_window` parameter.
+- CLI commands `setup`, `setup-window-targeting`, `guard-accessibility` and `abs-test`.
+
 ## [0.7.17] - 2026-10-16
 
 ### Fixed
