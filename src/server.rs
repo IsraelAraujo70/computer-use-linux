@@ -4637,6 +4637,8 @@ async fn send_key_chord(chord: &str) -> Result<(), String> {
 /// Types printable ASCII with `xdotool type`; anything else is pasted from
 /// an X11 CLIPBOARD this process owns, with `paste_chord` (Ctrl+V, or
 /// Ctrl+Shift+V in terminals), since XTEST drops non-ASCII text on Xvfb.
+/// Pasted text goes line by line with Return in between, as typing does:
+/// a newline inside a paste is inert in shells with bracketed paste.
 async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
     if crate::fields::typeable_ascii(text) {
         let delay_ms = xdotool_type_delay_ms();
@@ -4645,7 +4647,17 @@ async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
             .await
             .map(|_| ());
     }
-    paste_text(text, paste_chord).await
+    let text = text.replace("\r\n", "\n");
+    let lines: Vec<&str> = text.split('\n').collect();
+    for (index, line) in lines.iter().enumerate() {
+        if !line.is_empty() {
+            paste_text(line, paste_chord).await?;
+        }
+        if index + 1 < lines.len() {
+            send_key_chord("Return").await?;
+        }
+    }
+    Ok(())
 }
 
 /// How long the clipboard stays owned after a paste was first served.
