@@ -81,6 +81,8 @@ struct SnapshotScope {
     target_pid: Option<u32>,
     max_nodes: usize,
     max_depth: u32,
+    /// How outlines and change reports of this scope are drawn.
+    options: crate::page_view::ViewOptions,
 }
 
 #[derive(Clone, Default)]
@@ -282,9 +284,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "get_app_state",
-        output_schema = rmcp::handler::server::tool::schema_for_output::<GetAppStateOutput>()
-            .expect("get_app_state output schema"),
-        description = "Screenshot plus accessibility tree of an app on the X11 display; call it first. Scope with app_name_or_bundle_identifier (AT-SPI app name, e.g. chrome) or a window target (window_id/pid/app_id/wm_class/title); unscoped it returns the whole desktop. accessibility_outline has one line per element, `[index] role \"name\" @x,y wxh {states} actions=...`, indented by depth; `[n]` is the element's id, stable across calls, which click, perform_action and set_value take as element_index (tree_format=json gives full nodes). find_elements is cheaper for one control. screenshot metadata has coordinate_width/coordinate_height and scale for mapping image pixels to screen coordinates. A window-targeted screenshot needs that window already focused.",
+        description = "Observe an app: a header (window title, window_id, url for browsers, element count), then one line per visible element, `[n] role \"name\" @x,y wxh {states} actions=... text=...`, indented by nesting. [n] is a stable element id for element_index in every tool. Browsers show only the web page (include_browser_ui=true for the rest). A screenshot is attached only when the tree shows little (include_screenshot to force). Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -301,20 +301,34 @@ impl ComputerUseLinux {
 
     async fn app_state(&self, params: GetAppStateParams) -> Result<CallToolResult, ErrorData> {
         let tree_format = params.tree_format.unwrap_or_default();
-        let (mut output, screenshot) = self.collect_app_state(params).await;
-        if tree_format == TreeFormat::Outline {
-            let viewport = output
-                .window_context
-                .as_ref()
-                .and_then(|window| window.bounds.as_ref())
-                .map(|bounds| (bounds.width, bounds.height));
-            output.accessibility_outline = Some(crate::outline::render_outline(
-                &output.accessibility_tree,
-                viewport,
-            ));
-            output.accessibility_tree.clear();
+        let options = params.view_options();
+        let (output, screenshot) = self.collect_app_state(params).await;
+        if tree_format == TreeFormat::Json {
+            return app_state_result(output, screenshot);
         }
-        app_state_result(output, screenshot)
+        let view = crate::page_view::page_view(&output.accessibility_tree, options);
+        let window_id = match &output.window_context {
+            Some(window) => Some(window.window_id),
+            None => focused_window()
+                .await
+                .ok()
+                .flatten()
+                .filter(|window| window.title.is_some() && window.title == view.title)
+                .map(|window| window.window_id),
+        };
+        let mut content = vec![ContentBlock::text(app_state_text(
+            &output,
+            &view,
+            window_id,
+            screenshot.as_ref(),
+        ))];
+        if let Some(capture) = screenshot {
+            content.push(ContentBlock::image(
+                data_url_payload(&capture.data_url),
+                capture.mime_type,
+            ));
+        }
+        Ok(CallToolResult::success(content))
     }
 
     /// Captures the screenshot and accessibility snapshot for `get_app_state`
@@ -333,7 +347,7 @@ impl ComputerUseLinux {
             self.resolve_window_context(&params).await;
         let (max_nodes, max_depth) =
             crate::atspi_tree::snapshot_limits(params.max_nodes, params.max_depth);
-        let include_screenshot = params.include_screenshot.unwrap_or(true);
+        let options = params.view_options();
         let screenshot_options = params.screenshot_options();
         let screenshot_target_requested = params.window_target().has_target();
         // Whether the caller asked for any scope at all. `tree_scoped` can still
@@ -347,38 +361,6 @@ impl ComputerUseLinux {
         let app_filter = self
             .resolve_accessibility_app_filter(&params, window_context.as_ref())
             .await;
-        let (screenshot, screenshot_error) = if include_screenshot {
-            let result: Result<ScreenshotCapture> = async {
-                let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
-                let raw = capture_screenshot_raw().await;
-                diagnostics.readiness.record_screenshot_result(raw.is_ok());
-                self.record_screenshot_result(raw.is_ok());
-                let raw = raw?;
-                self.cache_desktop_size(raw.width, raw.height);
-                let crop = if let Some(window) = window_context.as_ref() {
-                    ensure_readonly_screenshot_target_is_visible(window)?;
-                    Some(window_capture_rect(window, raw.width, raw.height)?)
-                } else {
-                    None
-                };
-                crate::screenshot_impl::run_image_task(move || {
-                    prepare_app_state_screenshot(
-                        raw,
-                        crop,
-                        screenshot_target_requested,
-                        screenshot_options,
-                    )
-                })
-                .await
-            }
-            .await;
-            match result {
-                Ok(capture) => (Some(capture), None),
-                Err(error) => (None, Some(format!("{error:#}"))),
-            }
-        } else {
-            (None, None)
-        };
         let mut tree_scoped = false;
         let mut tree_root_pid = None;
         let mut accessibility_tree_truncated = false;
@@ -428,12 +410,51 @@ impl ComputerUseLinux {
                 target_pid: window_context.as_ref().and_then(|window| window.pid),
                 max_nodes,
                 max_depth,
+                options,
             };
             self.commit_observation(&accessibility_tree, tree_root_pid, Some(scope))
                 .await;
         } else {
             self.commit_snapshot(&[], None).await;
         }
+        // Auto: a screenshot only when the tree shows too little to act on
+        // (terminals, canvases, apps without accessibility).
+        let include_screenshot = params.include_screenshot.unwrap_or_else(|| {
+            crate::page_view::page_view(&accessibility_tree, options).content_elements()
+                < MIN_CONTENT_ELEMENTS
+        });
+        let (screenshot, screenshot_error) = if include_screenshot {
+            let result: Result<ScreenshotCapture> = async {
+                let _pipeline = crate::screenshot_impl::screenshot_pipeline_permit().await?;
+                let raw = capture_screenshot_raw().await;
+                diagnostics.readiness.record_screenshot_result(raw.is_ok());
+                self.record_screenshot_result(raw.is_ok());
+                let raw = raw?;
+                self.cache_desktop_size(raw.width, raw.height);
+                let crop = if let Some(window) = window_context.as_ref() {
+                    ensure_readonly_screenshot_target_is_visible(window)?;
+                    Some(window_capture_rect(window, raw.width, raw.height)?)
+                } else {
+                    None
+                };
+                crate::screenshot_impl::run_image_task(move || {
+                    prepare_app_state_screenshot(
+                        raw,
+                        crop,
+                        screenshot_target_requested,
+                        screenshot_options,
+                    )
+                })
+                .await
+            }
+            .await;
+            match result {
+                Ok(capture) => (Some(capture), None),
+                Err(error) => (None, Some(format!("{error:#}"))),
+            }
+        } else {
+            (None, None)
+        };
         let mut message = if let Some(error) = &accessibility_error {
             format!("MCP registration is working, but AT-SPI tree extraction failed: {error}")
         } else if let Some(capture) = &screenshot {
@@ -492,7 +513,42 @@ impl ComputerUseLinux {
         {
             message.push_str(" Pass verbose=true for full diagnostics.");
         }
+        // What the text result prints besides the outline: only what is wrong
+        // or incomplete, each with its fix.
+        let mut notes = Vec::new();
+        if let Some(error) = &accessibility_error {
+            notes.push(format!("accessibility tree failed: {error}"));
+        }
+        if let Some(error) = &window_error {
+            notes.push(format!("window target did not resolve: {error}"));
+            if let Some(hint) = &window_permissions_hint {
+                notes.push(hint.clone());
+            }
+        }
+        if let Some(error) = &screenshot_error {
+            notes.push(format!("screenshot failed: {error}"));
+        }
+        notes.extend(
+            unscoped_accessibility_tree_warning(
+                tree_scoped,
+                accessibility_error.is_none(),
+                accessibility_target_requested,
+            )
+            .map(str::to_string),
+        );
+        notes.extend(
+            truncated_accessibility_tree_note(accessibility_tree_truncated).map(str::to_string),
+        );
+        notes.extend(shell_only_note.map(str::to_string));
+        notes.extend(
+            diagnostics
+                .readiness
+                .blockers
+                .iter()
+                .map(|blocker| format!("blocker: {blocker}")),
+        );
         let output = GetAppStateOutput {
+            notes,
             app_name_or_bundle_identifier: params.app_name_or_bundle_identifier,
             window_context,
             window_error,
@@ -501,7 +557,6 @@ impl ComputerUseLinux {
             screenshot: screenshot.as_ref().map(ScreenshotSummary::from),
             screenshot_error,
             accessibility_tree,
-            accessibility_outline: None,
             accessibility_tree_raw_count,
             tree_scoped,
             accessibility_tree_truncated,
@@ -2285,10 +2340,13 @@ struct GetAppStateParams {
     /// `accessibility_tree`.
     #[serde(default)]
     tree_format: Option<TreeFormat>,
-    /// Include a size-bounded screenshot (default true). Set false when the
-    /// accessibility tree is enough.
+    /// Screenshot: true always, false never; default only when the tree
+    /// shows little content (terminals, canvases).
     #[serde(default)]
     include_screenshot: Option<bool>,
+    /// Show browser toolbars and bubbles too (default: only the web page).
+    #[serde(default)]
+    include_browser_ui: Option<bool>,
     /// Maximum returned screenshot width in pixels (default 1920, hard-capped).
     #[serde(default)]
     max_width: Option<u32>,
@@ -2315,6 +2373,12 @@ struct GetAppStateParams {
 }
 
 impl GetAppStateParams {
+    fn view_options(&self) -> crate::page_view::ViewOptions {
+        crate::page_view::ViewOptions {
+            include_browser_ui: self.include_browser_ui.unwrap_or(false),
+        }
+    }
+
     fn window_target(&self) -> WindowTarget {
         WindowTarget {
             window_id: self.window_id,
@@ -2456,6 +2520,53 @@ impl From<&ScreenshotCapture> for ScreenshotSummary {
     }
 }
 
+/// Fewest named or actionable elements for which `get_app_state` skips the
+/// screenshot by default: the tree already shows what the agent needs.
+const MIN_CONTENT_ELEMENTS: usize = 5;
+
+/// The text `get_app_state` returns: one header line (window, id, URL,
+/// element count), the outline, then notes only when something needs fixing.
+fn app_state_text(
+    output: &GetAppStateOutput,
+    view: &crate::page_view::PageView,
+    window_id: Option<u64>,
+    screenshot: Option<&ScreenshotCapture>,
+) -> String {
+    let title = view.title.clone().or_else(|| {
+        output
+            .window_context
+            .as_ref()
+            .and_then(|window| window.title.clone())
+    });
+    let mut text = match title {
+        Some(title) => format!("window \"{title}\""),
+        None => "window (untitled)".to_string(),
+    };
+    if let Some(id) = window_id {
+        text.push_str(&format!(" window_id={id}"));
+    }
+    if let Some(url) = &view.url {
+        text.push_str(&format!(" url={url}"));
+    }
+    text.push_str(&format!(" elements={}\n", view.entries.len()));
+    text.push_str(&view.outline());
+    if let Some(capture) = screenshot {
+        text.push_str(&format!(
+            "screenshot attached: {}x{} image of {}x{} screen pixels (scale {}; click x/y = image pixel / scale)\n",
+            capture.width,
+            capture.height,
+            capture.coordinate_width,
+            capture.coordinate_height,
+            capture.scale
+        ));
+    }
+    for note in &output.notes {
+        text.push_str(note);
+        text.push('\n');
+    }
+    text
+}
+
 /// Assemble the `get_app_state` result: the screenshot (when present) as a
 /// structured image block first, then the JSON report as text and as
 /// `structured_content`. Inlining the base64 in the JSON made hosts treat a
@@ -2482,6 +2593,9 @@ fn app_state_result(
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 struct GetAppStateOutput {
+    /// Problems and warnings for the text result, each with its fix.
+    #[serde(skip)]
+    notes: Vec<String>,
     app_name_or_bundle_identifier: Option<String>,
     window_context: Option<WindowInfo>,
     window_error: Option<String>,
@@ -2493,10 +2607,6 @@ struct GetAppStateOutput {
     /// Full node objects; empty unless `tree_format` is `json`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     accessibility_tree: Vec<AccessibilityNode>,
-    /// One line per element, `[index] role "name" @x,y wxh {states} actions=...`,
-    /// indented by tree depth. The index is what element-targeted tools take.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    accessibility_outline: Option<String>,
     accessibility_tree_raw_count: usize,
     /// True when the snapshot was limited to selected app roots rather than the
     /// full desktop AT-SPI registry.
@@ -3354,12 +3464,13 @@ impl ComputerUseLinux {
             .lock()
             .ok()
             .and_then(|cached| cached.scope.clone());
-        let (app_filter, pid, max_nodes, max_depth) = match scope {
+        let (app_filter, pid, max_nodes, max_depth, options) = match scope {
             Some(scope) => (
                 scope.app_filter,
                 scope.target_pid,
                 scope.max_nodes,
                 scope.max_depth,
+                scope.options,
             ),
             None => {
                 let owner = match hint_ref {
@@ -3375,7 +3486,7 @@ impl ComputerUseLinux {
                         .and_then(|window| window.pid),
                 };
                 let (max_nodes, max_depth) = crate::atspi_tree::snapshot_limits(Some(2_000), None);
-                (None, pid, max_nodes, max_depth)
+                (None, pid, max_nodes, max_depth, Default::default())
             }
         };
         let snapshot =
@@ -3392,6 +3503,7 @@ impl ComputerUseLinux {
                 target_pid: pid,
                 max_nodes,
                 max_depth,
+                options,
             },
         })
     }
@@ -3462,7 +3574,7 @@ impl ComputerUseLinux {
             .lock()
             .map(|cached| cached.nodes.clone())
             .unwrap_or_default();
-        let options = crate::page_view::ViewOptions::default();
+        let options = settled.scope.options;
         let report = crate::page_view::change_report(
             &crate::page_view::page_view(&before, options),
             &crate::page_view::page_view(&settled.nodes, options),
@@ -4783,7 +4895,11 @@ fn compact_accessibility_tree(nodes: Vec<AccessibilityNode>) -> Vec<Accessibilit
     let mut old_to_new = vec![None; nodes.len()];
     let mut compacted = Vec::new();
 
-    for (old_index, node) in nodes.iter().enumerate() {
+    // Snapshots arrive breadth-first; emit in document (depth-first) order so
+    // a kept node re-parented past dropped wrappers still lands between its
+    // neighbours instead of after every shallower sibling.
+    for old_index in depth_first_order(&nodes) {
+        let node = &nodes[old_index];
         if !keep[old_index] {
             continue;
         }
@@ -4814,6 +4930,36 @@ fn compact_accessibility_tree(nodes: Vec<AccessibilityNode>) -> Vec<Accessibilit
     }
 
     compacted
+}
+
+/// Positions of a positional snapshot in depth-first pre-order, children in
+/// snapshot order. Nodes whose parent is missing start their own subtree.
+fn depth_first_order(nodes: &[AccessibilityNode]) -> Vec<usize> {
+    let mut children = vec![Vec::new(); nodes.len()];
+    let mut roots = Vec::new();
+    for (at, node) in nodes.iter().enumerate() {
+        match node
+            .parent_index
+            .map(|parent| parent as usize)
+            .filter(|&parent| parent < nodes.len() && parent != at)
+        {
+            Some(parent) => children[parent].push(at),
+            None => roots.push(at),
+        }
+    }
+    let mut order = Vec::with_capacity(nodes.len());
+    let mut visited = vec![false; nodes.len()];
+    let mut stack: Vec<usize> = roots.into_iter().rev().collect();
+    while let Some(at) = stack.pop() {
+        if std::mem::replace(&mut visited[at], true) {
+            continue;
+        }
+        order.push(at);
+        stack.extend(children[at].iter().rev());
+    }
+    // A parent cycle leaves nodes unreachable from any root; keep them.
+    order.extend((0..nodes.len()).filter(|&at| !visited[at]));
+    order
 }
 
 fn nearest_kept_parent(
@@ -6054,6 +6200,7 @@ mod tests {
 
     fn sample_app_state_output(screenshot: Option<&ScreenshotCapture>) -> GetAppStateOutput {
         GetAppStateOutput {
+            notes: Vec::new(),
             app_name_or_bundle_identifier: None,
             window_context: None,
             window_error: None,
@@ -6062,7 +6209,6 @@ mod tests {
             screenshot: screenshot.map(ScreenshotSummary::from),
             screenshot_error: None,
             accessibility_tree: Vec::new(),
-            accessibility_outline: None,
             accessibility_tree_raw_count: 0,
             tree_scoped: true,
             accessibility_tree_truncated: false,
@@ -6082,6 +6228,24 @@ mod tests {
             diagnostics: None,
             message: "ok".to_string(),
         }
+    }
+
+    #[test]
+    fn app_state_text_is_a_header_and_the_outline_with_notes_only_when_needed() {
+        let mut output = sample_app_state_output(None);
+        let view = crate::page_view::PageView {
+            title: Some("Criar conta - Chromium".to_string()),
+            url: Some("127.0.0.1/apps/signup.html".to_string()),
+            browser: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            app_state_text(&output, &view, Some(42), None),
+            "window \"Criar conta - Chromium\" window_id=42 url=127.0.0.1/apps/signup.html elements=0\n--- page ---\n"
+        );
+        output.notes = vec!["blocker: xdotool is not installed".to_string()];
+        assert!(app_state_text(&output, &view, None, None)
+            .ends_with("elements=0\n--- page ---\nblocker: xdotool is not installed\n"));
     }
 
     #[test]

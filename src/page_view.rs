@@ -52,6 +52,15 @@ pub struct PageView {
 }
 
 impl PageView {
+    /// Elements with names, text or actions: how much of the app the tree
+    /// shows, which decides whether a screenshot adds anything.
+    pub fn content_elements(&self) -> usize {
+        self.entries
+            .iter()
+            .filter(|entry| entry.line.contains('"') || entry.line.contains("actions="))
+            .count()
+    }
+
     /// The outline: tabs and a `--- page ---` rule for browsers, then one
     /// indented line per visible element, then the omitted count.
     pub fn outline(&self) -> String {
@@ -104,13 +113,21 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
     };
     let mut entries = Vec::new();
     let mut omitted = 0;
-    let mut stack: Vec<(usize, usize)> = roots.into_iter().rev().map(|at| (at, 0)).collect();
+    // (position, depth, nearest shown ancestor that carries text)
+    let mut stack: Vec<(usize, usize, Option<usize>)> =
+        roots.into_iter().rev().map(|at| (at, 0, None)).collect();
     let mut visited = vec![false; nodes.len()];
-    while let Some((at, depth)) = stack.pop() {
+    while let Some((at, depth, context)) = stack.pop() {
         if std::mem::replace(&mut visited[at], true) {
             continue;
         }
         let node = &nodes[at];
+        if tree.text_only(at)
+            && context.is_some_and(|context| repeats_text_of(node, &nodes[context]))
+        {
+            // A text leaf whose words its ancestor's line already shows.
+            continue;
+        }
         let shown = visible.as_ref().is_none_or(|area| !outside(node, area));
         if shown {
             entries.push(ViewEntry {
@@ -124,8 +141,14 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
             omitted += 1;
         }
         let child_depth = if shown { depth + 1 } else { depth };
+        let child_context =
+            if shown && (node_text(node).is_some() || clean(node.name.as_deref()).is_some()) {
+                Some(at)
+            } else {
+                context
+            };
         for &child in tree.children(at).iter().rev() {
-            stack.push((child, child_depth));
+            stack.push((child, child_depth, child_context));
         }
     }
 
@@ -246,6 +269,24 @@ impl<'a> Tree<'a> {
 
     fn children(&self, at: usize) -> &[usize] {
         &self.children[at]
+    }
+
+    /// Whether the subtree at `at` is plain text: text roles, no actions.
+    fn text_only(&self, at: usize) -> bool {
+        let mut pending = vec![at];
+        let mut seen = 0;
+        while let Some(at) = pending.pop() {
+            seen += 1;
+            let node = &self.nodes[at];
+            if seen > self.nodes.len()
+                || !TEXT_LEAF_ROLES.contains(&node.role.as_str())
+                || node.actions.iter().any(crate::outline::is_specific_action)
+            {
+                return false;
+            }
+            pending.extend(self.children(at));
+        }
+        true
     }
 
     fn ancestors(&self, at: usize) -> impl Iterator<Item = usize> + '_ {
@@ -369,6 +410,35 @@ fn describe_focus(node: &AccessibilityNode) -> String {
         line.push_str(&format!(" value=\"{}\"", truncate(&text, 200)));
     }
     line
+}
+
+/// Roles that only carry text.
+const TEXT_LEAF_ROLES: [&str; 3] = ["static", "text", "label"];
+
+/// The text content an outline line prints for a node, cleaned.
+fn node_text(node: &AccessibilityNode) -> Option<String> {
+    clean(node.text.as_ref().and_then(|text| text.content.as_deref()))
+}
+
+/// Whether a plain-text element's words are already part of the ancestor's
+/// printed text, as with Chromium's `static` children of a list item whose
+/// text concatenates them. Its id stays reachable through `find_elements`.
+fn repeats_text_of(node: &AccessibilityNode, ancestor: &AccessibilityNode) -> bool {
+    if has_state(node, "focused") || has_state(node, "editable") {
+        return false;
+    }
+    let Some(own) = clean(node.name.as_deref()).or_else(|| node_text(node)) else {
+        return false;
+    };
+    let shown = format!(
+        "{} {}",
+        clean(ancestor.name.as_deref()).unwrap_or_default(),
+        node_text(ancestor).unwrap_or_default()
+    );
+    // Lines cut long text, so only text the ancestor's line actually prints
+    // counts as repeated.
+    let printed: String = shown.chars().take(120).collect();
+    printed.contains(&own)
 }
 
 /// Whether bounds lie wholly outside the visible area. Elements without
@@ -548,6 +618,43 @@ mod tests {
         assert!(!everything.browser);
         assert!(everything.outline().contains("[4] button \"Reload\""));
         assert!(everything.outline().contains("[8] page tab \"English\""));
+    }
+
+    #[test]
+    fn text_leaves_repeating_their_parent_line_are_folded() {
+        let view = page_view(
+            &browser(vec![
+                with_text(
+                    at(node(11, Some(10), "list item", ""), 0, 110, 900, 40),
+                    "Marina CostaContrato de locação24 de out.",
+                ),
+                at(node(12, Some(11), "static", "Marina Costa"), 0, 110, 90, 20),
+                at(
+                    node(13, Some(11), "static", "Contrato de locação"),
+                    100,
+                    110,
+                    90,
+                    20,
+                ),
+                at(node(14, Some(11), "static", "Anexo"), 200, 110, 90, 20),
+                with_text(
+                    at(node(16, Some(11), "label", ""), 0, 130, 90, 20),
+                    "24 de out.",
+                ),
+                at(node(17, Some(16), "static", "24 de out."), 0, 130, 90, 20),
+                at(
+                    node(15, Some(11), "button", "Com estrela"),
+                    300,
+                    110,
+                    40,
+                    40,
+                ),
+            ]),
+            ViewOptions::default(),
+        );
+        let ids: Vec<u32> = view.entries.iter().map(|entry| entry.id).collect();
+        assert_eq!(ids, [10, 11, 14, 15]);
+        assert_eq!(view.omitted, 0);
     }
 
     #[test]
