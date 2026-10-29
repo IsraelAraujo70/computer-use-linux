@@ -1,7 +1,7 @@
 {
   "name": "computer-use-linux",
   "version": "0.7.17",
-  "description": "Linux desktop control: AT-SPI accessibility trees, screenshots, compositor window targeting, and Wayland/X11 input.",
+  "description": "Desktop control on a virtual X11 display (Xvfb + i3): AT-SPI accessibility trees, X11 screenshots, i3 window targeting, and xdotool input.",
   "author": {
     "name": "agent-sh",
     "url": "https://github.com/agent-sh"
@@ -9,13 +9,13 @@
   "homepage": "https://github.com/agent-sh/computer-use-linux",
   "repository": "https://github.com/agent-sh/computer-use-linux",
   "license": "MIT",
-  "keywords": ["linux", "computer-use", "desktop-control", "mcp", "accessibility", "wayland", "x11"],
+  "keywords": ["linux", "computer-use", "desktop-control", "mcp", "accessibility", "x11", "i3"],
   "skills": "./skills/",
   "mcpServers": "./codex-mcp.json",
   "interface": {
     "displayName": "Computer Use for Linux",
-    "shortDescription": "Control Linux desktop apps through accessibility trees and native input.",
-    "longDescription": "Inspect and control local Linux applications through AT-SPI, desktop portals, and compositor-aware window targeting on GNOME, KDE, Hyprland, niri, i3, COSMIC, and X11. Screenshots and accessibility trees can contain private data, and input reaches real applications.",
+    "shortDescription": "Control X11 desktop apps through accessibility trees and xdotool input.",
+    "longDescription": "Inspect and control applications on a virtual X11 display (Xvfb + i3) through AT-SPI, X11 screenshots, i3 window targeting, and xdotool input. Screenshots and accessibility trees can contain private data, and input reaches real applications.",
     "developerName": "agent-sh",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],

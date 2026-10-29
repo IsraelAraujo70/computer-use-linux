@@ -1,4 +1,4 @@
-use crate::{abs_pointer, atspi_tree, diagnostics, gnome_extension, screenshot, server, windows};
+use crate::{atspi_tree, diagnostics, screenshot, server, windows};
 use anyhow::{Context, Result};
 
 pub(crate) async fn run_from_env() -> Result<()> {
@@ -6,22 +6,12 @@ pub(crate) async fn run_from_env() -> Result<()> {
 
     match std::env::args().nth(1).as_deref() {
         Some("mcp") => server::serve_mcp().await,
-        Some("guard-accessibility") => crate::accessibility_guard::run().await,
         Some("doctor") => {
             let report = diagnostics::doctor_report();
             println!(
                 "{}",
                 serde_json::to_string_pretty(&report)
                     .context("failed to serialize doctor report")?
-            );
-            Ok(())
-        }
-        Some("setup") => {
-            let report = diagnostics::setup_accessibility_report();
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&report)
-                    .context("failed to serialize setup report")?
             );
             Ok(())
         }
@@ -49,22 +39,6 @@ pub(crate) async fn run_from_env() -> Result<()> {
                 serde_json::to_string_pretty(&nodes)
                     .context("failed to serialize accessibility tree")?
             );
-            Ok(())
-        }
-        Some("abs-test") => {
-            let x: i32 = std::env::args()
-                .nth(2)
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0);
-            let y: i32 = std::env::args()
-                .nth(3)
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0);
-            let cap = screenshot::capture_screenshot_raw().await?;
-            eprintln!("desktop logical size: {}x{}", cap.width, cap.height);
-            let mut p = abs_pointer::AbsPointer::create(cap.width as i32, cap.height as i32)?;
-            let landing = p.click(x, y, abs_pointer::PointerButton::Left, 1)?;
-            println!("{}", abs_test_report(landing, (cap.width, cap.height)));
             Ok(())
         }
         Some("screenshot") => {
@@ -97,7 +71,7 @@ pub(crate) async fn run_from_env() -> Result<()> {
                     let backend = windows
                         .first()
                         .map(|window| window.backend.as_str())
-                        .unwrap_or(windows::GNOME_SHELL_INTROSPECT_BACKEND);
+                        .unwrap_or(windows::I3_BACKEND);
                     serde_json::json!({
                         "backend": backend,
                         "windows": windows,
@@ -118,22 +92,13 @@ pub(crate) async fn run_from_env() -> Result<()> {
             println!("{}", serde_json::to_string_pretty(&report)?);
             Ok(())
         }
-        Some("setup-window-targeting") => {
-            let report = gnome_extension::setup_window_targeting_report().await;
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&report)
-                    .context("failed to serialize window targeting setup report")?
-            );
-            Ok(())
-        }
         Some("--help") | Some("-h") => {
             print_help();
             Ok(())
         }
         Some(command) => {
             anyhow::bail!(
-                "unknown command '{command}'. Expected one of: mcp, doctor, setup, guard-accessibility, apps, state, screenshot, windows, setup-window-targeting"
+                "unknown command '{command}'. Expected one of: mcp, doctor, apps, state, screenshot, windows"
             );
         }
         None => {
@@ -143,51 +108,8 @@ pub(crate) async fn run_from_env() -> Result<()> {
     }
 }
 
-fn abs_test_report(
-    landing: abs_pointer::PointerLanding,
-    dimensions: (u32, u32),
-) -> serde_json::Value {
-    serde_json::json!({
-        "ok": true,
-        "requested_x": landing.requested.0,
-        "requested_y": landing.requested.1,
-        "x": landing.emitted.0,
-        "y": landing.emitted.1,
-        "w": dimensions.0,
-        "h": dimensions.1
-    })
-}
-
 fn print_help() {
-    println!("guard-accessibility: explicit foreground accessibility hold-open; stop with Ctrl-C or SIGTERM before disabling accessibility.\n");
     println!(
-        "computer-use-linux\n\nUsage:\n  computer-use-linux mcp\n  computer-use-linux doctor\n  computer-use-linux setup\n  computer-use-linux setup-window-targeting\n  computer-use-linux apps\n  computer-use-linux state [APP_NAME]\n  computer-use-linux screenshot\n  computer-use-linux windows"
+        "computer-use-linux\n\nUsage:\n  computer-use-linux mcp\n  computer-use-linux doctor\n  computer-use-linux apps\n  computer-use-linux state [APP_NAME]\n  computer-use-linux screenshot\n  computer-use-linux windows"
     );
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{abs_pointer, abs_test_report};
-
-    #[test]
-    fn abs_test_report_distinguishes_requested_and_emitted_coordinates() {
-        assert_eq!(
-            abs_test_report(
-                abs_pointer::PointerLanding {
-                    requested: (1920, 1080),
-                    emitted: (1919, 1079),
-                },
-                (1920, 1080)
-            ),
-            serde_json::json!({
-                "ok": true,
-                "requested_x": 1920,
-                "requested_y": 1080,
-                "x": 1919,
-                "y": 1079,
-                "w": 1920,
-                "h": 1080
-            })
-        );
-    }
 }

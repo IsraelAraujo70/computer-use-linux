@@ -1,6 +1,6 @@
 ---
 name: computer-use-linux
-description: "Linux desktop observation and control via native Pi tools or the computer-use-linux MCP server: accessibility trees, screenshots, window targeting, and input synthesis (click, type, scroll)."
+description: "Observe and control apps on a virtual X11 display (Xvfb + i3) via native Pi tools or the computer-use-linux MCP server: accessibility trees, screenshots, window targeting, and xdotool input (click, type, scroll)."
 author: agent-sh
 license: MIT
 platforms: [linux]
@@ -9,18 +9,28 @@ compatibility: "Native Pi tools require Pi 0.84.4+ and Node.js 22.19+; the stand
 
 # computer-use-linux
 
-Use `computer-use-linux` when an agent needs to observe or operate a local Linux desktop: inspect the accessibility tree, list/focus windows, take screenshots, click, scroll, type, press keys, or invoke AT-SPI actions.
+Use `computer-use-linux` when an agent needs to observe or operate apps on a virtual X11 display (Xvfb with the i3 window manager): inspect the accessibility tree, list/focus windows, take screenshots, click, scroll, type, press keys, or invoke AT-SPI actions.
 
 ## When to Use
 
 Use this skill when:
 
-- The user wants the agent to control a Linux GUI app.
-- You need desktop state from AT-SPI, screenshots, or compositor window metadata.
+- The user wants the agent to control a GUI app (Chrome, a terminal) on the X11 display.
+- You need app state from AT-SPI, screenshots, or i3 window metadata.
 - You are configuring the `computer-use-linux` MCP server for your agent.
 - A desktop action needs target-aware input instead of blind shell commands.
 
 Do not use this for remote browsers, websites, or headless automation when a browser-specific tool is available. Do not assume desktop actions are safe just because the MCP connection works.
+
+## Session requirements
+
+The server talks to the display named by its environment:
+
+- `DISPLAY=:N` and `XDG_SESSION_TYPE=x11` for the Xvfb display.
+- `I3SOCK` for the i3 IPC socket (or `wmctrl` and `xprop` on another X11 window manager).
+- `DBUS_SESSION_BUS_ADDRESS` for the session bus that runs the AT-SPI bus.
+- `xdotool` for input; `tesseract` (optional) for `ocr`.
+- Chromium and Electron apps need `--force-renderer-accessibility` for a full tree.
 
 ## Install
 
@@ -37,7 +47,7 @@ codex plugin add computer-use-linux@computer-use-linux
 ```
 
 The plugin registers the MCP server and downloads the pinned, sha256-verified
-release binaries on first start. It does not put `computer-use-linux` on
+release binary on first start. It does not put `computer-use-linux` on
 `PATH`; shell commands in this skill need the CLI install below. Set
 `COMPUTER_USE_LINUX_BIN` to run a local build instead.
 
@@ -48,9 +58,8 @@ pi install npm:@agent-sh/computer-use-linux
 ```
 
 This enables Pi's `computer_use_linux_*` tools. It does not put
-`computer-use-linux` on `PATH`. Shell commands in this skill (`doctor`,
-`setup`, `setup-window-targeting`, `guard-accessibility`, the MCP `command`
-config, and Verification) need the CLI install below.
+`computer-use-linux` on `PATH`. Shell commands in this skill (`doctor`, the
+MCP `command` config, and Verification) need the CLI install below.
 
 ### Shell CLI / MCP server
 
@@ -69,48 +78,7 @@ cargo install computer-use-linux
 computer-use-linux doctor | jq .readiness
 ```
 
-If `doctor` reports missing input or accessibility support, run:
-
-```bash
-computer-use-linux setup
-computer-use-linux setup-window-targeting
-computer-use-linux doctor | jq .readiness
-```
-
-If `doctor` selects ydotool as the input backend, also enable its per-user daemon with `systemctl --user enable --now ydotoold`. Direct uinput, X11 xdotool, and RemoteDesktop portal input do not require `ydotoold`.
-
-On niri, export the session's `NIRI_SOCKET` to the server. Window listing and
-exact focus use `niri msg` with a direct IPC fallback. Missing positions or
-unknown/mixed output scaling leave window-relative coordinates unavailable;
-focus the target and inspect a fresh full-screen screenshot before using
-desktop coordinates.
-
-On GNOME Wayland, log out and back in after `setup-window-targeting` if the GNOME Shell extension was newly installed.
-
-For MCP hosts with `COMPUTER_USE_LINUX_NOTIFY_ON_COMPLETE=1`, call the optional
-`complete_interaction` tool once after finishing desktop interaction. A skipped
-cue is not a task failure. This notification does not guarantee exclusive
-desktop ownership or that other clients have stopped sending input.
-This applies only to directly spawned MCP hosts, not the native Pi extension.
-
-`setup_accessibility` verifies the saved GNOME `toolkit-accessibility` key
-separately from runtime AT-SPI. Inspect its warning and readback before assuming
-new apps can expose trees. Other accessibility tools may change the key later;
-setup does not hold it enabled continuously.
-
-### Optional foreground accessibility guard
-
-Skip unless: the user explicitly wants GNOME's saved `toolkit-accessibility`
-setting kept enabled while desktop automation runs.
-
-Run `computer-use-linux guard-accessibility` in a foreground terminal. It
-registers a passive AT-SPI window-activation listener and watches/reasserts the
-saved key with readback. The setting affects all apps for the current user.
-`mcp`, setup, and `get_app_state` never start this guard automatically.
-Stop with Ctrl-C or SIGTERM before intentionally disabling accessibility.
-Stopping ends writes and removes its listener without disabling other clients
-or restoring a previous saved value. Apps launched during a reset/reassertion
-race may still need restarting; do not claim a complete GNOME toggle fix.
+Each entry in `readiness.blockers` names its fix.
 
 ## Configure Your Agent
 
@@ -134,34 +102,21 @@ Pi native tools skip this MCP `command` config; see [Pi setup](references/pi-set
 ## Procedure
 
 1. In Pi, call `computer_use_linux_tools` with the exact tools or capability you need. Enabled tools use the `computer_use_linux_<name>` prefix, appear starting on the next model turn, and remain active for the session.
-2. Begin every desktop-control turn with `get_app_state`, scoped to the app you are working in: pass `app_name_or_bundle_identifier` or a window target (`window_id`, `pid`, `app_id`, `wm_class`, `title`). Without a target the result is the whole desktop AT-SPI tree, `tree_scoped` is `false`, and `message` warns; that can flood context. Use `include_screenshot: false` when the accessibility tree is sufficient. If `accessibility_tree_truncated` is `true`, the tree is incomplete: scope to a narrower target and raise `max_nodes` or `max_depth` (hard caps 2000 and 64) rather than lowering them. The compact readiness block identifies missing setup.
-3. Use `doctor` only when you need the full diagnostic report.
-4. If `can_build_accessibility_tree` is false, run `setup_accessibility` and restart the target app.
-5. If `can_query_windows` is false on GNOME Wayland, run `setup_window_targeting` and ask the user to log out and back in if setup says the shell extension needs a reload.
-6. Before targeted input, call `list_windows` or `focused_window` and verify the intended window by title, app id, pid, or wm class.
-7. Prefer semantic targeting from `get_app_state`: use element indices or role/name/text/states selectors.
-8. Use coordinates only when the UI surface has no useful accessibility tree.
-9. For text input, prefer `type_text` with a target selector (`window_id`, `pid`, `app_id`, `wm_class`, `title`, `tty`, `terminal_pid`, `terminal_command`, or `terminal_cwd`) rather than relying on current focus.
-10. After mutating actions, re-check state with `get_app_state`, `focused_window`, or an app-specific readback.
+2. Begin every desktop-control turn with `get_app_state`, scoped to the app you are working in: pass `app_name_or_bundle_identifier` or a window target (`window_id`, `pid`, `app_id`, `wm_class`, `title`). Without a target the result is the whole desktop AT-SPI tree, `tree_scoped` is `false`, and `message` warns; that can flood context. Use `include_screenshot: false` when the accessibility tree is sufficient. If `accessibility_tree_truncated` is `true`, the tree is incomplete: scope to a narrower target and raise `max_nodes` or `max_depth` (hard caps 2000 and 64) rather than lowering them.
+3. To locate one control, `find_elements` is cheaper than a full `get_app_state`. After an action, use `wait_for` instead of repeated screenshots.
+4. If a tool fails, call `doctor`: each `readiness.blockers` entry names its fix.
+5. Before targeted input, call `list_windows` or `focused_window` and verify the intended window by title, app id, pid, or wm class.
+6. Prefer semantic targeting: use element indices or role/name/text/states selectors.
+7. Use coordinates only when the UI surface has no useful accessibility tree; `ocr` reads text where the tree is empty.
+8. For text input, prefer `type_text` with a target selector (`window_id`, `pid`, `app_id`, `wm_class`, `title`, `tty`, `terminal_pid`, `terminal_command`, or `terminal_cwd`) rather than relying on current focus. For long text in an editable field, `set_value` is faster.
+9. After mutating actions, re-check state with `get_app_state`, `focused_window`, or an app-specific readback.
 
-On Hyprland, `type_text` passes one literal wtype argument after `--` for a
-classified nonsecret field, avoiding stdin keymap-refresh corruption in Electron.
-Argument text is visible in process listings, so confirmed password roles are
-rejected. Terminals and ambiguous roles (`Entry`/`Text`, `text box`, unreadable
-roles), or a missing/incomplete/timed-out probe, use private stdin for at most
-100 Unicode characters per call. This includes terminals with AT-SPI support;
-they can still contain password prompts. Larger ambiguous-field text must be
-split into smaller calls or, for a nonterminal field, accessibility enabled.
-The input probe has its own 1.5-second budget; the 250 ms indicator probe only
-masks text. Both protections apply with the indicator disabled. Other compatible
-compositors retain their existing stdin path. Wtype rejects NUL and text over
-131,071 UTF-8 bytes before focusing a window or displaying text. `ok: true`
-confirms dispatch only; every text backend leaves field contents unverified.
-Re-observe before retrying. Exact window focus alone does not suppress missing-focus
-warnings: only a complete scoped tree containing window/menu chrome without
-content makes the feedback informational. Such trees get a conditional
-Electron/Chromium hint computed before compaction; this is not positive Electron
-detection.
+`type_text` and `press_key` use xdotool (XTEST), which resolves keysyms against
+the live keyboard layout. `ok: true` confirms dispatch only; field contents are
+not verified, so re-observe before retrying. With a target, the result reports
+the AT-SPI focused element and warns when it is not editable. Exact window focus
+alone does not suppress missing-focus warnings: only a complete scoped tree
+containing window/menu chrome without content makes the feedback informational.
 
 Plain left element/index/selector `click` prefers native AT-SPI `click`,
 `press`, or `toggle` over toolkit bounds, avoiding coordinate
@@ -186,15 +141,11 @@ directly to a window-relative click.
 ## Pitfalls
 
 - Already-running GTK, Qt, and Electron apps may need a restart after AT-SPI is enabled.
-- GNOME may show a portal prompt on the first screenshot or `get_app_state` call with screenshots enabled.
-- On GNOME Wayland, the remote-control portal asks on each new `computer-use-linux` process. `COMPUTER_USE_LINUX_PERSIST_REMOTE_DESKTOP=1` in the server environment asks the portal to remember the grant (GNOME starts with the remember box checked). Later processes reuse a single-use restore token stored mode 0600 in the user state directory. Unset is the default and prompts every time. The flag does nothing when ydotool, not the portal, is the input backend.
+- i3 may consume its own key bindings (for example `Super+...`) before the app sees them.
+- A window-targeted `get_app_state` screenshot needs that window already focused; the `screenshot` tool focuses it first.
 - Desktop input is stateful. Avoid concurrent tool calls against this MCP server.
 - Pi serializes the native Computer Use tools and keeps one process for the session. If that process exits, do not replay an ambiguous mutating call; obtain a fresh `get_app_state` before another element-based action.
 - `click`, `drag`, `press_key`, `type_text`, `perform_action`, and `set_value` can change real application state.
-- When ydotool is selected, `ydotoold` should run as a per-user service with its socket under `/run/user/$UID`, not as a system-wide service.
-- The optional ydotool backend requires version 1.0.3 or newer; `doctor` rejects older or semantically incompatible CLIs even when `ydotoold` is running.
-- On COSMIC, the standard npm, Cargo, and install-script paths install the `computer-use-linux-cosmic` helper automatically. Manual binary installs must copy it too.
-- An on-screen indicator shows the user each action: a cursor glides to pointer targets and keycaps or typed text appear for keyboard input. Pointer actions wait about 350 ms so the cursor lands first. The indicator is hidden before screenshots and is never part of captured images.
 
 ## Verification
 
@@ -210,14 +161,14 @@ computer-use-linux doctor | jq .readiness
 
 Ready output should have:
 
-- `can_register_mcp_tools: true`
+- `ready: true`
 - `can_build_accessibility_tree: true`
 - `can_query_windows: true`
-- `can_send_development_input: true`
+- `can_focus_windows: true`
+- `can_send_input: true`
 - `screenshot_capture_status: "unverified"`
-- `can_capture_screenshots: false`
 - `blockers: []`
 
-Doctor detects screenshot routes without capturing or requesting consent. Treat unverified capture as a warning. Call `get_app_state` with `include_screenshot: true` to verify it: a successful raw capture reports `screenshot_capture_status: "verified"` and `can_capture_screenshots: true`; a failure reports `failed` and keeps the boolean false. Inspect `screenshot_error` for the full backend cause.
+Doctor checks that the X display is reachable but does not capture. Call `get_app_state` with `include_screenshot: true` to verify capture: success reports `screenshot_capture_status: "verified"` and `can_capture_screenshots: true`; a failure reports `failed`, and `screenshot_error` has the cause. `can_ocr: false` only means `ocr` needs `tesseract`.
 
-Then test with your agent by calling the `doctor` tool or asking the agent to list desktop windows.
+Then test with your agent by calling the `doctor` tool or asking the agent to list windows.

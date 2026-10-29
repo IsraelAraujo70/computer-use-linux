@@ -3,7 +3,12 @@
 NPM wrapper for the `computer-use-linux` MCP server, published as
 [`@agent-sh/computer-use-linux`](https://www.npmjs.com/package/@agent-sh/computer-use-linux).
 
-Security note: this server can control the local Linux desktop. Tools such as
+The server drives apps on a virtual X11 display (Xvfb + i3): it needs `DISPLAY`,
+`XDG_SESSION_TYPE=x11`, `I3SOCK`, a session D-Bus with the AT-SPI bus, and
+`xdotool` (plus `tesseract` for `ocr`). `computer-use-linux doctor` names the
+fix for anything missing.
+
+Security note: this server can control the apps on that display. Tools such as
 `click`, `type_text`, `press_key`, `perform_action`, and `set_value` are
 mutating and can change real application state. The MCP tool list includes
 `ToolAnnotations` so hosts can distinguish read-only observation from mutating
@@ -31,40 +36,6 @@ hermes mcp test computer-use-linux
 hermes mcp configure computer-use-linux
 ```
 
-For an optional MCP completion notification, set
-`COMPUTER_USE_LINUX_NOTIFY_ON_COMPLETE=1` in the server environment and have the
-agent call `complete_interaction` after its desktop work. `notify-send` must be
-installed with an available desktop notification service. The cue is best effort
-and does not provide exclusive desktop ownership.
-This cue is available only to directly spawned MCP hosts; the native Pi extension
-does not yet forward the flag or include the tool in its catalog.
-
-On GNOME Wayland the remote-control portal asks again for every new server
-process. Set `COMPUTER_USE_LINUX_PERSIST_REMOTE_DESKTOP=1` in that process's
-environment to reuse a restore token instead. The first dialog still appears.
-Leave it unset to keep the prompt. The repository README records where the
-token is stored and who can read it.
-
-On niri, export the session's `NIRI_SOCKET` to the server. Window listing and
-exact focus use `niri msg` with a direct IPC fallback. Missing positions or
-unknown/mixed output scaling leave window-relative coordinates unavailable;
-focus the target and inspect a fresh full-screen screenshot before using
-desktop coordinates.
-
-If accessibility is disabled, run `computer-use-linux setup`. Setup writes and
-reads back GNOME's `toolkit-accessibility` setting and warns if only runtime
-accessibility is available. Restart target apps if their trees remain empty.
-
-To explicitly keep that saved setting enabled during desktop automation, run
-`computer-use-linux guard-accessibility` in a foreground terminal. It registers
-a passive AT-SPI window-activation listener and reasserts the current user's
-GNOME `toolkit-accessibility` key after resets, verifying each write by readback.
-This affects other apps using the same user setting. MCP, setup, and
-`get_app_state` never start it automatically. Stop with Ctrl-C or SIGTERM before
-disabling accessibility; stopping removes its listener and ends writes without
-disabling other clients or restoring an old value. An app launched during a
-reset may still need restarting, so this is not a complete GNOME toggle fix.
-
 The generated Hermes config should look like this:
 
 ```yaml
@@ -78,10 +49,7 @@ mcp_servers:
 
 The package downloads the matching Linux x86_64 or aarch64 binary from the
 GitHub release for this package version and verifies the `.sha256` asset before
-installing it. It also installs the matching `computer-use-linux-cosmic` helper
-used for COSMIC desktop window targeting and the `computer-use-linux-indicator`
-overlay that shows agent activity on screen (`COMPUTER_USE_LINUX_INDICATOR=0`
-turns it off).
+installing it.
 
 When installed through Pi, the package supplies native, dynamically loaded
 `computer_use_linux_*` tools. No separate MCP adapter or manual MCP
@@ -100,20 +68,9 @@ X11 text input sends LF and CRLF line endings as Return. Focused terminals
 accept keyboard input even when AT-SPI does not expose EditableText. Focus
 feedback describes the target; re-observe its contents to confirm input.
 
-On Hyprland, `type_text` passes one literal wtype argument after `--` for a
-classified nonsecret field, avoiding stdin keymap-refresh corruption in Electron.
-Argument text is visible in process listings, so confirmed password roles are
-rejected. Terminals and ambiguous roles (`Entry`/`Text`, `text box`, unreadable
-roles), or a missing/incomplete/timed-out probe, use private stdin for at most
-100 Unicode characters per call. This includes terminals with AT-SPI support;
-they can still contain password prompts. Larger ambiguous-field text must be
-split into smaller calls or, for a nonterminal field, accessibility enabled.
-The input probe has its own 1.5-second budget; the 250 ms indicator probe only
-masks text. Both protections apply with the indicator disabled. Other compatible
-compositors retain their existing stdin path. Wtype rejects NUL and text over
-131,071 UTF-8 bytes before focusing a window or displaying text. `ok: true`
-confirms dispatch only; every text backend leaves field contents unverified.
-Re-observe before retrying. Exact window focus alone does not suppress missing-focus
+`type_text` uses xdotool, which resolves keysyms against the live keyboard
+layout and rejects NUL. `ok: true` confirms dispatch only; field contents are
+not verified; re-observe before retrying. Exact window focus alone does not suppress missing-focus
 warnings: only a complete scoped tree containing window/menu chrome without
 content makes the feedback informational. Such trees get a conditional
 Electron/Chromium hint computed before compaction; this is not positive Electron

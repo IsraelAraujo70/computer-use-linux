@@ -11,7 +11,7 @@
     {
       "name": "computer-use-linux",
       "source": "./plugins/computer-use-linux",
-      "description": "Linux desktop control: AT-SPI accessibility trees, screenshots, compositor window targeting, and Wayland/X11 input.",
+      "description": "Desktop control on a virtual X11 display (Xvfb + i3): AT-SPI accessibility trees, X11 screenshots, i3 window targeting, and xdotool input.",
       "version": "0.7.17",
       "category": "productivity"
     }

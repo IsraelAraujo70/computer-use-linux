@@ -21,7 +21,6 @@ pub fn probe() -> BackendProbe {
                 id: I3_BACKEND,
                 ok,
                 can_list_windows: ok,
-                can_focus_apps: ok,
                 can_focus_windows: ok,
                 detail: if ok {
                     "i3-msg get_tree returned a JSON tree".to_string()
@@ -37,7 +36,6 @@ pub fn probe() -> BackendProbe {
                 id: I3_BACKEND,
                 ok: false,
                 can_list_windows: false,
-                can_focus_apps: false,
                 can_focus_windows: false,
                 detail: if stderr.is_empty() { stdout } else { stderr },
             }
@@ -46,7 +44,6 @@ pub fn probe() -> BackendProbe {
             id: I3_BACKEND,
             ok: false,
             can_list_windows: false,
-            can_focus_apps: false,
             can_focus_windows: false,
             detail: error.to_string(),
         },

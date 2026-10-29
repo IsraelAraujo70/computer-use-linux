@@ -8,8 +8,6 @@ const { spawn } = require('node:child_process');
 const binaryName = `computer-use-linux-${process.platform}-${process.arch}`;
 const bundledBinary = path.join(__dirname, binaryName);
 const binary = process.env.COMPUTER_USE_LINUX_BIN || bundledBinary;
-const bundledCosmicHelper = path.join(__dirname, 'computer-use-linux-cosmic');
-const bundledIndicator = path.join(__dirname, 'computer-use-linux-indicator');
 
 if (!fs.existsSync(binary)) {
   console.error(
@@ -21,17 +19,8 @@ if (!fs.existsSync(binary)) {
   process.exit(127);
 }
 
-const env = { ...process.env };
-if (!env.COMPUTER_USE_LINUX_COSMIC_HELPER && fs.existsSync(bundledCosmicHelper)) {
-  env.COMPUTER_USE_LINUX_COSMIC_HELPER = bundledCosmicHelper;
-}
-if (!env.COMPUTER_USE_LINUX_INDICATOR_BIN && fs.existsSync(bundledIndicator)) {
-  env.COMPUTER_USE_LINUX_INDICATOR_BIN = bundledIndicator;
-}
-
 const child = spawn(binary, process.argv.slice(2), {
   stdio: 'inherit',
-  env,
 });
 
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {

@@ -54,8 +54,6 @@ if [ "${1:-}" != "--binary" ]; then
   exit 0
 fi
 binary=$2
-helper="$(dirname -- "$binary")/computer-use-linux-cosmic"
-indicator="$(dirname -- "$binary")/computer-use-linux-indicator"
 
 case "$(uname -m)" in
   x86_64 | amd64) target=x86_64-unknown-linux-gnu ;;
@@ -67,17 +65,15 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT INT TERM
 mkdir "$tmp/release"
 cp "$binary" "$tmp/release/computer-use-linux-$target"
-cp "$helper" "$tmp/release/computer-use-linux-cosmic-$target"
-cp "$indicator" "$tmp/release/computer-use-linux-indicator-$target"
 (cd "$tmp/release" && for asset in *; do sha256sum "$asset" >"$asset.sha256"; done)
 
 export XDG_CACHE_HOME="$tmp/cache"
 export COMPUTER_USE_LINUX_DOWNLOAD_BASE="file://$tmp/release"
-unset COMPUTER_USE_LINUX_BIN COMPUTER_USE_LINUX_COSMIC_HELPER COMPUTER_USE_LINUX_INDICATOR_BIN
+unset COMPUTER_USE_LINUX_BIN
 
-good_sha=$(cat "$tmp/release/computer-use-linux-cosmic-$target.sha256")
+good_sha=$(cat "$tmp/release/computer-use-linux-$target.sha256")
 echo "0000000000000000000000000000000000000000000000000000000000000000  x" \
-  >"$tmp/release/computer-use-linux-cosmic-$target.sha256"
+  >"$tmp/release/computer-use-linux-$target.sha256"
 if "$launcher" windows >/dev/null 2>"$tmp/tamper.err"; then
   fail "launcher accepted a tampered sha256"
 fi
@@ -85,7 +81,7 @@ grep -q 'sha256 mismatch' "$tmp/tamper.err" ||
   fail "tampered download failed for another reason: $(cat "$tmp/tamper.err")"
 [ ! -e "$tmp/cache/computer-use-linux/plugin/v$cargo_version/computer-use-linux" ] ||
   fail "tampered download reached the cache"
-echo "$good_sha" >"$tmp/release/computer-use-linux-cosmic-$target.sha256"
+echo "$good_sha" >"$tmp/release/computer-use-linux-$target.sha256"
 
 scripts/mcp_safety_check.py --binary "$launcher"
 

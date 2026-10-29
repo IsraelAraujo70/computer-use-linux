@@ -2,8 +2,8 @@
 # install.sh — bootstrap the computer-use-linux MCP server on a Linux box.
 #
 # This script takes a fresh checkout from `git clone` to a working
-# `computer-use-linux mcp` binary in PATH plus all the system-side
-# prerequisites (AT-SPI, ydotoold, optional GNOME Shell extension).
+# `computer-use-linux mcp` binary in PATH plus the system packages it calls
+# (AT-SPI, xdotool). The server drives a virtual X11 display (Xvfb + i3).
 #
 # Each step is idempotent and individually skippable via flags.
 # Re-running the script on a fully provisioned host should print all-green
@@ -18,16 +18,9 @@ IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 OS_RELEASE_FILE="${COMPUTER_USE_LINUX_OS_RELEASE_FILE:-/etc/os-release}"
-UINPUT_DEVICE="${COMPUTER_USE_LINUX_UINPUT_DEVICE:-/dev/uinput}"
 BIN_NAME="computer-use-linux"
-COSMIC_HELPER_NAME="computer-use-linux-cosmic"
-INDICATOR_NAME="computer-use-linux-indicator"
 INSTALL_DIR="${HOME}/.local/bin"
 INSTALL_PATH="${INSTALL_DIR}/${BIN_NAME}"
-COSMIC_HELPER_INSTALL_PATH="${INSTALL_DIR}/${COSMIC_HELPER_NAME}"
-INDICATOR_INSTALL_PATH="${INSTALL_DIR}/${INDICATOR_NAME}"
-EXT_UUID="computer-use-linux@avifenesh.dev"
-EXT_SRC_DIR="${SCRIPT_DIR}/gnome-shell-extension/${EXT_UUID}"
 
 # Color helpers (degrade gracefully when not on a tty).
 if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
@@ -63,9 +56,6 @@ trap 'rc=$?; if [[ $rc -ne 0 ]]; then printf "\n%sinstall.sh aborted (exit %d)%s
 SKIP_SYSTEM_DEPS=0
 SKIP_RUST=0
 SKIP_BUILD=0
-SKIP_ATSPI=0
-SKIP_YDOTOOL=0
-SKIP_GNOME_EXT=0
 SKIP_DOCTOR=0
 FORCE_UNKNOWN_DISTRO=0
 PACKAGE_MANAGER_OVERRIDE=""
@@ -77,22 +67,16 @@ ${C_BOLD}install.sh${C_RESET} — provision computer-use-linux on this machine.
 Usage: ./install.sh [flags]
 
 Steps (run in order, each idempotent):
-  1. Detect distro + display server
+  1. Detect distro + X display
   2. Install system packages (apt/dnf/pacman)
   3. Install rustup toolchain
-  4. cargo build --release  →  ~/.local/bin/${BIN_NAME}, ${COSMIC_HELPER_NAME} and ${INDICATOR_NAME}
-  5. Enable AT-SPI toolkit accessibility (GNOME)
-  6. Install + enable ydotoold systemd --user service when available
-  7. Pack/install/enable GNOME Shell extension (Wayland + GNOME)
-  8. Run \`${BIN_NAME} doctor\` and report readiness
+  4. cargo build --release  →  ~/.local/bin/${BIN_NAME}
+  5. Run \`${BIN_NAME} doctor\` and report readiness
 
 Flags:
   --skip-system-deps      skip apt/dnf/pacman package install
   --skip-rust             skip rustup install
-  --skip-build            skip cargo build (assumes target/release/${BIN_NAME}, ${COSMIC_HELPER_NAME} and ${INDICATOR_NAME} exist)
-  --skip-atspi            skip toolkit-accessibility gsetting
-  --skip-ydotool          skip ydotoold user-service setup
-  --skip-gnome-extension  skip GNOME Shell extension install
+  --skip-build            skip cargo build (assumes target/release/${BIN_NAME} exists)
   --skip-doctor           skip the final readiness check
   --force-unknown-distro  use the one supported package manager found on PATH
   --package-manager NAME  force apt, dnf, or pacman for system packages
@@ -105,9 +89,6 @@ while [[ $# -gt 0 ]]; do
         --skip-system-deps)     SKIP_SYSTEM_DEPS=1 ;;
         --skip-rust)            SKIP_RUST=1 ;;
         --skip-build)           SKIP_BUILD=1 ;;
-        --skip-atspi)           SKIP_ATSPI=1 ;;
-        --skip-ydotool)         SKIP_YDOTOOL=1 ;;
-        --skip-gnome-extension) SKIP_GNOME_EXT=1 ;;
         --skip-doctor)          SKIP_DOCTOR=1 ;;
         --force-unknown-distro) FORCE_UNKNOWN_DISTRO=1 ;;
         --package-manager)
@@ -128,13 +109,11 @@ case "${PACKAGE_MANAGER_OVERRIDE}" in
 esac
 
 # -----------------------------------------------------------------------------
-# Step 1: distro + display server detection
+# Step 1: distro + X display detection
 # -----------------------------------------------------------------------------
 
 DISTRO_FAMILY=""
 PKG_MANAGER=""
-SESSION_TYPE=""
-X11_KEYBOARD_BACKEND_REQUIRED=0
 
 set_package_manager() {
     case "$1" in
@@ -164,7 +143,7 @@ available_package_managers() {
 }
 
 detect_distro() {
-    log_section "Step 1/9 — detect environment"
+    log_section "Step 1/6 — detect environment"
 
     if [[ "$(uname -s)" != "Linux" ]]; then
         die "this script only supports Linux (got $(uname -s)). macOS/*BSD are not supported."
@@ -225,122 +204,40 @@ detect_distro() {
         log_ok "distro family: ${DISTRO_FAMILY} (system packages skipped)"
     fi
 
-    # Display server.
-    local session_type=""
-    if [[ -n "${XDG_SESSION_ID:-}" ]] && command -v loginctl >/dev/null 2>&1; then
-        session_type="$(loginctl show-session "${XDG_SESSION_ID}" -p Type --value 2>/dev/null || true)"
-    fi
-    session_type="${session_type:-${XDG_SESSION_TYPE:-}}"
-    local normalized_session_type="${session_type//[[:space:]]/}"
-    local wayland_display="${WAYLAND_DISPLAY:-}"
-    local display="${DISPLAY:-}"
-    local wayland_session=0
-    if [[ -n "${normalized_session_type}" ]]; then
-        if [[ "${normalized_session_type,,}" == "wayland" ]]; then wayland_session=1; fi
-    elif [[ -n "${wayland_display//[[:space:]]/}" ]]; then
-        wayland_session=1
-    fi
-
-    X11_KEYBOARD_BACKEND_REQUIRED=0
-    if [[ ${wayland_session} -eq 0 && -n "${display//[[:space:]]/}" ]]; then
-        X11_KEYBOARD_BACKEND_REQUIRED=1
-    fi
-
-    if [[ ${wayland_session} -eq 1 ]]; then
-        SESSION_TYPE="wayland"
-    elif [[ ${X11_KEYBOARD_BACKEND_REQUIRED} -eq 1 ]]; then
-        SESSION_TYPE="x11"
+    if [[ -n "${DISPLAY:-}" ]]; then
+        log_ok "X display: ${DISPLAY}"
     else
-        SESSION_TYPE="${normalized_session_type:-unknown}"
+        log_warn "DISPLAY is not set; export DISPLAY=:N for the Xvfb display before running the server"
     fi
-
-    case "${SESSION_TYPE}" in
-        wayland) log_ok "display server: Wayland" ;;
-        x11)     log_warn "display server: X11 — supported but degraded (some features need Wayland)" ;;
-        *)       log_warn "display server: ${SESSION_TYPE} (unrecognised — proceeding anyway)" ;;
-    esac
-
-    local desktop="${XDG_CURRENT_DESKTOP:-unknown}"
-    case "${desktop}" in
-        *GNOME*)         log_ok "compositor: GNOME (${desktop})" ;;
-        *KDE*|*Plasma*)  log_warn "compositor: KDE (${desktop}) — untested, AT-SPI step will be skipped" ;;
-        *sway*)          log_warn "compositor: sway — untested" ;;
-        *Hyprland*)      log_warn "compositor: hyprland — untested" ;;
-        *niri*|*Niri*)   log_warn "compositor: niri — window targeting via niri IPC, rest untested" ;;
-        *)               log_warn "compositor: ${desktop} — untested" ;;
-    esac
 }
 
 # -----------------------------------------------------------------------------
 # Step 2: system package install
 # -----------------------------------------------------------------------------
 
-ydotool_package_available() {
-    case "${PKG_MANAGER}" in
-        apt)    apt-cache show ydotool >/dev/null 2>&1 ;;
-        dnf)    dnf info -q ydotool >/dev/null 2>&1 ;;
-        pacman) pacman -Si ydotool >/dev/null 2>&1 ;;
-        *) return 1 ;;
-    esac
-}
-
-install_optional_ydotool() {
-    if command -v ydotool >/dev/null 2>&1 && command -v ydotoold >/dev/null 2>&1; then
-        log_ok "optional ydotool fallback already installed"
-        return 0
-    fi
-    if ! ydotool_package_available; then
-        log_warn "optional ydotool package is unavailable from configured ${PKG_MANAGER} repositories"
-        log_info "a RemoteDesktop portal on Wayland or xdotool on X11 may still satisfy doctor"
-        return 0
-    fi
-
-    log_info "installing optional ydotool fallback"
-    case "${PKG_MANAGER}" in
-        apt)    sudo apt-get install -y ydotool ;;
-        dnf)    sudo dnf install -y ydotool ;;
-        pacman) sudo pacman -S --needed --noconfirm ydotool ;;
-    esac || {
-        log_warn "optional ydotool install failed — doctor will require a keyboard-capable portal or xdotool backend"
-        return 0
-    }
-}
-
 install_system_deps() {
-    log_section "Step 2/9 — system packages"
+    log_section "Step 2/6 — system packages"
     if [[ ${SKIP_SYSTEM_DEPS} -eq 1 ]]; then log_skip "--skip-system-deps"; return 0; fi
 
-    local desktop="${XDG_CURRENT_DESKTOP:-}"
     case "${PKG_MANAGER}" in
         apt)
-            local pkgs=(build-essential pkg-config libdbus-1-dev libssl-dev curl at-spi2-core)
-            if [[ ${X11_KEYBOARD_BACKEND_REQUIRED} -eq 1 ]]; then pkgs+=(xdotool); fi
+            local pkgs=(build-essential pkg-config libdbus-1-dev libssl-dev curl at-spi2-core xdotool)
             sudo apt-get update -qq
-            if [[ "${desktop}" == *GNOME* ]] && ! command -v gnome-extensions >/dev/null 2>&1; then
-                if apt-cache show gnome-shell >/dev/null 2>&1; then
-                    pkgs+=(gnome-shell)
-                else
-                    log_warn "gnome-extensions CLI missing, and no gnome-shell apt package was found"
-                fi
-            fi
             log_info "sudo apt-get install -y ${pkgs[*]}"
             sudo apt-get install -y "${pkgs[@]}" || { log_fail "apt-get install failed"; return 1; }
             ;;
         dnf)
-            local pkgs=(gcc pkgconfig dbus-devel openssl-devel curl at-spi2-core)
-            if [[ ${X11_KEYBOARD_BACKEND_REQUIRED} -eq 1 ]]; then pkgs+=(xdotool); fi
+            local pkgs=(gcc pkgconfig dbus-devel openssl-devel curl at-spi2-core xdotool)
             log_info "sudo dnf install -y ${pkgs[*]}"
             sudo dnf install -y "${pkgs[@]}" || { log_fail "dnf install failed"; return 1; }
             ;;
         pacman)
-            local pkgs=(base-devel pkgconf dbus openssl curl at-spi2-core)
-            if [[ ${X11_KEYBOARD_BACKEND_REQUIRED} -eq 1 ]]; then pkgs+=(xdotool); fi
+            local pkgs=(base-devel pkgconf dbus openssl curl at-spi2-core xdotool)
             log_info "sudo pacman -S --needed --noconfirm ${pkgs[*]}"
             sudo pacman -S --needed --noconfirm "${pkgs[@]}" || { log_fail "pacman install failed"; return 1; }
             ;;
     esac
     log_ok "required system packages installed"
-    install_optional_ydotool
 }
 
 # -----------------------------------------------------------------------------
@@ -348,7 +245,7 @@ install_system_deps() {
 # -----------------------------------------------------------------------------
 
 install_rust() {
-    log_section "Step 3/9 — Rust toolchain"
+    log_section "Step 3/6 — Rust toolchain"
     if [[ ${SKIP_RUST} -eq 1 ]]; then log_skip "--skip-rust"; return 0; fi
 
     if command -v cargo >/dev/null 2>&1; then
@@ -374,21 +271,17 @@ install_rust() {
 # -----------------------------------------------------------------------------
 
 build_and_install() {
-    log_section "Step 4/9 — build & install binary"
+    log_section "Step 4/6 — build & install binary"
     local built="${SCRIPT_DIR}/target/release/${BIN_NAME}"
-    local cosmic_helper_built="${SCRIPT_DIR}/target/release/${COSMIC_HELPER_NAME}"
-    local indicator_built="${SCRIPT_DIR}/target/release/${INDICATOR_NAME}"
 
     if [[ ${SKIP_BUILD} -eq 1 ]]; then
-        log_skip "--skip-build (expecting prebuilt binaries at ${built}, ${cosmic_helper_built} and ${indicator_built})"
+        log_skip "--skip-build (expecting a prebuilt binary at ${built})"
     else
         ( cd "${SCRIPT_DIR}" && cargo build --release ) || { log_fail "cargo build failed"; return 1; }
         log_ok "cargo build --release succeeded"
     fi
 
     [[ -x "${built}" ]] || { log_fail "binary not found at ${built}"; return 1; }
-    [[ -x "${cosmic_helper_built}" ]] || { log_fail "COSMIC helper not found at ${cosmic_helper_built}"; return 1; }
-    [[ -x "${indicator_built}" ]] || { log_fail "indicator overlay not found at ${indicator_built}"; return 1; }
 
     mkdir -p "${INSTALL_DIR}"
     if [[ -f "${INSTALL_PATH}" ]] && cmp -s "${built}" "${INSTALL_PATH}"; then
@@ -396,18 +289,6 @@ build_and_install() {
     else
         install -m 0755 "${built}" "${INSTALL_PATH}"
         log_ok "installed ${INSTALL_PATH}"
-    fi
-    if [[ -f "${COSMIC_HELPER_INSTALL_PATH}" ]] && cmp -s "${cosmic_helper_built}" "${COSMIC_HELPER_INSTALL_PATH}"; then
-        log_ok "COSMIC helper already up to date at ${COSMIC_HELPER_INSTALL_PATH}"
-    else
-        install -m 0755 "${cosmic_helper_built}" "${COSMIC_HELPER_INSTALL_PATH}"
-        log_ok "installed ${COSMIC_HELPER_INSTALL_PATH}"
-    fi
-    if [[ -f "${INDICATOR_INSTALL_PATH}" ]] && cmp -s "${indicator_built}" "${INDICATOR_INSTALL_PATH}"; then
-        log_ok "indicator overlay already up to date at ${INDICATOR_INSTALL_PATH}"
-    else
-        install -m 0755 "${indicator_built}" "${INDICATOR_INSTALL_PATH}"
-        log_ok "installed ${INDICATOR_INSTALL_PATH}"
     fi
 
     case ":${PATH}:" in
@@ -418,237 +299,13 @@ build_and_install() {
 }
 
 # -----------------------------------------------------------------------------
-# Step 5: AT-SPI toolkit accessibility (GNOME-only)
-# -----------------------------------------------------------------------------
-
-enable_atspi() {
-    log_section "Step 5/9 — AT-SPI toolkit accessibility"
-    if [[ ${SKIP_ATSPI} -eq 1 ]]; then log_skip "--skip-atspi"; return 0; fi
-
-    if [[ "${XDG_CURRENT_DESKTOP:-}" != *GNOME* ]]; then
-        log_warn "non-GNOME desktop — skipping (set toolkit-accessibility manually if needed)"
-        return 0
-    fi
-    if ! command -v gsettings >/dev/null 2>&1; then
-        log_warn "gsettings not available — skipping"
-        return 0
-    fi
-
-    local current
-    current="$(gsettings get org.gnome.desktop.interface toolkit-accessibility 2>/dev/null || echo 'false')"
-    if [[ "${current}" == "true" ]]; then
-        log_ok "toolkit-accessibility already enabled"
-    else
-        gsettings set org.gnome.desktop.interface toolkit-accessibility true
-        log_ok "toolkit-accessibility enabled"
-    fi
-}
-
-# -----------------------------------------------------------------------------
-# Step 6: ydotoold user service
-# -----------------------------------------------------------------------------
-
-systemd_user_manager_available() {
-    command -v systemctl >/dev/null 2>&1 &&
-        systemctl --user show-environment >/dev/null 2>&1
-}
-
-show_manual_ydotoold_guidance() {
-    local ydotoold_path runtime_dir user_gid
-    ydotoold_path="$(command -v ydotoold 2>/dev/null || true)"
-    runtime_dir="${XDG_RUNTIME_DIR:-/run/user/${UID}}"
-    user_gid="$(id -g)"
-    if [[ -z "${ydotoold_path}" ]]; then
-        log_info "ydotool is optional; install it only if doctor needs that fallback"
-        return 0
-    fi
-    log_info "configure your per-user supervisor to run:"
-    log_info "  ${ydotoold_path} --socket-path=${runtime_dir}/.ydotool_socket --socket-own=${UID}:${user_gid} --socket-perm=0600"
-    log_info "do not run ydotoold as root or expose its socket to other users"
-}
-
-stop_unsafe_ydotoold() {
-    if systemctl --user disable --now ydotoold.service; then
-        log_info "stopped and disabled ydotoold.service"
-    else
-        log_warn "could not stop and disable ydotoold.service; run: systemctl --user disable --now ydotoold.service"
-    fi
-}
-
-validate_ydotoold_socket_security() {
-    local sock="$1" owner="$2" mode="$3"
-    if [[ "${owner}" == "${UID}" && "${mode}" == "600" ]]; then
-        log_ok "ydotoold socket ready (${sock}, mode ${mode})"
-        return 0
-    fi
-
-    log_fail "refusing unsafe ydotoold socket ${sock}: owner=${owner} mode=${mode} (expected ${UID}/600)"
-    stop_unsafe_ydotoold
-    return 1
-}
-
-verify_ydotoold_socket() {
-    local sock="$1"
-    if [[ -L "${sock}" ]]; then
-        log_fail "refusing symlink at ydotoold socket path ${sock}"
-        stop_unsafe_ydotoold
-        return 1
-    fi
-
-    if [[ -S "${sock}" ]]; then
-        local owner mode
-        if ! owner="$(stat -c '%u' -- "${sock}")" || ! mode="$(stat -c '%a' -- "${sock}")"; then
-            log_fail "could not inspect ydotoold socket security at ${sock}"
-            stop_unsafe_ydotoold
-            return 1
-        fi
-        validate_ydotoold_socket_security "${sock}" "${owner}" "${mode}"
-    else
-        log_warn "socket ${sock} did not appear within ~3s — check the unit"
-    fi
-}
-
-setup_ydotoold() {
-    log_section "Step 6/9 — ydotoold user service"
-    if [[ ${SKIP_YDOTOOL} -eq 1 ]]; then log_skip "--skip-ydotool"; return 0; fi
-
-    if ! command -v ydotoold >/dev/null 2>&1; then
-        log_warn "optional ydotoold fallback is not installed — skipping its user service"
-        return 0
-    fi
-
-    # /dev/uinput permissions check.
-    if [[ ! -e "${UINPUT_DEVICE}" ]]; then
-        log_warn "${UINPUT_DEVICE} does not exist — kernel module may need loading"
-        log_info "  sudo modprobe uinput"
-    elif [[ ! -w "${UINPUT_DEVICE}" || ! -r "${UINPUT_DEVICE}" ]]; then
-        log_warn "${UINPUT_DEVICE} exists but is not user-accessible"
-        log_info "Remediation (pick one, then log out/in):"
-        log_info "  sudo usermod -aG input \$USER"
-        log_info "OR write a udev rule:"
-        log_info "  echo 'KERNEL==\"uinput\", MODE=\"0660\", GROUP=\"input\", OPTIONS+=\"static_node=uinput\"' | sudo tee /etc/udev/rules.d/60-uinput.rules"
-        log_info "  sudo udevadm control --reload-rules && sudo udevadm trigger"
-        log_warn "skipping systemd enable — fix uinput first then re-run"
-        return 0
-    fi
-
-    if ! systemd_user_manager_available; then
-        log_warn "systemd --user is unavailable — skipping automatic ydotoold service setup"
-        show_manual_ydotoold_guidance
-        return 0
-    fi
-
-    local unit_dir="${HOME}/.config/systemd/user"
-    local unit_file="${unit_dir}/ydotoold.service"
-    mkdir -p "${unit_dir}"
-    cat > "${unit_file}" <<'EOF'
-[Unit]
-Description=ydotool user daemon
-Documentation=man:ydotool(1) man:ydotoold(8)
-
-[Service]
-Type=simple
-UMask=0077
-ExecStart=/usr/bin/ydotoold --socket-path=%t/.ydotool_socket --socket-own=%U:%U --socket-perm=0600
-Restart=on-failure
-
-[Install]
-WantedBy=default.target
-EOF
-    log_ok "wrote ${unit_file}"
-
-    systemctl --user daemon-reload
-    systemctl --user enable --now ydotoold.service || {
-        log_fail "systemctl --user enable --now ydotoold failed"
-        log_info "check: systemctl --user status ydotoold"
-        return 1
-    }
-
-    # Verify socket.
-    local sock="${XDG_RUNTIME_DIR:-/run/user/$UID}/.ydotool_socket"
-    local tries=0
-    while [[ ! -S "${sock}" && ${tries} -lt 10 ]]; do sleep 0.3; ((tries++)); done
-
-    verify_ydotoold_socket "${sock}"
-}
-
-# -----------------------------------------------------------------------------
-# Step 7: GNOME Shell extension (Wayland + GNOME only)
-# -----------------------------------------------------------------------------
-
-install_gnome_extension() {
-    log_section "Step 7/9 — GNOME Shell extension"
-    if [[ ${SKIP_GNOME_EXT} -eq 1 ]]; then log_skip "--skip-gnome-extension"; return 0; fi
-
-    if [[ "${XDG_CURRENT_DESKTOP:-}" != *GNOME* ]]; then
-        log_skip "non-GNOME desktop"
-        return 0
-    fi
-    local session_type="${XDG_SESSION_TYPE:-}"
-    if [[ -z "${session_type}" ]] && command -v loginctl >/dev/null 2>&1 && [[ -n "${XDG_SESSION_ID:-}" ]]; then
-        session_type="$(loginctl show-session "${XDG_SESSION_ID}" -p Type --value 2>/dev/null || true)"
-    fi
-    if [[ "${session_type}" != "wayland" && "${session_type}" != "x11" ]]; then
-        log_skip "not a GNOME desktop session"
-        return 0
-    fi
-    if ! command -v gnome-extensions >/dev/null 2>&1; then
-        log_warn "gnome-extensions CLI missing — install gnome-shell or your distro's package that provides it"
-        return 0
-    fi
-    if [[ ! -d "${EXT_SRC_DIR}" ]]; then
-        log_warn "extension source directory not found at ${EXT_SRC_DIR} — skipping"
-        return 0
-    fi
-
-    # Enabled extensions still need refreshed assets after an upgrade. GNOME
-    # keeps the loaded module until the session restarts.
-    local extension_dir="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/${EXT_UUID}"
-    local was_enabled=0
-    if gnome-extensions list --enabled 2>/dev/null | grep -qx "${EXT_UUID}"; then
-        was_enabled=1
-        if cmp -s "${EXT_SRC_DIR}/extension.js" "${extension_dir}/extension.js" &&
-           cmp -s "${EXT_SRC_DIR}/metadata.json" "${extension_dir}/metadata.json"; then
-            log_ok "extension ${EXT_UUID} already enabled and up to date"
-            return 0
-        fi
-    fi
-
-    local pack_dir
-    pack_dir="$(mktemp -d)"
-    ( cd "${pack_dir}" && gnome-extensions pack "${EXT_SRC_DIR}" ) ||
-        { log_fail "gnome-extensions pack failed"; rm -rf "${pack_dir}"; return 1; }
-
-    local zipfile
-    zipfile="$(find "${pack_dir}" -maxdepth 1 -name '*.shell-extension.zip' | head -n1)"
-    [[ -f "${zipfile}" ]] || { log_fail "packed zip not produced"; rm -rf "${pack_dir}"; return 1; }
-
-    gnome-extensions install --force "${zipfile}" || { log_fail "gnome-extensions install failed"; rm -rf "${pack_dir}"; return 1; }
-    log_ok "extension installed (${zipfile##*/})"
-    rm -rf "${pack_dir}"
-
-    if [[ ${was_enabled} -eq 1 ]]; then
-        log_ok "enabled extension assets updated"
-        log_info "log out and back in to load the updated window control and activity indicator"
-        return 0
-    fi
-
-    if gnome-extensions enable "${EXT_UUID}" 2>/dev/null; then
-        log_ok "extension enabled"
-    else
-        log_warn "could not enable ${EXT_UUID} yet — GNOME Shell may not have rescanned"
-        log_info "log out and back in, then run:"
-        log_info "  gnome-extensions enable ${EXT_UUID}"
-    fi
-}
-
-# -----------------------------------------------------------------------------
-# Step 8: doctor readiness check
+# Step 5: doctor readiness check# -----------------------------------------------------------------------------
+# Step 5: doctor readiness check
 # -----------------------------------------------------------------------------
 
 doctor_install_prerequisites_ready_raw() {
     local out="$1" field
-    for field in can_register_mcp_tools can_build_accessibility_tree can_send_development_input; do
+    for field in can_build_accessibility_tree can_send_input; do
         if ! printf '%s' "${out}" | grep -qE "\"${field}\"[[:space:]]*:[[:space:]]*true([[:space:],}]|$)"; then
             return 1
         fi
@@ -656,7 +313,7 @@ doctor_install_prerequisites_ready_raw() {
 }
 
 run_doctor() {
-    log_section "Step 8/9 — doctor readiness"
+    log_section "Step 5/6 — doctor readiness"
     if [[ ${SKIP_DOCTOR} -eq 1 ]]; then log_skip "--skip-doctor"; return 0; fi
 
     [[ -x "${INSTALL_PATH}" ]] || { log_fail "${INSTALL_PATH} missing — cannot run doctor"; return 1; }
@@ -675,13 +332,11 @@ run_doctor() {
             .readiness as $r |
             if ($r | type) != "object"
                 or ($r.blockers | type) != "array"
-                or ($r.can_register_mcp_tools | type) != "boolean"
                 or ($r.can_build_accessibility_tree | type) != "boolean"
-                or ($r.can_send_development_input | type) != "boolean"
+                or ($r.can_send_input | type) != "boolean"
             then "invalid"
-            elif $r.can_register_mcp_tools != true
-                or $r.can_build_accessibility_tree != true
-                or $r.can_send_development_input != true
+            elif $r.can_build_accessibility_tree != true
+                or $r.can_send_input != true
             then "blocked"
             elif ($r.blockers | length) == 0 then "ready"
             else "degraded"
@@ -700,7 +355,7 @@ run_doctor() {
                 local capability_verb="capabilities are"
                 if [[ "${blockers}" -eq 1 ]]; then capability_verb="capability is"; fi
                 log_ok "installation prerequisites are ready"
-                log_warn "installation succeeded; ${blockers} platform ${capability_verb} unavailable on this desktop/compositor"
+                log_warn "installation succeeded; ${blockers} platform ${capability_verb} unavailable on this display"
                 ;;
             blocked)
                 log_fail "doctor reports NOT ready"
@@ -721,7 +376,7 @@ run_doctor() {
             log_ok "doctor reports ready (raw)"
         elif doctor_install_prerequisites_ready_raw "${out}"; then
             log_ok "installation prerequisites are ready (raw)"
-            log_warn "installation succeeded; platform capabilities are unavailable on this desktop/compositor"
+            log_warn "installation succeeded; platform capabilities are unavailable on this display"
         else
             log_fail "doctor did not report ready (install jq for a structured summary)"
             return 1
@@ -740,12 +395,9 @@ main() {
     install_system_deps  || record_failure "system deps"
     install_rust         || record_failure "rust toolchain"
     build_and_install    || record_failure "build/install"
-    enable_atspi         || record_failure "atspi"
-    setup_ydotoold       || record_failure "ydotoold"
-    install_gnome_extension || record_failure "gnome extension"
     run_doctor           || record_failure "doctor"
 
-    log_section "Step 9/9 — summary"
+    log_section "Step 6/6 — summary"
     if [[ ${#FAILED_CHECKS[@]} -eq 0 ]]; then
         log_ok "all steps completed successfully"
         exit 0

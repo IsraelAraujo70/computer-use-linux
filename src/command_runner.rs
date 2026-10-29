@@ -681,13 +681,13 @@ mod tests {
             command,
             "echo stdin",
             Duration::from_secs(1),
-            b"portal input".to_vec(),
+            b"stdin input".to_vec(),
         )
         .await
         .expect("stdin command should complete");
 
         assert!(output.status.success());
-        assert_eq!(output.stdout, b"portal input");
+        assert_eq!(output.stdout, b"stdin input");
     }
 
     #[tokio::test]
