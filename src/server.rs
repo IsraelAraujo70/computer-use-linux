@@ -4816,7 +4816,6 @@ mod tests {
                 can_ocr: true,
                 recommended_next_step: String::new(),
                 blockers: Vec::new(),
-                warnings: Vec::new(),
             },
             diagnostics: None,
             message: "ok".to_string(),

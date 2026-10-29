@@ -81,10 +81,10 @@ pub struct ReadinessReport {
     /// stays false until screenshot or get_app_state runs.
     pub can_capture_screenshots: bool,
     pub screenshot_capture_status: ScreenshotCaptureStatus,
+    /// `tesseract` is installed, so `ocr` works. Optional; never a blocker.
     pub can_ocr: bool,
     pub recommended_next_step: String,
     pub blockers: Vec<String>,
-    pub warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
@@ -462,7 +462,6 @@ fn readiness_report(
     commands: &CommandReport,
 ) -> ReadinessReport {
     let mut blockers = Vec::new();
-    let mut warnings = Vec::new();
     let display_ok = platform.x11_display.ok;
     let can_build_accessibility_tree = can_build_accessibility_tree(accessibility);
     let can_query_windows = windowing.can_list_windows;
@@ -512,13 +511,6 @@ fn readiness_report(
                 .to_string(),
         );
     }
-    let can_ocr = commands.tesseract.ok;
-    if !can_ocr {
-        warnings.push(
-            "tesseract is not installed, so ocr is unavailable. Install tesseract-ocr.".to_string(),
-        );
-    }
-
     let mut readiness = ReadinessReport {
         ready: false,
         can_build_accessibility_tree,
@@ -531,10 +523,9 @@ fn readiness_report(
         } else {
             ScreenshotCaptureStatus::Unavailable
         },
-        can_ocr,
+        can_ocr: commands.tesseract.ok,
         recommended_next_step: String::new(),
         blockers,
-        warnings,
     };
     readiness.settle();
     readiness
@@ -895,7 +886,6 @@ mod tests {
         );
         assert!(readiness.ready);
         assert!(readiness.blockers.is_empty());
-        assert!(readiness.warnings.is_empty());
         assert!(readiness.can_send_input && readiness.can_ocr);
         assert_eq!(
             readiness.screenshot_capture_status,
@@ -905,7 +895,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_tesseract_only_warns() {
+    fn missing_tesseract_only_disables_ocr() {
         let readiness = readiness_report(
             &platform(true),
             &accessibility(true, true),
@@ -913,8 +903,8 @@ mod tests {
             &commands(true, false),
         );
         assert!(readiness.ready);
+        assert!(readiness.blockers.is_empty());
         assert!(!readiness.can_ocr);
-        assert!(readiness.warnings[0].contains("tesseract-ocr"));
     }
 
     #[test]
