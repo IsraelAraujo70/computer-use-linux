@@ -1472,6 +1472,15 @@ impl ComputerUseLinux {
                     // Wheel input at an off-page point scrolls nothing; ask
                     // the toolkit to bring the element into view instead.
                     let label = crate::outline::element_label(&node);
+                    if params.until.is_some() {
+                        return Json(ActionOutput {
+                            ok: false,
+                            implemented: true,
+                            action: "scroll".to_string(),
+                            message: format!("{label} is outside the visible window; scroll(element_index={}) first, then scroll inside it with until", node.index),
+                            received,
+                        });
+                    }
                     return Json(match crate::atspi_tree::scroll_into_view(&node.object_ref).await {
                         Ok(_) => ActionOutput {
                             ok: true,
@@ -1505,6 +1514,44 @@ impl ComputerUseLinux {
         // XTEST wheel buttons have no XI2 valuators, so GTK 3 takes its button
         // path instead of re-baselining smooth-scroll valuators (#184).
         let repeat = u32::try_from(units.max(1)).unwrap_or(1);
+        if let Some(query) = params.until.clone() {
+            if query.is_empty() {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message: "until needs at least one of role, name, text, or states.".to_string(),
+                    received,
+                });
+            }
+            let backend = self.clone();
+            let hint = self
+                .cached_node_for(
+                    params.element_index,
+                    &ElementSelector::default(),
+                    ElementResolvePurpose::Click,
+                )
+                .map(|node| node.object_ref);
+            let wheel = xdotool_pointer_scroll_args(target_point, repeat, direction);
+            let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
+                backend
+                    .scroll_until(&query, &wheel, repeat, hint.as_deref())
+                    .await
+            })
+            .await;
+            let _input_guard = input_guard;
+            let (ok, message) = match result {
+                Ok(message) => (true, message),
+                Err(message) => (false, message),
+            };
+            return Json(ActionOutput {
+                ok,
+                implemented: true,
+                action: "scroll".to_string(),
+                message,
+                received,
+            });
+        }
         let xdotool_args = xdotool_pointer_scroll_args(target_point, repeat, direction);
         let command_timeout = xdotool_scroll_timeout(repeat, XDOTOOL_SCROLL_CLICK_DELAY_MS);
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
@@ -1746,7 +1793,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "scroll",
-        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. Reports what changed.",
+        description = "Scroll at an element (element_index), a point, or a window's centre. scroll(element_index=n) brings an off-screen element into view. until={role,name,text} keeps scrolling (virtualized/long lists) until a match is visible and returns its line. Reports what changed.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -3031,10 +3078,16 @@ struct ScrollParams {
     x: Option<i32>,
     #[serde(default)]
     y: Option<i32>,
+    /// up, down, left or right (default down).
+    #[serde(default = "default_scroll_direction")]
     direction: String,
     #[serde(default)]
     #[schemars(range(min = -100, max = 100))]
     pages: Option<f64>,
+    /// Keep scrolling a page at a time until an element matching this is
+    /// on the visible page (or the end, or 80 scrolls); returns its line.
+    #[serde(default)]
+    until: Option<ElementQuery>,
     // Optional window target (parity with click): the window is raised/focused
     // before scrolling so the wheel events land on the intended app.
     #[serde(default)]
@@ -3053,6 +3106,10 @@ struct ScrollParams {
     /// x/y are relative to the targeted window's screenshot.
     #[serde(default)]
     relative: Option<bool>,
+}
+
+fn default_scroll_direction() -> String {
+    "down".to_string()
 }
 
 fn scroll_units(pages: Option<f64>) -> std::result::Result<i32, String> {
@@ -4569,6 +4626,73 @@ impl ComputerUseLinux {
         }
     }
 
+    /// Runs the wheel command `wheel` step by step, reading the tree after
+    /// each, until an element matching `query` is on the visible page:
+    /// returns its lines and the scroll count. Ends with an error when the
+    /// tree stops changing (the end of the list) or after
+    /// `SCROLL_UNTIL_MAX_STEPS`; the last read then becomes the cached
+    /// snapshot, since the page has moved. Steps report no changes.
+    async fn scroll_until(
+        &self,
+        query: &ElementQuery,
+        wheel: &[String],
+        repeat: u32,
+        hint_ref: Option<&str>,
+    ) -> std::result::Result<String, String> {
+        let found_message = |scrolls: u32, found: &[&AccessibilityNode]| {
+            let lines = found
+                .iter()
+                .take(5)
+                .map(|node| crate::outline::render_line(node))
+                .collect::<Vec<_>>()
+                .join("\n");
+            match scrolls {
+                0 => format!("already on the visible page:\n{lines}"),
+                n => format!("found after {n} scroll(s):\n{lines}"),
+            }
+        };
+        let mut last = self.rescan(hint_ref).await?;
+        let found = visible_matches(&last.nodes, query);
+        if !found.is_empty() {
+            return Ok(found_message(0, &found));
+        }
+        let command_timeout = xdotool_scroll_timeout(repeat, XDOTOOL_SCROLL_CLICK_DELAY_MS);
+        let mut previous = crate::outline::element_contents(&last.nodes);
+        let mut unchanged = 0;
+        let mut scrolls = 0;
+        let outcome = loop {
+            if scrolls >= SCROLL_UNTIL_MAX_STEPS {
+                break format!(
+                    "no element matched until within {scrolls} scrolls; the list goes on"
+                );
+            }
+            run_xdotool(wheel, command_timeout).await?;
+            scrolls += 1;
+            sleep(SCROLL_UNTIL_STEP_WAIT).await;
+            last = self.rescan(hint_ref).await?;
+            let found = visible_matches(&last.nodes, query);
+            if !found.is_empty() {
+                return Ok(found_message(scrolls, &found));
+            }
+            let contents = crate::outline::element_contents(&last.nodes);
+            if contents == previous {
+                unchanged += 1;
+                if unchanged >= 2 {
+                    break format!(
+                        "reached the end after {scrolls} scroll(s) without an element matching until"
+                    );
+                }
+                // A list that loads more rows may still be fetching them.
+                sleep(SCROLL_UNTIL_END_WAIT).await;
+            } else {
+                unchanged = 0;
+            }
+            previous = contents;
+        };
+        self.cache_observation(&last.nodes, last.root_pid, Some(last.scope));
+        Err(outcome)
+    }
+
     /// Whether a point inside an element's bounds is on the visible page:
     /// inside its web document's viewport (else its window frame) and on the
     /// desktop.
@@ -4677,6 +4801,34 @@ impl ComputerUseLinux {
             sleep(Duration::from_millis(120)).await;
         }
     }
+}
+
+/// Most page scrolls one `scroll(until=…)` call makes.
+const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
+/// Wait after each scroll before reading the tree, so new rows exist.
+const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(150);
+/// Extra wait after a scroll that changed nothing, before trying once more:
+/// an infinite list may still be loading its next rows.
+const SCROLL_UNTIL_END_WAIT: Duration = Duration::from_millis(500);
+
+/// Elements matching `query` whose centre lies where they can be seen: in
+/// their document's viewport, else their window frame.
+fn visible_matches<'a>(
+    nodes: &'a [AccessibilityNode],
+    query: &ElementQuery,
+) -> Vec<&'a AccessibilityNode> {
+    nodes
+        .iter()
+        .filter(|node| query.matches(node))
+        .filter(|node| {
+            let Some((x, y)) = node.bounds.as_ref().and_then(bounds_center) else {
+                return false;
+            };
+            crate::page_view::visible_area(nodes, node.index).is_none_or(|area| {
+                x >= area.x && y >= area.y && x < area.x + area.width && y < area.y + area.height
+            })
+        })
+        .collect()
 }
 
 /// Actions that flip a check box, radio button or switch.
@@ -7438,6 +7590,69 @@ mod tests {
     }
 
     #[test]
+    fn scroll_until_counts_only_matches_inside_the_visible_page() {
+        let at = |index: u32, y: i32| {
+            let mut row = node(
+                index,
+                Some(Bounds {
+                    x: 10,
+                    y,
+                    width: 200,
+                    height: 20,
+                }),
+            );
+            row.role = "list item".to_string();
+            row.name = Some(format!("Row {index}"));
+            row.parent_index = Some(1);
+            row
+        };
+        let mut frame = node(
+            1,
+            Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            }),
+        );
+        frame.role = "frame".to_string();
+        let nodes = [frame, at(2, 100), at(3, 900), at(4, 590)];
+        let query = |name: &str| ElementQuery {
+            name: Some(name.to_string()),
+            ..Default::default()
+        };
+        let ids = |name: &str| {
+            visible_matches(&nodes, &query(name))
+                .iter()
+                .map(|node| node.index)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ids("Row 2"), [2]);
+        // Below the frame, and with its centre (y=600) just past the edge.
+        assert!(ids("Row 3").is_empty());
+        assert!(ids("Row 4").is_empty());
+        assert_eq!(ids("Row"), [2]);
+    }
+
+    #[test]
+    fn scroll_defaults_to_down_and_takes_an_until_query() {
+        let params: ScrollParams =
+            serde_json::from_value(serde_json::json!({"until": {"name": "Item 42"}})).unwrap();
+        assert_eq!(params.direction, "down");
+        assert_eq!(params.until.unwrap().name.as_deref(), Some("Item 42"));
+    }
+
+    #[tokio::test]
+    async fn scroll_until_needs_a_query() {
+        let backend = ComputerUseLinux::default();
+        let params: ScrollParams =
+            serde_json::from_value(serde_json::json!({"x": 5, "y": 5, "until": {}})).unwrap();
+        let result = backend.scroll(Parameters(params)).await.0;
+        assert!(!result.ok);
+        assert!(result.message.contains("until needs"), "{}", result.message);
+    }
+
+    #[test]
     fn xdotool_pointer_supports_only_standard_buttons() {
         assert!(xdotool_pointer_click_args(10, 20, 1, None).is_some());
         assert!(xdotool_pointer_click_args(10, 20, 1, Some("middle")).is_some());
@@ -8202,6 +8417,7 @@ mod tests {
             window_title: None,
             relative: Some(true),
             observe: None,
+            until: None,
         };
         apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(110));
@@ -8223,6 +8439,7 @@ mod tests {
             window_title: None,
             relative: None,
             observe: None,
+            until: None,
         };
         apply_window_center_scroll_point(&mut params, (100, 200, 800, 600)).unwrap();
         assert_eq!(params.x, Some(500));
@@ -8244,6 +8461,7 @@ mod tests {
             window_title: None,
             relative: None,
             observe: None,
+            until: None,
         };
         let error = apply_window_center_scroll_point(&mut params, (0, 0, 0, 0)).unwrap_err();
         assert!(error.contains("pass x/y explicitly"));
@@ -8266,6 +8484,7 @@ mod tests {
             window_title: None,
             relative: Some(true),
             observe: None,
+            until: None,
         };
         assert!(
             apply_window_relative_scroll_coordinates(&mut params, (100, 200, 800, 600)).is_err()
