@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Pedido</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<script src="common.js"></script><script src="shop.js"></script>
+<main class="page" id="main"></main>
+<script>
+document.body.prepend(siteBar());
+const id = Number(new URLSearchParams(location.search).get('id'));
+const o = ORDERS.find(x => x.n === id);
+document.title = o ? `Pedido #${o.n}` : 'Pedido não encontrado';
+document.getElementById('main').append(...(o ? [
+  h('a', { href: 'orders.html' }, '← Voltar para Meus pedidos'),
+  h('h1', { style: 'font-weight:400' }, `Pedido #${o.n}`),
+  h('p', {}, `Realizado em ${o.date} · Status: `, h('b', {}, o.status)),
+  h('table', { class: 'data' }, h('tr', {}, h('td', {}, o.item), h('td', {}, 'R$ ' + o.total))),
+  h('h2', { style: 'font-weight:400' }, 'Entrega'),
+  h('p', {}, 'Rua das Acácias, 120 - apto 34, Belo Horizonte - MG'),
+  h('p', {}, `Código de rastreio: ${o.tracking}`),
+] : [h('h1', {}, 'Pedido não encontrado')]));
+</script>
+</body>
+</html>

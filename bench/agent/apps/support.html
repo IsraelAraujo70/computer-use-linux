@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Abrir chamado</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<script src="common.js"></script><script src="shop.js"></script>
+<main class="page" style="max-width:720px"><h1 style="font-weight:400">Abrir chamado</h1>
+<form id="f" novalidate>
+  <div class="field"><label for="order">Número do pedido</label><input id="order" autocomplete="off"></div>
+  <div class="field"><label for="tracking">Código de rastreio</label><input id="tracking" autocomplete="off"></div>
+  <fieldset style="border:1px solid #dadce0;border-radius:8px"><legend>Categoria</legend>
+    <label><input type="radio" name="cat" value="Pagamento"> Pagamento</label>
+    <label><input type="radio" name="cat" value="Entrega"> Entrega</label>
+    <label><input type="radio" name="cat" value="Produto com defeito"> Produto com defeito</label>
+    <label><input type="radio" name="cat" value="Outro"> Outro</label></fieldset>
+  <div class="field"><label for="msg">Mensagem</label><textarea id="msg"></textarea></div>
+  <p class="error" role="alert" id="err"></p>
+  <button class="btn primary" type="submit">Enviar chamado</button>
+  <p role="status" id="ok" style="color:#137333"></p>
+</form></main>
+<script>
+document.body.prepend(siteBar());
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = id => document.getElementById(id).value.trim();
+  const category = document.querySelector('input[name=cat]:checked')?.value || '';
+  if (!v('order') || !v('tracking') || !category || !v('msg')) { document.getElementById('err').textContent = 'Preencha todos os campos.'; return; }
+  document.getElementById('err').textContent = '';
+  await postState('order-support', { ticket: { order: v('order'), tracking: v('tracking'), category, message: v('msg') } });
+  document.getElementById('ok').textContent = 'Chamado aberto';
+});
+</script>
+</body>
+</html>

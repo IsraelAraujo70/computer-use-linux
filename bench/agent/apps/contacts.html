@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Contatos</title><link rel="stylesheet" href="style.css">
+<style>
+  .crow { display: flex; align-items: center; gap: 16px; padding: 8px 24px; border-bottom: 1px solid #f1f3f4; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 500; flex: none; }
+  .crow .name { width: 260px; } .crow .email { width: 320px; color: #5f6368; } .crow .phone { flex: 1; color: #5f6368; }
+  .star[aria-pressed=true] { color: #f9ab00; }
+  #loading { padding: 16px 24px; color: #5f6368; }
+</style></head>
+<body>
+<header class="topbar"><div class="logo"><b>👤</b> Contatos</div><span class="spacer"></span>
+  <button class="icon-btn" aria-label="Configurações">⚙</button></header>
+<div class="layout">
+  <nav class="sidenav" aria-label="Menu"><button class="compose">＋ Criar contato</button>
+    <a class="navitem active" href="#" aria-current="page"><span>Contatos</span><span>200</span></a>
+    <a class="navitem" href="#">Frequentes</a><a class="navitem" href="#">Mesclar e corrigir</a></nav>
+  <main class="panel" id="panel" aria-label="Lista de contatos">
+    <div class="toolbar"><b>Contatos (200)</b></div>
+    <div role="list" id="list" aria-label="Contatos"></div>
+    <div id="loading" hidden>Carregando…</div>
+    <div id="sentinel" style="height:1px"></div>
+  </main>
+</div>
+<script src="common.js"></script>
+<script>
+const FIRST = ['Ana','Bruno','Carla','Daniel','Eduarda','Fábio','Gabriela','Heitor','Isabela','João','Karina','Lucas','Mariana','Nicolas','Olívia','Pedro','Quésia','Rafael','Sofia','Tiago','Úrsula','Vinícius','William','Yasmin'];
+const LAST = ['Almeida','Barbosa','Cardoso','Dias','Esteves','Ferraz','Gomes','Henriques','Lima','Macedo','Nogueira','Oliveira','Pereira','Queiroz','Ribeiro','Santos','Teixeira','Vieira'];
+const COLORS = ['#1a73e8','#d93025','#188038','#e37400','#9334e6','#007b83'];
+const rnd = seeded(42);
+const names = new Set(['Valéria Nunes']);
+while (names.size < 200) names.add(FIRST[Math.floor(rnd() * FIRST.length)] + ' ' + LAST[Math.floor(rnd() * LAST.length)]);
+const contacts = [...names].sort((a, b) => a.localeCompare(b, 'pt-BR')).map((name, i) => ({
+  id: 'c' + (i + 1), name,
+  email: name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(' ', '.') + '@example.com',
+  phone: `(11) 9${String(1000 + Math.floor(rnd() * 8999))}-${String(1000 + Math.floor(rnd() * 8999))}`,
+}));
+const starred = new Set();
+let shown = 0, loading = false;
+const list = document.getElementById('list');
+function appendPage() {
+  for (const c of contacts.slice(shown, shown + 20)) {
+    const star = h('button', { class: 'icon-btn star', 'aria-label': `Marcar ${c.name} com estrela`, 'aria-pressed': 'false' }, '★');
+    star.onclick = () => {
+      starred.has(c.id) ? starred.delete(c.id) : starred.add(c.id);
+      star.setAttribute('aria-pressed', String(starred.has(c.id)));
+      postState('contacts-infinite', { starred: [...starred] });
+    };
+    list.append(h('div', { class: 'crow', role: 'listitem' },
+      h('span', { class: 'avatar', 'aria-hidden': 'true', style: 'background:' + COLORS[c.name.length % COLORS.length] }, c.name[0]),
+      h('span', { class: 'name' }, c.name), h('span', { class: 'email' }, c.email), h('span', { class: 'phone' }, c.phone), star));
+  }
+  shown = Math.min(contacts.length, shown + 20);
+}
+appendPage();
+new IntersectionObserver(entries => {
+  if (!entries[0].isIntersecting || loading || shown >= contacts.length) return;
+  loading = true;
+  document.getElementById('loading').hidden = false;
+  setTimeout(() => { appendPage(); document.getElementById('loading').hidden = true; loading = false; }, 300);
+}, { root: document.getElementById('panel'), rootMargin: '0px 0px 200px 0px' }).observe(document.getElementById('sentinel'));
+window.__targetId = contacts.find(c => c.name === 'Valéria Nunes').id;
+</script>
+</body>
+</html>

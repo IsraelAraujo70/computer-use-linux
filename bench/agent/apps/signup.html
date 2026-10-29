@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Criar conta</title><link rel="stylesheet" href="style.css">
+<style>
+  .combo { position: relative; }
+  .combo button.select { height: 40px; border: 1px solid #747775; border-radius: 4px; background: #fff; text-align: left; padding: 0 12px; width: 100%; }
+  .combo [role=listbox] { position: absolute; top: 64px; left: 0; right: 0; max-height: 260px; overflow: auto; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.25); border-radius: 4px; z-index: 10; }
+  .combo [role=option] { padding: 8px 12px; cursor: pointer; }
+  .combo [role=option]:hover { background: #e8f0fe; }
+  fieldset { border: 1px solid #dadce0; border-radius: 8px; margin: 12px 0; }
+</style></head>
+<body>
+<div class="sitebar"><b>Nuvem Fácil</b><span class="spacer"></span><a href="#">Entrar</a></div>
+<main class="page" style="max-width:640px">
+  <h1 style="font-weight:400">Criar conta</h1>
+  <p class="snippet">Leva menos de um minuto.</p>
+  <form id="form" novalidate>
+    <div class="field"><label for="name">Nome completo</label><input id="name" autocomplete="off"><span class="error" role="alert" id="name-err"></span></div>
+    <div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="off"><span class="error" role="alert" id="email-err"></span></div>
+    <div class="field"><label for="phone">Telefone</label><input id="phone" type="tel" autocomplete="off"><span class="error" role="alert" id="phone-err"></span></div>
+    <div class="field combo"><span id="state-label">Estado</span>
+      <button type="button" class="select" id="state" role="combobox" aria-labelledby="state-label" aria-haspopup="listbox" aria-expanded="false" aria-controls="state-list">Selecione…</button>
+      <div role="listbox" id="state-list" aria-labelledby="state-label" hidden></div>
+      <span class="error" role="alert" id="state-err"></span></div>
+    <fieldset><legend>Plano</legend>
+      <label><input type="radio" name="plan" value="Básico"> Básico</label>
+      <label><input type="radio" name="plan" value="Pro"> Pro</label>
+      <label><input type="radio" name="plan" value="Empresarial"> Empresarial</label>
+      <span class="error" role="alert" id="plan-err"></span></fieldset>
+    <label><input type="checkbox" id="terms"> Aceito os termos de uso</label>
+    <span class="error" role="alert" id="terms-err"></span>
+    <div style="margin-top:20px"><button class="btn primary" type="submit">Criar conta</button></div>
+  </form>
+  <p id="done" role="status" style="font-size:20px;color:#137333"></p>
+</main>
+<script src="common.js"></script>
+<script>
+const STATES = ['Acre','Alagoas','Amapá','Amazonas','Bahia','Ceará','Distrito Federal','Espírito Santo','Goiás','Maranhão','Mato Grosso','Mato Grosso do Sul','Minas Gerais','Pará','Paraíba','Paraná','Pernambuco','Piauí','Rio de Janeiro','Rio Grande do Norte','Rio Grande do Sul','Rondônia','Roraima','Santa Catarina','São Paulo','Sergipe','Tocantins'];
+const btn = document.getElementById('state'), list = document.getElementById('state-list');
+let chosen = '';
+for (const s of STATES) {
+  const opt = h('div', { role: 'option', 'aria-selected': 'false', tabindex: '-1' }, s);
+  opt.addEventListener('click', () => {
+    chosen = s; btn.textContent = s;
+    list.querySelectorAll('[role=option]').forEach(o => o.setAttribute('aria-selected', String(o === opt)));
+    list.hidden = true; btn.setAttribute('aria-expanded', 'false');
+  });
+  list.append(opt);
+}
+btn.addEventListener('click', () => { list.hidden = !list.hidden; btn.setAttribute('aria-expanded', String(!list.hidden)); });
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = id => document.getElementById(id).value.trim();
+  const plan = document.querySelector('input[name=plan]:checked')?.value || '';
+  const terms = document.getElementById('terms').checked;
+  const errors = { name: !v('name') && 'Informe seu nome', email: !/^\S+@\S+\.\S+$/.test(v('email')) && 'Informe um e-mail válido',
+    phone: v('phone').replace(/\D/g, '').length < 10 && 'Informe um telefone com DDD', state: !chosen && 'Selecione o estado',
+    plan: !plan && 'Escolha um plano', terms: !terms && 'É preciso aceitar os termos' };
+  let bad = false;
+  for (const [k, msg] of Object.entries(errors)) { document.getElementById(k + '-err').textContent = msg || ''; bad = bad || !!msg; }
+  if (bad) return;
+  await postState('form-signup', { submitted: { name: v('name'), email: v('email'), phone: v('phone'), state: chosen, plan, terms } });
+  document.getElementById('done').textContent = 'Conta criada!';
+});
+</script>
+</body>
+</html>

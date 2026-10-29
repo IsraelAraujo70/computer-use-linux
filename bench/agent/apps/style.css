@@ -1,0 +1,48 @@
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.4 Roboto, Arial, sans-serif; color: #202124; background: #f6f8fc; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+.topbar { height: 64px; display: flex; align-items: center; gap: 16px; padding: 0 16px; background: #f6f8fc; }
+.topbar .logo { font-size: 22px; color: #5f6368; width: 220px; display: flex; align-items: center; gap: 10px; }
+.topbar .logo b { color: #c5221f; }
+.search { flex: 0 1 720px; height: 48px; border-radius: 24px; border: none; background: #eaf1fb; padding: 0 20px; }
+.spacer { flex: 1; }
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; font-size: 20px; color: #444; }
+.icon-btn:hover { background: #e8eaed; }
+.layout { display: flex; height: calc(100vh - 64px); }
+.sidenav { width: 256px; padding: 8px 12px; }
+.compose { display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 24px; border-radius: 16px; border: none; background: #c2e7ff; font-weight: 500; margin-bottom: 16px; }
+.navitem { display: flex; justify-content: space-between; padding: 6px 16px; border-radius: 0 16px 16px 0; color: #202124; text-decoration: none; }
+.navitem.active { background: #d3e3fd; font-weight: 700; }
+.panel { flex: 1; background: #fff; border-radius: 16px; margin: 0 16px 16px 0; overflow: auto; position: relative; }
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid #eee; position: sticky; top: 0; background: #fff; z-index: 2; }
+.mailrow { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 40px; border-bottom: 1px solid #f1f3f4; cursor: pointer; }
+.mailrow:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px rgba(60,64,67,.3); }
+.mailrow.unread { font-weight: 700; background: #fff; }
+.mailrow .from { width: 200px; flex: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mailrow .text { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mailrow .snippet { color: #5f6368; font-weight: 400; }
+.mailrow .date { width: 80px; text-align: right; font-size: 12px; }
+.chip { display: inline-block; background: #e6f4ea; color: #137333; border-radius: 4px; padding: 0 6px; margin-right: 6px; font-size: 12px; font-weight: 500; }
+.btn { height: 36px; padding: 0 20px; border-radius: 18px; border: 1px solid #747775; background: #fff; color: #0b57d0; font-weight: 500; }
+.btn.primary { background: #0b57d0; color: #fff; border-color: #0b57d0; }
+.btn:disabled { opacity: .4; cursor: default; }
+.menu { position: absolute; background: #fff; border-radius: 8px; box-shadow: 0 4px 8px 3px rgba(60,64,67,.15); padding: 8px 0; min-width: 220px; z-index: 20; }
+.menu [role^=menuitem] { display: flex; align-items: center; gap: 10px; padding: 8px 16px; cursor: pointer; width: 100%; border: none; background: none; text-align: left; }
+.menu [role^=menuitem]:hover { background: #f1f3f4; }
+.backdrop { position: fixed; inset: 0; background: rgba(32,33,36,.4); display: flex; align-items: center; justify-content: center; z-index: 30; }
+.dialog { background: #fff; border-radius: 28px; padding: 24px; min-width: 480px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+.dialog h2 { margin: 0 0 16px; font-size: 22px; font-weight: 400; }
+.dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+.field input, .field select, .field textarea { height: 40px; border: 1px solid #747775; border-radius: 4px; padding: 0 12px; }
+.field textarea { height: 100px; padding: 8px 12px; }
+.error { color: #b3261e; font-size: 12px; }
+#toast { position: fixed; left: 24px; bottom: -80px; background: #313033; color: #f4eff4; padding: 14px 20px; border-radius: 4px; transition: bottom .2s; z-index: 50; }
+#toast.show { bottom: 24px; }
+.page { max-width: 1100px; margin: 24px auto; background: #fff; border-radius: 16px; padding: 24px 32px; }
+.sitebar { display: flex; gap: 24px; align-items: center; padding: 0 32px; height: 56px; background: #1a73e8; color: #fff; }
+.sitebar a { color: #fff; text-decoration: none; font-weight: 500; }
+table.data { border-collapse: collapse; width: 100%; }
+table.data th, table.data td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e0e0e0; }
+table.data th { color: #5f6368; font-weight: 500; }

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Caixa de entrada - Correio</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="topbar">
+  <button class="icon-btn" aria-label="Menu principal">☰</button>
+  <div class="logo"><b>✉</b> Correio</div>
+  <input class="search" type="search" aria-label="Pesquisar e-mail" placeholder="Pesquisar e-mail">
+  <span class="spacer"></span>
+  <button class="icon-btn" aria-label="Configurações">⚙</button>
+  <button class="icon-btn" aria-label="Conta: Israel">I</button>
+</header>
+<div class="layout">
+  <nav class="sidenav" aria-label="Pastas">
+    <button class="compose">✎ Escrever</button>
+    <a class="navitem active" href="#" aria-current="page"><span>Caixa de entrada</span><span>12</span></a>
+    <a class="navitem" href="#">Com estrela</a>
+    <a class="navitem" href="#">Adiados</a>
+    <a class="navitem" href="#">Enviados</a>
+    <a class="navitem" href="#">Rascunhos</a>
+  </nav>
+  <main class="panel" id="panel" aria-label="Caixa de entrada"></main>
+</div>
+<script src="common.js"></script>
+<script>window.MAIL = { task: 'mail-label', prefix: 'l', seed: 11, special: { 4: ['Banco Aurora', 'avisos@example.com', 'Sua fatura de outubro chegou'], 23: ['Banco Aurora', 'avisos@example.com', 'Comprovante de transferência'], 9: ['Aurora Turismo', 'ofertas@example.com', 'Pacotes para o feriado'] } };</script>
+<script src="mail.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Endereço de cobrança</title><link rel="stylesheet" href="style.css"></head>
+<body style="background:#fff;padding:8px 24px">
+<h2 style="font-weight:400">Endereço de cobrança</h2>
+<form id="f" novalidate>
+  <div class="field"><label for="cep">CEP</label><input id="cep" autocomplete="off"></div>
+  <div class="field"><label for="street">Rua</label><input id="street" autocomplete="off"></div>
+  <div style="display:flex;gap:16px">
+    <div class="field" style="width:120px"><label for="number">Número</label><input id="number" autocomplete="off"></div>
+    <div class="field" style="flex:1"><label for="city">Cidade</label><input id="city" autocomplete="off"></div>
+    <div class="field" style="width:240px"><label for="uf">Estado</label><select id="uf"><option value="">Selecione</option></select></div>
+  </div>
+  <p class="error" role="alert" id="err"></p>
+  <button class="btn primary" type="submit">Confirmar endereço</button>
+  <p role="status" id="ok" style="color:#137333"></p>
+</form>
+<script src="common.js"></script>
+<script>
+const UFS = [['AC','Acre'],['AL','Alagoas'],['AP','Amapá'],['AM','Amazonas'],['BA','Bahia'],['CE','Ceará'],['DF','Distrito Federal'],['ES','Espírito Santo'],['GO','Goiás'],['MA','Maranhão'],['MT','Mato Grosso'],['MS','Mato Grosso do Sul'],['MG','Minas Gerais'],['PA','Pará'],['PB','Paraíba'],['PR','Paraná'],['PE','Pernambuco'],['PI','Piauí'],['RJ','Rio de Janeiro'],['RN','Rio Grande do Norte'],['RS','Rio Grande do Sul'],['RO','Rondônia'],['RR','Roraima'],['SC','Santa Catarina'],['SP','São Paulo'],['SE','Sergipe'],['TO','Tocantins']];
+const sel = document.getElementById('uf');
+UFS.forEach(([code, name]) => sel.append(h('option', { value: code }, `${code} - ${name}`)));
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = id => document.getElementById(id).value.trim();
+  if (!['cep', 'street', 'number', 'city', 'uf'].every(v)) { document.getElementById('err').textContent = 'Preencha todos os campos.'; return; }
+  document.getElementById('err').textContent = '';
+  await postState('iframe-billing', { billing: { cep: v('cep'), street: v('street'), number: v('number'), city: v('city'), uf: v('uf') } });
+  document.getElementById('ok').textContent = 'Endereço confirmado';
+});
+</script>
+</body>
+</html>

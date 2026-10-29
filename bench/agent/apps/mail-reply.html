@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Caixa de entrada - Correio</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="topbar">
+  <button class="icon-btn" aria-label="Menu principal">☰</button>
+  <div class="logo"><b>✉</b> Correio</div>
+  <input class="search" type="search" aria-label="Pesquisar e-mail" placeholder="Pesquisar e-mail">
+  <span class="spacer"></span>
+  <button class="icon-btn" aria-label="Configurações">⚙</button>
+  <button class="icon-btn" aria-label="Conta: Israel">I</button>
+</header>
+<div class="layout">
+  <nav class="sidenav" aria-label="Pastas">
+    <button class="compose">✎ Escrever</button>
+    <a class="navitem active" href="#" aria-current="page"><span>Caixa de entrada</span><span>12</span></a>
+    <a class="navitem" href="#">Com estrela</a>
+    <a class="navitem" href="#">Adiados</a>
+    <a class="navitem" href="#">Enviados</a>
+    <a class="navitem" href="#">Rascunhos</a>
+  </nav>
+  <main class="panel" id="panel" aria-label="Caixa de entrada"></main>
+</div>
+<script src="common.js"></script>
+<script>window.MAIL = { task: 'mail-reply', prefix: 'm', seed: 7, special: { 3: ['Marina Costa', 'marina.costa@example.com', 'Almoço sexta?'], 7: ['Marina Costa', 'marina.costa@example.com', 'Contrato de locação - assinatura'] } };</script>
+<script src="mail.js"></script>
+</body>
+</html>

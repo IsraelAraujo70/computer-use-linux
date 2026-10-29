@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Faturas</title><link rel="stylesheet" href="style.css">
+<style> .status { border-radius: 10px; padding: 2px 10px; font-size: 12px; font-weight: 500; }
+  .Paga { background: #e6f4ea; color: #137333; } .Pendente { background: #fef7e0; color: #b06000; } .Vencida { background: #fce8e6; color: #c5221f; } </style></head>
+<body>
+<div class="sitebar"><b>Financeiro</b><a href="#">Faturas</a><a href="#">Clientes</a><a href="#">Relatórios</a></div>
+<main class="page">
+  <div style="display:flex;align-items:center;gap:12px"><h1 style="font-weight:400;margin:0">Faturas</h1><span class="spacer"></span>
+    <button class="btn" id="archive" disabled>Arquivar selecionadas</button></div>
+  <p class="snippet" id="count"></p>
+  <table class="data" aria-label="Faturas"><thead><tr><th><span style="position:absolute;left:-9999px">Seleção</span></th><th>Número</th><th>Cliente</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead>
+    <tbody id="rows"></tbody></table>
+</main>
+<script src="common.js"></script>
+<script>
+const CLIENTS = ['Beta Comércio','Casa Verde ME','Delta Serviços','Grupo Horizonte','Lumen Tecnologia','Prisma Ltda'];
+const STATUSES = ['Paga','Pendente','Vencida','Paga'];
+const rnd = seeded(5);
+const invoices = [];
+for (let i = 1; i <= 30; i++) {
+  invoices.push({ number: 'NF-' + (1000 + i), client: CLIENTS[Math.floor(rnd() * CLIENTS.length)],
+    due: `${String(1 + Math.floor(rnd() * 28)).padStart(2, '0')}/${rnd() < 0.5 ? '09' : '10'}/2026`,
+    amount: (300 + Math.floor(rnd() * 9000)) + ',' + String(Math.floor(rnd() * 100)).padStart(2, '0'),
+    status: STATUSES[Math.floor(rnd() * STATUSES.length)] });
+}
+// Acme Ltda: three overdue (top, middle, bottom) and two others as distractors.
+[[3, 'Vencida'], [16, 'Vencida'], [28, 'Vencida'], [9, 'Paga'], [21, 'Pendente']].forEach(([n, s]) => Object.assign(invoices[n - 1], { client: 'Acme Ltda', status: s }));
+[[5, 'Vencida'], [12, 'Vencida'], [24, 'Vencida']].forEach(([n, s]) => Object.assign(invoices[n - 1], { client: n === 12 ? 'Acme Logística' : invoices[n - 1].client, status: s }));
+const archived = [], selected = new Set();
+const btn = document.getElementById('archive');
+function render() {
+  const live = invoices.filter(f => !archived.includes(f.number));
+  document.getElementById('count').textContent = `${live.length} faturas`;
+  document.getElementById('rows').replaceChildren(...live.map(f => {
+    const box = h('input', { type: 'checkbox', 'aria-label': 'Selecionar fatura ' + f.number });
+    box.checked = selected.has(f.number);
+    box.onchange = () => { box.checked ? selected.add(f.number) : selected.delete(f.number); btn.disabled = !selected.size; };
+    return h('tr', {}, h('td', {}, box), h('td', {}, f.number), h('td', {}, f.client), h('td', {}, f.due), h('td', {}, 'R$ ' + f.amount),
+      h('td', {}, h('span', { class: 'status ' + f.status }, f.status)));
+  }));
+  btn.disabled = !selected.size;
+}
+btn.onclick = () => {
+  const n = selected.size;
+  const backdrop = h('div', { class: 'backdrop' });
+  backdrop.append(h('div', { class: 'dialog', role: 'alertdialog', 'aria-modal': 'true', 'aria-labelledby': 'ad-title', 'aria-describedby': 'ad-desc' },
+    h('h2', { id: 'ad-title' }, `Arquivar ${n} ${n === 1 ? 'fatura' : 'faturas'}?`),
+    h('p', { id: 'ad-desc' }, 'As faturas arquivadas saem desta lista.'),
+    h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: () => backdrop.remove() }, 'Cancelar'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        archived.push(...selected); selected.clear();
+        await postState('invoices-bulk', { archived });
+        backdrop.remove(); render(); toast('Faturas arquivadas');
+      } }, 'Arquivar'))));
+  document.body.append(backdrop);
+};
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Meus pedidos</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<script src="common.js"></script><script src="shop.js"></script>
+<main class="page"><h1 style="font-weight:400">Meus pedidos</h1>
+  <table class="data" aria-label="Pedidos"><thead><tr><th>Pedido</th><th>Data</th><th>Itens</th><th>Total</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></main>
+<script>
+document.body.prepend(siteBar());
+document.getElementById('rows').replaceChildren(...ORDERS.map(o => h('tr', {},
+  h('td', {}, h('a', { href: 'order.html?id=' + o.n }, '#' + o.n)), h('td', {}, o.date), h('td', {}, o.item), h('td', {}, 'R$ ' + o.total), h('td', {}, o.status))));
+</script>
+</body>
+</html>

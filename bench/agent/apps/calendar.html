@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Agenda - Outubro de 2026</title><link rel="stylesheet" href="style.css">
+<style>
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); border-left: 1px solid #dadce0; }
+  .cal .dow { text-align: center; font-size: 11px; color: #70757a; padding: 6px 0; border-right: 1px solid #dadce0; }
+  .cal .cell { min-height: 128px; border-right: 1px solid #dadce0; border-bottom: 1px solid #dadce0; padding: 4px; font-size: 12px; }
+  .cal .cell.other { color: #9aa0a6; }
+  .cal .num { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; }
+  .cal .today .num { background: #0b57d0; color: #fff; }
+  .ev { background: #039be5; color: #fff; border-radius: 4px; padding: 1px 6px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .picker { position: absolute; background: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.25); padding: 12px; z-index: 40; width: 300px; }
+  .picker .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+  .picker .grid button { border: none; background: none; height: 34px; border-radius: 50%; }
+  .picker .grid button:hover { background: #e8f0fe; }
+  .picker .grid button[aria-selected=true] { background: #0b57d0; color: #fff; }
+  .combo { position: relative; }
+  .combo [role=listbox] { position: absolute; top: 42px; left: 0; width: 140px; max-height: 240px; overflow: auto; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.25); border-radius: 4px; z-index: 41; }
+  .combo [role=option] { padding: 6px 12px; cursor: pointer; }
+  .combo [role=option]:hover, .combo [role=option][aria-selected=true] { background: #e8f0fe; }
+  .row2 { display: flex; gap: 16px; align-items: flex-end; }
+</style></head>
+<body>
+<header class="topbar">
+  <button class="icon-btn" aria-label="Menu principal">☰</button>
+  <div class="logo"><b>▦</b> Agenda</div>
+  <button class="btn" id="today">Hoje</button>
+  <button class="icon-btn" id="prev" aria-label="Mês anterior">‹</button>
+  <button class="icon-btn" id="next" aria-label="Próximo mês">›</button>
+  <h1 id="title" style="font-size:22px;font-weight:400;margin:0"></h1>
+  <span class="spacer"></span>
+  <button class="icon-btn" aria-label="Pesquisar">🔍</button>
+  <button class="icon-btn" aria-label="Configurações">⚙</button>
+</header>
+<div class="layout">
+  <nav class="sidenav" aria-label="Agendas"><button class="compose" id="create">＋ Criar</button>
+    <div style="padding:8px 16px;color:#5f6368">Minhas agendas</div>
+    <label style="display:block;padding:4px 16px"><input type="checkbox" checked> Israel</label>
+    <label style="display:block;padding:4px 16px"><input type="checkbox" checked> Feriados no Brasil</label>
+  </nav>
+  <main class="panel" id="panel" aria-label="Visualização do mês"></main>
+</div>
+<script src="common.js"></script>
+<script>
+const MONTHS = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const SHORT = ['jan.','fev.','mar.','abr.','mai.','jun.','jul.','ago.','set.','out.','nov.','dez.'];
+const DOW = ['DOM.','SEG.','TER.','QUA.','QUI.','SEX.','SÁB.'];
+const TODAY = { y: 2026, m: 9, d: 29 };
+const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const existing = [
+  { title: 'Reunião de equipe', date: '2026-10-05', start: '10:00' }, { title: 'Academia', date: '2026-10-07', start: '07:00' },
+  { title: 'Feriado: Nossa Senhora Aparecida', date: '2026-10-12', start: '' }, { title: 'Dentista - limpeza', date: '2026-10-14', start: '16:00' },
+  { title: '1:1 com Paulo', date: '2026-10-20', start: '15:30' }, { title: 'Aniversário da Bia', date: '2026-10-24', start: '' },
+  { title: 'Planejamento Q4', date: '2026-11-03', start: '09:00' }, { title: 'Finados', date: '2026-11-02', start: '' },
+  { title: 'Consulta médica', date: '2026-11-11', start: '08:30' }, { title: 'Proclamação da República', date: '2026-11-15', start: '' },
+];
+const created = [];
+let view = { y: TODAY.y, m: TODAY.m };
+
+function renderMonth() {
+  document.getElementById('title').textContent = `${MONTHS[view.m]} de ${view.y}`;
+  document.title = `Agenda - ${MONTHS[view.m][0].toUpperCase() + MONTHS[view.m].slice(1)} de ${view.y}`;
+  const grid = h('div', { class: 'cal', role: 'grid', 'aria-label': `${MONTHS[view.m]} de ${view.y}` });
+  DOW.forEach(d => grid.append(h('div', { class: 'dow', role: 'columnheader' }, d)));
+  const first = new Date(Date.UTC(view.y, view.m, 1)).getUTCDay();
+  const days = new Date(Date.UTC(view.y, view.m + 1, 0)).getUTCDate();
+  const all = existing.concat(created);
+  for (let i = 0; i < 42; i++) {
+    const d = i - first + 1;
+    const inMonth = d >= 1 && d <= days;
+    const date = new Date(Date.UTC(view.y, view.m, d));
+    const key = iso(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+    const isToday = key === iso(TODAY.y, TODAY.m, TODAY.d);
+    const cell = h('div', { class: 'cell' + (inMonth ? '' : ' other') + (isToday ? ' today' : ''), role: 'gridcell',
+      'aria-label': `${date.getUTCDate()} de ${MONTHS[date.getUTCMonth()]}` }, h('span', { class: 'num' }, date.getUTCDate()));
+    all.filter(e => e.date === key).forEach(e => cell.append(h('div', { class: 'ev' }, (e.start ? e.start + ' ' : '') + e.title)));
+    grid.append(cell);
+  }
+  document.getElementById('panel').replaceChildren(grid);
+}
+document.getElementById('prev').onclick = () => { view.m--; if (view.m < 0) { view.m = 11; view.y--; } renderMonth(); };
+document.getElementById('next').onclick = () => { view.m++; if (view.m > 11) { view.m = 0; view.y++; } renderMonth(); };
+document.getElementById('today').onclick = () => { view = { y: TODAY.y, m: TODAY.m }; renderMonth(); };
+document.getElementById('create').onclick = openDialog;
+
+const TIMES = [];
+for (let hh = 0; hh < 24; hh++) for (let mm = 0; mm < 60; mm += 15) TIMES.push(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+
+function timeCombo(label, id, initial, onPick) {
+  const input = h('input', { id, role: 'combobox', 'aria-expanded': 'false', 'aria-controls': id + '-list', 'aria-autocomplete': 'list', value: initial, style: 'width:140px' });
+  const list = h('div', { role: 'listbox', id: id + '-list', 'aria-label': label, hidden: true });
+  const wrap = h('div', { class: 'field combo' }, h('label', { for: id }, label), input, list);
+  function open() {
+    list.replaceChildren(...TIMES.map(t => {
+      const opt = h('div', { role: 'option', 'aria-selected': String(t === input.value) }, t);
+      opt.addEventListener('mousedown', e => { e.preventDefault(); pick(t); });
+      return opt;
+    }));
+    list.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    list.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'center' });
+  }
+  function close() { list.hidden = true; input.setAttribute('aria-expanded', 'false'); }
+  function pick(t) { input.value = t; close(); onPick && onPick(t); }
+  input.addEventListener('focus', open);
+  input.addEventListener('click', open);
+  input.addEventListener('blur', () => {
+    const m = /^(\d{1,2}):?(\d{2})$/.exec(input.value.trim());
+    if (m && +m[1] < 24 && +m[2] < 60) pick(`${m[1].padStart(2, '0')}:${m[2]}`); else close();
+  });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+  return { wrap, input };
+}
+
+function openDialog() {
+  let chosen = { ...TODAY };
+  const label = () => `${chosen.d} de ${SHORT[chosen.m]} de ${chosen.y}`;
+  const titleInput = h('input', { id: 'ev-title', placeholder: 'Adicionar título' });
+  const dateBtn = h('button', { type: 'button', class: 'btn', id: 'ev-date', 'aria-haspopup': 'dialog' }, label());
+  const end = timeCombo('Hora de término', 'ev-end', '10:00');
+  const start = timeCombo('Hora de início', 'ev-start', '09:00', t => {
+    const i = TIMES.indexOf(t);
+    end.input.value = TIMES[(i + 4) % TIMES.length];
+  });
+  const backdrop = h('div', { class: 'backdrop' });
+  const dlg = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'dlg-title', style: 'position:relative;width:560px' },
+    h('h2', { id: 'dlg-title' }, 'Novo evento'),
+    h('div', { class: 'field' }, h('label', { for: 'ev-title' }, 'Título'), titleInput),
+    h('div', { class: 'field' }, h('span', { id: 'date-label' }, 'Data'), dateBtn),
+    h('div', { class: 'row2' }, start.wrap, end.wrap),
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn', onclick: () => backdrop.remove() }, 'Cancelar'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        const title = titleInput.value.trim();
+        if (!title) { titleInput.focus(); return; }
+        created.push({ title, date: iso(chosen.y, chosen.m, chosen.d), start: start.input.value, end: end.input.value });
+        await postState('calendar-event', { events: created });
+        backdrop.remove();
+        view = { y: chosen.y, m: chosen.m };
+        renderMonth();
+        toast('Evento salvo');
+      } }, 'Salvar')));
+  dateBtn.setAttribute('aria-describedby', 'date-label');
+  dateBtn.onclick = () => openPicker();
+  function openPicker() {
+    dlg.querySelector('.picker')?.remove();
+    let pv = { y: chosen.y, m: chosen.m };
+    const picker = h('div', { class: 'picker', role: 'dialog', 'aria-label': 'Escolher data', style: 'left:24px;top:190px' });
+    function draw() {
+      const first = new Date(Date.UTC(pv.y, pv.m, 1)).getUTCDay();
+      const days = new Date(Date.UTC(pv.y, pv.m + 1, 0)).getUTCDate();
+      const grid = h('div', { class: 'grid', role: 'grid' });
+      ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(d => grid.append(h('span', { 'aria-hidden': 'true', style: 'font-size:11px;color:#70757a' }, d)));
+      for (let i = 0; i < first; i++) grid.append(h('span'));
+      for (let d = 1; d <= days; d++) {
+        grid.append(h('button', { type: 'button', 'aria-label': `${d} de ${MONTHS[pv.m]} de ${pv.y}`,
+          'aria-selected': String(pv.y === chosen.y && pv.m === chosen.m && d === chosen.d),
+          onclick: () => { chosen = { y: pv.y, m: pv.m, d }; dateBtn.textContent = label(); picker.remove(); } }, d));
+      }
+      picker.replaceChildren(
+        h('div', { style: 'display:flex;align-items:center;justify-content:space-between;margin-bottom:8px' },
+          h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Mês anterior', onclick: () => { pv.m--; if (pv.m < 0) { pv.m = 11; pv.y--; } draw(); } }, '‹'),
+          h('b', { 'aria-live': 'polite' }, `${MONTHS[pv.m]} de ${pv.y}`),
+          h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Próximo mês', onclick: () => { pv.m++; if (pv.m > 11) { pv.m = 0; pv.y++; } draw(); } }, '›')),
+        grid);
+    }
+    draw();
+    dlg.append(picker);
+  }
+  backdrop.append(dlg);
+  document.body.append(backdrop);
+  titleInput.focus();
+}
+renderMonth();
+</script>
+</body>
+</html>

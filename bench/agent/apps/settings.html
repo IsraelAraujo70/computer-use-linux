@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Painel - Configurações</title><link rel="stylesheet" href="style.css">
+<style>
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e0e0e0; }
+  .card .big { font-size: 32px; }
+  [role=tablist] { display: flex; border-bottom: 1px solid #e0e0e0; margin-bottom: 16px; }
+  [role=tab] { border: none; background: none; padding: 10px 18px; border-bottom: 3px solid transparent; }
+  [role=tab][aria-selected=true] { border-bottom-color: #0b57d0; color: #0b57d0; font-weight: 500; }
+  .switch { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; }
+  .switch [role=switch] { width: 52px; height: 32px; border-radius: 16px; border: 2px solid #79747e; background: #e7e0ec; position: relative; }
+  .switch [role=switch]::after { content: ''; position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%; background: #79747e; transition: left .1s; }
+  .switch [role=switch][aria-checked=true] { background: #0b57d0; border-color: #0b57d0; }
+  .switch [role=switch][aria-checked=true]::after { left: 26px; background: #fff; }
+</style></head>
+<body>
+<header class="topbar"><div class="logo"><b>◆</b> Painel</div><span class="spacer"></span>
+  <button class="icon-btn" aria-label="Notificações">🔔</button>
+  <button class="icon-btn" id="more" aria-label="Mais opções" aria-haspopup="menu" aria-expanded="false">⋮</button>
+</header>
+<main>
+  <div class="cards">
+    <div class="card"><div class="snippet">Visitas hoje</div><div class="big">1.284</div></div>
+    <div class="card"><div class="snippet">Pedidos</div><div class="big">87</div></div>
+    <div class="card"><div class="snippet">Receita</div><div class="big">R$ 12.430</div></div>
+  </div>
+  <div class="page"><h2 style="font-weight:400">Atividade recente</h2>
+    <table class="data"><tr><th>Quando</th><th>Evento</th></tr>
+      <tr><td>09:12</td><td>Pedido #8812 confirmado</td></tr><tr><td>08:47</td><td>Novo cliente: Loja Vértice</td></tr>
+      <tr><td>Ontem</td><td>Relatório mensal gerado</td></tr></table></div>
+</main>
+<script src="common.js"></script>
+<script>
+const saved = { language: 'pt-BR', display_name: 'Israel', email_digest: true, frequency: 'daily', browser_notifications: false, share_usage: false, public_profile: true };
+const more = document.getElementById('more');
+function closeMenu() { document.getElementById('more-menu')?.remove(); more.setAttribute('aria-expanded', 'false'); }
+more.addEventListener('click', e => {
+  e.stopPropagation();
+  if (document.getElementById('more-menu')) return closeMenu();
+  const menu = h('div', { class: 'menu', role: 'menu', id: 'more-menu', 'aria-label': 'Mais opções', style: 'right:16px;top:56px;position:fixed' },
+    h('button', { role: 'menuitem', onclick: closeMenu }, 'Ajuda'),
+    h('button', { role: 'menuitem', onclick: () => { closeMenu(); openSettings(); } }, 'Configurações'),
+    h('button', { role: 'menuitem', onclick: closeMenu }, 'Sair'));
+  document.body.append(menu);
+  more.setAttribute('aria-expanded', 'true');
+});
+document.addEventListener('click', e => { if (!e.target.closest('#more-menu')) closeMenu(); });
+
+function openSettings() {
+  const draft = { ...saved };
+  const tabs = ['Geral', 'Notificações', 'Privacidade'];
+  const panels = {
+    'Geral': () => [
+      h('div', { class: 'field' }, h('label', { for: 'lang' }, 'Idioma'),
+        bindSelect(h('select', { id: 'lang' }, h('option', { value: 'pt-BR' }, 'Português (Brasil)'), h('option', { value: 'en' }, 'English'), h('option', { value: 'es' }, 'Español')), 'language')),
+      h('div', { class: 'field' }, h('label', { for: 'dname' }, 'Nome de exibição'), bindText(h('input', { id: 'dname' }), 'display_name'))],
+    'Notificações': () => {
+      const sw = h('button', { type: 'button', role: 'switch', 'aria-checked': String(draft.email_digest), 'aria-labelledby': 'digest-label' });
+      sw.onclick = () => { draft.email_digest = !draft.email_digest; sw.setAttribute('aria-checked', String(draft.email_digest)); };
+      return [h('div', { class: 'switch' }, h('span', { id: 'digest-label' }, 'Resumo diário por e-mail'), sw),
+        h('div', { class: 'field' }, h('label', { for: 'freq' }, 'Frequência'),
+          bindSelect(h('select', { id: 'freq' }, h('option', { value: 'daily' }, 'Diária'), h('option', { value: 'weekly' }, 'Semanal'), h('option', { value: 'monthly' }, 'Mensal')), 'frequency')),
+        h('label', { style: 'display:block;margin:12px 0' }, bindCheck(h('input', { type: 'checkbox', id: 'bnotif' }), 'browser_notifications'), ' Notificações no navegador')];
+    },
+    'Privacidade': () => [
+      h('label', { style: 'display:block;margin:12px 0' }, bindCheck(h('input', { type: 'checkbox' }), 'share_usage'), ' Compartilhar dados de uso'),
+      h('label', { style: 'display:block;margin:12px 0' }, bindCheck(h('input', { type: 'checkbox' }), 'public_profile'), ' Perfil público')],
+  };
+  function bindSelect(el, key) { el.value = draft[key]; el.onchange = () => (draft[key] = el.value); return el; }
+  function bindText(el, key) { el.value = draft[key]; el.oninput = () => (draft[key] = el.value); return el; }
+  function bindCheck(el, key) { el.checked = draft[key]; el.onchange = () => (draft[key] = el.checked); return el; }
+  const tablist = h('div', { role: 'tablist', 'aria-label': 'Seções' });
+  const panel = h('div', { role: 'tabpanel', id: 'tabpanel', style: 'min-height:200px' });
+  function select(name) {
+    tablist.querySelectorAll('[role=tab]').forEach(t => t.setAttribute('aria-selected', String(t.textContent === name)));
+    panel.setAttribute('aria-label', name);
+    panel.replaceChildren(...panels[name]());
+  }
+  tabs.forEach(name => tablist.append(h('button', { type: 'button', role: 'tab', 'aria-controls': 'tabpanel', onclick: () => select(name) }, name)));
+  const backdrop = h('div', { class: 'backdrop' });
+  backdrop.append(h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'set-title', style: 'width:560px' },
+    h('h2', { id: 'set-title' }, 'Configurações'), tablist, panel,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn', onclick: () => backdrop.remove() }, 'Cancelar'),
+      h('button', { class: 'btn primary', onclick: async () => {
+        Object.assign(saved, draft);
+        const { share_usage, public_profile, ...out } = saved;
+        await postState('settings-dialog', { saved: out });
+        backdrop.remove();
+        toast('Configurações salvas');
+      } }, 'Salvar'))));
+  document.body.append(backdrop);
+  select('Geral');
+}
+</script>
+</body>
+</html>
