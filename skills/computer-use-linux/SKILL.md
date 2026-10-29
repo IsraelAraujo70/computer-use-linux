@@ -103,7 +103,7 @@ Pi native tools skip this MCP `command` config; see [Pi setup](references/pi-set
 
 1. In Pi, call `computer_use_linux_tools` with the exact tools or capability you need. Enabled tools use the `computer_use_linux_<name>` prefix, appear starting on the next model turn, and remain active for the session.
 2. Begin every desktop-control turn with `get_app_state`, scoped to the app you are working in: pass `app_name_or_bundle_identifier` or a window target (`window_id`, `pid`, `app_id`, `wm_class`, `title`). Without a target the result is the whole desktop AT-SPI tree, `tree_scoped` is `false`, and `message` warns; that can flood context. Use `include_screenshot: false` when the accessibility tree is sufficient. If `accessibility_tree_truncated` is `true`, the tree is incomplete: scope to a narrower target and raise `max_nodes` or `max_depth` (hard caps 2000 and 64) rather than lowering them.
-3. To locate one control, `find_elements` is cheaper than a full `get_app_state`. After an action, use `wait_for` instead of repeated screenshots.
+3. To locate one control, `find_elements` is cheaper than a full `get_app_state`. Actions already wait for the page to settle (including "Salvando…" buttons and spinners) and report what changed. If a result is still pending, call `wait_for` with no query (`condition=changed`) rather than guessing what will appear, and never take repeated screenshots.
 4. If a tool fails, call `doctor`: each `readiness.blockers` entry names its fix.
 5. Before targeted input, call `list_windows` or `focused_window` and verify the intended window by title, app id, pid, or wm class.
 6. Prefer semantic targeting: use element indices or role/name/text/states selectors.

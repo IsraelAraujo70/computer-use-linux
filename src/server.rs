@@ -647,7 +647,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "wait_for",
-        description = "Wait until an element appears or disappears (role/name/text/states), or until the tree changes (condition=changed). Actions already report their changes; use this for slow updates.",
+        description = "Wait for a slow page (a spinner, \"Carregando…\") to update. Actions already wait for the page to settle and report what changed, so call this only after one whose result is still pending. When you do not know what will appear, call it with no query (condition=changed): it returns the changed lines. With role/name/text/states it waits until a match appears (or disappears with condition=disappears).",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -658,7 +658,7 @@ impl ComputerUseLinux {
     async fn wait_for(&self, Parameters(params): Parameters<WaitForParams>) -> Json<WaitForOutput> {
         let timeout_ms = params.timeout_ms.unwrap_or(5_000).clamp(100, 60_000);
         let interval = Duration::from_millis(params.interval_ms.unwrap_or(400).clamp(100, 5_000));
-        let condition = params.condition;
+        let condition = wait_condition(params.condition, params.query.is_empty());
         if condition != WaitCondition::Changed && params.query.is_empty() {
             return Json(WaitForOutput {
                 satisfied: false,
@@ -2594,11 +2594,10 @@ struct FindElementsOutput {
     message: String,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum WaitCondition {
     /// An element matching the query exists.
-    #[default]
     Appears,
     /// No element matches the query.
     Disappears,
@@ -2612,8 +2611,10 @@ struct WaitForParams {
     scope: ElementScope,
     #[serde(flatten)]
     query: ElementQuery,
+    /// appears (default with a query), disappears, or changed (default
+    /// without one: wait for any change when you do not know what comes).
     #[serde(default)]
-    condition: WaitCondition,
+    condition: Option<WaitCondition>,
     /// Give up after this many milliseconds (default 5000, max 60000).
     #[serde(default)]
     timeout_ms: Option<u64>,
@@ -5736,6 +5737,17 @@ fn click_equivalent_action(action: &AccessibilityAction) -> bool {
     )
 }
 
+/// The condition `wait_for` checks: the requested one, else `changed` when
+/// no query names an element (the agent does not know what will appear),
+/// else `appears`.
+fn wait_condition(requested: Option<WaitCondition>, query_empty: bool) -> WaitCondition {
+    match requested {
+        Some(condition) => condition,
+        None if query_empty => WaitCondition::Changed,
+        None => WaitCondition::Appears,
+    }
+}
+
 /// Whether one `wait_for` poll satisfies `appears` or `disappears`. Absence
 /// needs a complete snapshot: a truncated one may stop before the element.
 fn presence_condition_met(condition: WaitCondition, matched: bool, truncated: bool) -> bool {
@@ -8708,6 +8720,28 @@ mod tests {
             false,
             false
         ));
+    }
+
+    #[test]
+    fn wait_for_without_a_query_waits_for_any_change() {
+        let params: WaitForParams = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert_eq!(params.condition, None);
+        assert_eq!(
+            wait_condition(params.condition, params.query.is_empty()),
+            WaitCondition::Changed
+        );
+        let named: WaitForParams =
+            serde_json::from_value(serde_json::json!({"name": "Alterações salvas"})).unwrap();
+        assert_eq!(
+            wait_condition(named.condition, named.query.is_empty()),
+            WaitCondition::Appears
+        );
+        let explicit: WaitForParams =
+            serde_json::from_value(serde_json::json!({"condition": "disappears"})).unwrap();
+        assert_eq!(
+            wait_condition(explicit.condition, explicit.query.is_empty()),
+            WaitCondition::Disappears
+        );
     }
 
     #[test]
