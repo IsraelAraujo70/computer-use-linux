@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Boleto - Condomínio Solar</title><link rel="stylesheet" href="../style.css">
+<style>
+  .boleto { border: 1px solid #202124; border-radius: 4px; }
+  .boleto .line { display: flex; border-bottom: 1px solid #202124; }
+  .boleto .line > div { padding: 6px 10px; border-right: 1px solid #202124; flex: 1; }
+  .boleto .line > div:last-child { border-right: none; }
+  .boleto small { display: block; color: #5f6368; font-size: 11px; }
+  .barcode { height: 56px; margin: 12px 10px; background: repeating-linear-gradient(90deg, #000 0 2px, #fff 2px 3px, #000 3px 4px, #fff 4px 7px, #000 7px 10px, #fff 10px 11px); }
+</style></head>
+<body>
+<main class="page" style="max-width:900px">
+  <h1 style="font-weight:400">Boleto - Condomínio Solar</h1>
+  <div class="boleto">
+    <div class="line"><div style="flex:0 0 160px"><b>Banco Itaú | 341-7</b></div>
+      <div><small>Linha digitável</small><span id="line" style="font:18px monospace">34191.79001 01043.510047 91020.150008 1 96610000012345</span></div></div>
+    <div class="line"><div><small>Beneficiário</small>Condomínio Residencial Solar - CNPJ 12.345.678/0001-90</div><div style="flex:0 0 180px"><small>Vencimento</small>10/11/2026</div></div>
+    <div class="line"><div><small>Pagador</small>Israel Araujo - Apto 302, Bloco B</div><div style="flex:0 0 180px"><small>Valor do documento</small>R$ 123,45</div></div>
+    <div class="line"><div><small>Número do documento</small>2026110302</div><div><small>Nosso número</small>109/01043510-0</div><div style="flex:0 0 180px"><small>Data do documento</small>20/10/2026</div></div>
+    <div class="line"><div><small>Instruções</small>Após o vencimento, multa de 2% e juros de 1% ao mês. Não receber após 30 dias do vencimento.</div></div>
+    <div class="barcode" role="img" aria-label="Código de barras"></div>
+  </div>
+</main>
+</body>
+</html>

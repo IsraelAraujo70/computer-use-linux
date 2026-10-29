@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Endereço de entrega</title><link rel="stylesheet" href="../style.css">
+<style>
+  .combo { position: relative; }
+  .combo [role=listbox] { position: absolute; top: 68px; left: 0; right: 0; max-height: 280px; overflow: auto; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.25); border-radius: 4px; z-index: 10; margin: 0; padding: 4px 0; list-style: none; }
+  .combo [role=option] { padding: 8px 12px; cursor: pointer; }
+  .combo [role=option]:hover, .combo [role=option][aria-selected=true] { background: #e8f0fe; }
+  #searching { color: #5f6368; font-size: 12px; min-height: 16px; }
+</style></head>
+<body>
+<div class="sitebar"><b>Loja Vértice</b><span class="spacer"></span><a href="#">Minha conta</a></div>
+<main class="page" style="max-width:640px">
+  <h1 style="font-weight:400">Endereço de entrega</h1>
+  <form id="form" novalidate>
+    <div class="field"><label for="cep">CEP</label><input id="cep" inputmode="numeric" autocomplete="off"></div>
+    <div class="field"><label for="street">Rua</label><input id="street" autocomplete="off"></div>
+    <div class="field" style="width:160px"><label for="number">Número</label><input id="number" autocomplete="off"></div>
+    <div class="field combo"><label for="city">Cidade</label>
+      <input id="city" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="city-list" autocomplete="off" placeholder="Digite ao menos 3 letras">
+      <ul role="listbox" id="city-list" aria-label="Cidades" hidden></ul>
+      <span id="searching" role="status"></span></div>
+    <p class="error" role="alert" id="err"></p>
+    <button class="btn primary" type="submit">Salvar endereço</button>
+  </form>
+  <p id="done" role="status" style="font-size:20px;color:#137333"></p>
+</main>
+<script src="../common.js"></script>
+<script>
+const CITIES = `Aracaju - SE|Belém - PA|Belo Horizonte - MG|Boa Vista - RR|Brasília - DF|Campo Grande - MS|Cuiabá - MT|Curitiba - PR|Florianópolis - SC|Fortaleza - CE|Goiânia - GO|João Pessoa - PB|Macapá - AP|Maceió - AL|Manaus - AM|Natal - RN|Palmas - TO|Porto Alegre - RS|Porto Velho - RO|Recife - PE|Rio Branco - AC|Rio de Janeiro - RJ|Salvador - BA|São Luís - MA|São Paulo - SP|Teresina - PI|Vitória - ES|Floriano - PI|Flores da Cunha - RS|Florânia - RN|Flórida Paulista - SP|Floresta - PE|Florestópolis - PR|Florínea - SP|Campinas - SP|Santos - SP|Guarulhos - SP|Osasco - SP|Sorocaba - SP|Ribeirão Preto - SP|São José dos Campos - SP|Jundiaí - SP|Piracicaba - SP|Bauru - SP|Franca - SP|Niterói - RJ|Petrópolis - RJ|Nova Iguaçu - RJ|Duque de Caxias - RJ|Volta Redonda - RJ|Campos dos Goytacazes - RJ|Contagem - MG|Uberlândia - MG|Juiz de Fora - MG|Betim - MG|Montes Claros - MG|Uberaba - MG|Governador Valadares - MG|Joinville - SC|Blumenau - SC|São José - SC|Palhoça - SC|Biguaçu - SC|Criciúma - SC|Chapecó - SC|Itajaí - SC|Balneário Camboriú - SC|Lages - SC|Londrina - PR|Maringá - PR|Ponta Grossa - PR|Cascavel - PR|Foz do Iguaçu - PR|Caxias do Sul - RS|Pelotas - RS|Canoas - RS|Santa Maria - RS|Gravataí - RS|Novo Hamburgo - RS|Feira de Santana - BA|Vitória da Conquista - BA|Camaçari - BA|Ilhéus - BA|Caruaru - PE|Olinda - PE|Petrolina - PE|Jaboatão dos Guararapes - PE|Caucaia - CE|Juazeiro do Norte - CE|Sobral - CE|Mossoró - RN|Campina Grande - PB|Imperatriz - MA|Parnaíba - PI|Picos - PI|Anápolis - GO|Aparecida de Goiânia - GO|Rio Verde - GO|Dourados - MS|Rondonópolis - MT|Várzea Grande - MT|Santarém - PA|Marabá - PA|Ananindeua - PA|Parintins - AM|Arapiraca - AL|Vila Velha - ES|Serra - ES|Cariacica - ES`
+  .split('|').map(s => { const [name, uf] = s.split(' - '); return { name, uf, label: s }; })
+  .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+const fold = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const $ = id => document.getElementById(id);
+const input = $('city'), list = $('city-list');
+let chosen = null, timer = null, active = -1;
+
+function close() { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); active = -1; }
+function choose(c) { chosen = c; input.value = c.label; close(); }
+function highlight(i) {
+  const opts = [...list.children];
+  if (!opts.length) return;
+  active = (i + opts.length) % opts.length;
+  opts.forEach((o, j) => o.setAttribute('aria-selected', String(j === active)));
+  input.setAttribute('aria-activedescendant', opts[active].id);
+  opts[active].scrollIntoView({ block: 'nearest' });
+}
+
+// Suggestions come from a slow "server": 1.2 s after the last keystroke, and only for
+// 3+ characters. The city counts only once an option is picked.
+input.addEventListener('input', () => {
+  chosen = null;
+  clearTimeout(timer);
+  close();
+  const q = fold(input.value.trim());
+  if (q.length < 3) { $('searching').textContent = ''; return; }
+  $('searching').textContent = 'Buscando cidades…';
+  timer = setTimeout(() => {
+    const found = CITIES.filter(c => fold(c.label).includes(q)).slice(0, 8);
+    $('searching').textContent = found.length ? `${found.length} cidades encontradas` : 'Nenhuma cidade encontrada';
+    list.replaceChildren(...found.map((c, i) => {
+      const o = h('li', { role: 'option', id: 'city-opt-' + i, 'aria-selected': 'false' }, c.label);
+      o.addEventListener('mousedown', e => e.preventDefault());
+      o.addEventListener('click', () => choose(c));
+      return o;
+    }));
+    if (found.length && document.activeElement === input) { list.hidden = false; input.setAttribute('aria-expanded', 'true'); }
+  }, 1200);
+});
+input.addEventListener('keydown', e => {
+  if (list.hidden) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); highlight(active + 1); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); highlight(active - 1); }
+  else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); list.children[active].click(); }
+  else if (e.key === 'Escape') close();
+});
+input.addEventListener('blur', () => setTimeout(close, 150));
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = id => $(id).value.trim();
+  let msg = '';
+  if (v('cep').replace(/\D/g, '').length !== 8) msg = 'Informe um CEP válido.';
+  else if (!v('street') || !v('number')) msg = 'Informe a rua e o número.';
+  else if (!chosen) msg = 'Selecione uma cidade da lista de sugestões.';
+  $('err').textContent = msg;
+  if (msg) return;
+  await postState('async-autocomplete', { saved: { cep: v('cep'), street: v('street'), number: v('number'), city: chosen.name, uf: chosen.uf } });
+  $('done').textContent = 'Endereço salvo';
+});
+</script>
+</body>
+</html>

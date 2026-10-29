@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Pedidos</title><link rel="stylesheet" href="../style.css">
+<style>
+  #list { position: relative; }
+  .orow { position: absolute; left: 0; right: 0; height: 40px; display: flex; align-items: center; gap: 16px; padding: 0 24px; border-bottom: 1px solid #f1f3f4; background: #fff; }
+  .orow:hover { background: #f8f9fa; }
+  .orow .num { width: 90px; font-weight: 500; } .orow .client { width: 280px; } .orow .date { width: 120px; color: #5f6368; }
+  .orow .value { width: 130px; text-align: right; } .orow .status { flex: 1; color: #5f6368; }
+  .orow button { height: 28px; border-radius: 14px; border: 1px solid #747775; background: #fff; color: #0b57d0; padding: 0 12px; }
+  .head { display: flex; gap: 16px; padding: 8px 24px; color: #5f6368; font-weight: 500; border-bottom: 1px solid #e0e0e0; position: sticky; top: 49px; background: #fff; z-index: 1; }
+</style></head>
+<body>
+<header class="topbar"><div class="logo"><b>📦</b> Gestão de Pedidos</div><span class="spacer"></span>
+  <button class="icon-btn" aria-label="Configurações">⚙</button></header>
+<div class="layout">
+  <nav class="sidenav" aria-label="Menu">
+    <a class="navitem active" href="#" aria-current="page"><span>Pedidos</span></a>
+    <a class="navitem" href="#">Arquivados</a><a class="navitem" href="#">Clientes</a></nav>
+  <main class="panel" id="panel" aria-labelledby="title">
+    <div class="toolbar"><h1 id="title" style="font-size:16px;margin:6px 0">Pedidos - 2.000 resultados</h1></div>
+    <div class="head" aria-hidden="true"><span style="width:90px">Pedido</span><span style="width:280px">Cliente</span><span style="width:120px">Data</span><span style="width:130px;text-align:right">Valor</span><span style="flex:1">Status</span></div>
+    <div role="list" id="list" aria-label="Pedidos"></div>
+  </main>
+</div>
+<script src="../common.js"></script>
+<script>
+const ROW = 40, OVERSCAN = 8;
+const FIRST = ['Ana','Bruno','Carla','Daniel','Eduarda','Fábio','Gabriela','Heitor','Isabela','João','Karina','Lucas','Mariana','Nicolas','Olívia','Pedro','Rafael','Sofia','Tiago','Vinícius','Yasmin'];
+const LAST = ['Almeida','Barbosa','Cardoso','Dias','Ferraz','Gomes','Lima','Macedo','Nogueira','Oliveira','Pereira','Queiroz','Ribeiro','Santos','Teixeira','Vieira'];
+const STATUS = ['Aguardando envio','Em trânsito','Entregue','Pagamento aprovado'];
+const rnd = seeded(1377);
+const brl = n => 'R$ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+let orders = [];
+for (let n = 1001; n <= 3000; n++) {
+  const day = 1 + Math.floor(rnd() * 28), month = 1 + Math.floor(rnd() * 10);
+  orders.push({ n: String(n), client: FIRST[Math.floor(rnd() * FIRST.length)] + ' ' + LAST[Math.floor(rnd() * LAST.length)],
+    date: `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/2026`, value: brl(20 + rnd() * 1980), status: STATUS[Math.floor(rnd() * STATUS.length)] });
+}
+const archived = [];
+const panel = document.getElementById('panel'), list = document.getElementById('list');
+
+// Only the rows near the viewport exist in the DOM.
+function render() {
+  list.style.height = orders.length * ROW + 'px';
+  const top = panel.scrollTop - list.offsetTop;
+  const first = Math.max(0, Math.floor(top / ROW) - OVERSCAN);
+  const last = Math.min(orders.length, Math.ceil((top + panel.clientHeight) / ROW) + OVERSCAN);
+  const rows = [];
+  for (let i = first; i < last; i++) {
+    const o = orders[i];
+    rows.push(h('div', { class: 'orow', role: 'listitem', 'aria-setsize': orders.length, 'aria-posinset': i + 1, style: `top:${i * ROW}px` },
+      h('span', { class: 'num' }, '#' + o.n), h('span', { class: 'client' }, o.client), h('span', { class: 'date' }, o.date),
+      h('span', { class: 'value' }, o.value), h('span', { class: 'status' }, o.status),
+      h('button', { type: 'button', onclick: () => archive(o.n) }, 'Arquivar pedido #' + o.n)));
+  }
+  list.replaceChildren(...rows);
+}
+
+async function archive(n) {
+  orders = orders.filter(o => o.n !== n);
+  archived.push(n);
+  document.getElementById('title').textContent = `Pedidos - ${orders.length.toLocaleString('pt-BR')} resultados`;
+  render();
+  await postState('virtual-list', { archived: [...archived] });
+  toast(`Pedido #${n} arquivado`);
+}
+
+panel.addEventListener('scroll', render, { passive: true });
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>

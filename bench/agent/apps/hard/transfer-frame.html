@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Transferência Pix</title><link rel="stylesheet" href="../style.css"></head>
+<body style="background:#fff;padding:8px 24px">
+<h2 style="font-weight:400">Transferência Pix</h2>
+<form id="step1" novalidate>
+  <div class="field"><label for="key">Chave Pix</label><input id="key" autocomplete="off" placeholder="CPF, e-mail, celular ou chave aleatória"></div>
+  <div class="field"><label for="amount">Valor</label><input id="amount" inputmode="decimal" autocomplete="off" placeholder="R$ 0,00"></div>
+  <div class="field"><label for="desc">Descrição</label><input id="desc" autocomplete="off" placeholder="Opcional"></div>
+  <p class="error" role="alert" id="err"></p>
+  <button class="btn primary" type="submit">Continuar</button>
+</form>
+<section id="step2" hidden aria-labelledby="confirm-title">
+  <h3 id="confirm-title" style="font-weight:500">Confira os dados</h3>
+  <table class="data"><tr><th>Chave Pix</th><td id="c-key"></td></tr><tr><th>Valor</th><td id="c-amount"></td></tr>
+    <tr><th>Descrição</th><td id="c-desc"></td></tr><tr><th>Destinatário</th><td>Maria Oliveira · Banco Horizonte</td></tr></table>
+  <div style="display:flex;gap:8px;margin-top:20px"><button class="btn" type="button" id="back">Voltar</button>
+    <button class="btn primary" type="button" id="confirm">Confirmar transferência</button></div>
+</section>
+<p id="done" role="status" style="font-size:20px;color:#137333"></p>
+<script src="../common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let pending = null;
+const parseAmount = s => {
+  let t = s.replace(/R\$|\s/g, '');
+  t = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+  return /^\d+(\.\d{1,2})?$/.test(t) ? Number(t) : NaN;
+};
+$('step1').addEventListener('submit', e => {
+  e.preventDefault();
+  const key = $('key').value.trim(), amount = $('amount').value.trim(), description = $('desc').value.trim();
+  const value = parseAmount(amount);
+  if (!key || !(value > 0)) { $('err').textContent = 'Informe a chave Pix e um valor válido.'; return; }
+  $('err').textContent = '';
+  pending = { key, amount, description };
+  $('c-key').textContent = key;
+  $('c-amount').textContent = 'R$ ' + value.toFixed(2).replace('.', ',');
+  $('c-desc').textContent = description || '—';
+  $('step1').hidden = true;
+  $('step2').hidden = false;
+});
+$('back').addEventListener('click', () => { $('step2').hidden = true; $('step1').hidden = false; });
+$('confirm').addEventListener('click', async () => {
+  await postState('xorigin-iframe', { transfer: { ...pending, confirmed: true } });
+  $('step2').hidden = true;
+  $('done').textContent = 'Transferência realizada';
+});
+</script>
+</body>
+</html>

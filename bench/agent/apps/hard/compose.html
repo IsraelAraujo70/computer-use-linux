@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Nova mensagem - Correio</title><link rel="stylesheet" href="../style.css">
+<style>
+  .composer { position: fixed; right: 24px; bottom: 0; width: 620px; background: #fff; border-radius: 12px 12px 0 0; box-shadow: 0 8px 24px rgba(0,0,0,.25); display: flex; flex-direction: column; }
+  .composer header { display: flex; align-items: center; padding: 10px 16px; background: #f2f6fc; border-radius: 12px 12px 0 0; font-weight: 500; }
+  .row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 6px 16px; border-bottom: 1px solid #f1f3f4; min-height: 40px; }
+  .row > span.lbl { color: #5f6368; margin-right: 4px; }
+  .row input { border: none; outline: none; flex: 1; min-width: 160px; height: 28px; }
+  .rcpt { display: inline-flex; align-items: center; gap: 4px; background: #e8eaed; border-radius: 14px; padding: 2px 4px 2px 10px; }
+  .rcpt button { border: none; background: transparent; width: 22px; height: 22px; border-radius: 50%; }
+  .rcpt button:hover { background: #d2d4d7; }
+  .fmt { display: flex; gap: 4px; padding: 6px 12px; border-bottom: 1px solid #f1f3f4; }
+  .fmt button { min-width: 32px; height: 32px; border: none; background: transparent; border-radius: 4px; }
+  .fmt button:hover { background: #f1f3f4; }
+  #body { min-height: 240px; max-height: 360px; overflow: auto; padding: 12px 16px; outline: none; }
+  .actions { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+</style></head>
+<body>
+<header class="topbar"><div class="logo"><b>✉</b> Correio</div><input class="search" placeholder="Pesquisar e-mail" aria-label="Pesquisar e-mail"></header>
+<div class="layout">
+  <nav class="sidenav" aria-label="Pastas"><button class="compose" type="button">✎ Escrever</button>
+    <a class="navitem active" href="#" aria-current="page"><span>Caixa de entrada</span><span>12</span></a>
+    <a class="navitem" href="#">Enviados</a><a class="navitem" href="#">Rascunhos</a></nav>
+  <main class="panel" aria-label="Caixa de entrada"><div class="toolbar"><b>Caixa de entrada</b></div>
+    <div class="mailrow"><span class="from">Equipe Financeira</span><span class="text">Fechamento de outubro <span class="snippet">- Pessoal, o relatório precisa sair até sexta…</span></span><span class="date">27 de out.</span></div>
+    <div class="mailrow"><span class="from">Ana Souza</span><span class="text">Re: Reunião de quinta <span class="snippet">- Combinado, até lá!</span></span><span class="date">25 de out.</span></div>
+  </main>
+</div>
+<section class="composer" id="composer" role="dialog" aria-labelledby="composer-title">
+  <header><span id="composer-title">Nova mensagem</span><span class="spacer"></span></header>
+  <div class="row" id="to-row"><span class="lbl" id="to-label">Para</span><span id="chips"></span>
+    <input id="to" role="combobox" aria-expanded="false" aria-autocomplete="none" aria-label="Para" autocomplete="off"></div>
+  <div class="row"><input id="subject" aria-label="Assunto" placeholder="Assunto" autocomplete="off"></div>
+  <div class="fmt" role="toolbar" aria-label="Formatação">
+    <button type="button" data-cmd="bold" aria-label="Negrito" title="Negrito"><b>N</b></button>
+    <button type="button" data-cmd="italic" aria-label="Itálico" title="Itálico"><i>I</i></button>
+    <button type="button" data-cmd="insertUnorderedList" aria-label="Lista com marcadores" title="Lista com marcadores">•≡</button>
+  </div>
+  <div id="body" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Corpo da mensagem"></div>
+  <p class="error" role="alert" id="err" style="margin:0 16px"></p>
+  <div class="actions"><button class="btn primary" type="button" id="send">Enviar</button></div>
+</section>
+<script src="../common.js"></script>
+<script>
+const to = document.getElementById('to'), chips = document.getElementById('chips');
+const recipients = [];
+const EMAIL = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+
+function renderChips() {
+  chips.replaceChildren(...recipients.map(email => h('span', { class: 'rcpt' }, email,
+    h('button', { type: 'button', 'aria-label': 'Remover ' + email, title: 'Remover', onclick: () => {
+      recipients.splice(recipients.indexOf(email), 1); renderChips(); to.focus();
+    } }, '×'))));
+}
+
+// Turns the typed text into chips when every comma/semicolon-separated part is a valid
+// address; anything invalid stays in the input as plain text.
+function commit() {
+  const parts = to.value.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+  if (!parts.length) { to.value = ''; return false; }
+  if (!parts.every(p => EMAIL.test(p))) return false;
+  for (const p of parts) if (!recipients.includes(p)) recipients.push(p);
+  to.value = '';
+  renderChips();
+  return true;
+}
+
+to.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',' || e.key === ';') {
+    e.preventDefault();
+    commit();
+  } else if (e.key === 'Tab') {
+    commit();
+  } else if (e.key === 'Backspace' && !to.value && recipients.length) {
+    recipients.pop();
+    renderChips();
+  }
+});
+to.addEventListener('input', () => { if (/[,;]/.test(to.value)) commit(); });
+to.addEventListener('blur', commit);
+
+document.querySelectorAll('.fmt button').forEach(b => {
+  b.addEventListener('mousedown', e => e.preventDefault());
+  b.addEventListener('click', () => { document.getElementById('body').focus(); document.execCommand(b.dataset.cmd); });
+});
+
+document.getElementById('send').addEventListener('click', async () => {
+  const err = document.getElementById('err');
+  if (!recipients.length) { err.textContent = 'Adicione pelo menos um destinatário'; return; }
+  err.textContent = '';
+  const body = document.getElementById('body');
+  await postState('rich-compose', { sent: { to: [...recipients], subject: document.getElementById('subject').value,
+    body_text: body.innerText, body_html: body.innerHTML } });
+  document.getElementById('composer').style.display = 'none';
+  toast('Mensagem enviada');
+});
+</script>
+</body>
+</html>

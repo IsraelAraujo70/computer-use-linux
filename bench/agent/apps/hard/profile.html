@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Meu perfil</title><link rel="stylesheet" href="../style.css">
+<style>
+  .banner { padding: 12px 16px; border-radius: 8px; margin: 12px 0; }
+  .banner.bad { background: #fce8e6; color: #b3261e; }
+  .banner.good { background: #e6f4ea; color: #137333; }
+  .banner:empty { display: none; }
+</style></head>
+<body>
+<div class="sitebar"><b>Nuvem Fácil</b><span class="spacer"></span><a href="#">Painel</a><a href="#">Meu perfil</a></div>
+<main class="page" style="max-width:640px">
+  <h1 style="font-weight:400">Meu perfil</h1>
+  <div class="banner bad" role="alert" id="err"></div>
+  <div class="banner good" role="status" id="ok"></div>
+  <form id="form" novalidate>
+    <div class="field"><label for="name">Nome</label><input id="name" autocomplete="off" value="Israel Araujo"></div>
+    <div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="off" value="israel.araujo@example.com"></div>
+    <div class="field"><label for="phone">Telefone</label><input id="phone" type="tel" autocomplete="off" value="(11) 90000-0000"></div>
+    <button class="btn primary" type="submit" id="save">Salvar alterações</button>
+  </form>
+</main>
+<script src="../common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let attempts = 0;
+// The first save fails (a simulated server error) and stores nothing; retrying works.
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  $('err').textContent = ''; $('ok').textContent = '';
+  $('save').disabled = true; $('save').textContent = 'Salvando…';
+  const values = { name: $('name').value.trim(), email: $('email').value.trim(), phone: $('phone').value.trim() };
+  setTimeout(async () => {
+    $('save').disabled = false; $('save').textContent = 'Salvar alterações';
+    if (++attempts === 1) { $('err').textContent = 'Não foi possível salvar. Tente novamente.'; return; }
+    await postState('recover-error', { saved: values });
+    $('ok').textContent = 'Alterações salvas';
+  }, 800);
+});
+</script>
+</body>
+</html>

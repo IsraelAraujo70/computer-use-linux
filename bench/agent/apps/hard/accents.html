@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Cadastro de cliente</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<div class="sitebar"><b>Ateliê Lumière</b><span class="spacer"></span><a href="#">Clientes</a><a href="#">Pedidos</a></div>
+<main class="page" style="max-width:640px">
+  <h1 style="font-weight:400">Cadastro de cliente</h1>
+  <form id="form" novalidate>
+    <div class="field"><label for="name">Nome completo</label><input id="name" autocomplete="off"></div>
+    <div class="field"><label for="city">Cidade</label><input id="city" autocomplete="off"></div>
+    <div class="field"><label for="notes">Observações</label><textarea id="notes"></textarea></div>
+    <p class="error" role="alert" id="err"></p>
+    <button class="btn primary" type="submit">Salvar</button>
+  </form>
+  <p id="done" role="status" style="color:#137333"></p>
+</main>
+<script src="../common.js"></script>
+<script>
+document.getElementById('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const v = id => document.getElementById(id).value;
+  if (!v('name').trim()) { document.getElementById('err').textContent = 'Informe o nome completo.'; return; }
+  document.getElementById('err').textContent = '';
+  await postState('accents-form', { saved: { name: v('name'), city: v('city'), notes: v('notes') } });
+  document.getElementById('done').textContent = 'Cliente salvo';
+});
+</script>
+</body>
+</html>

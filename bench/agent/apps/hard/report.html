@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Relatórios</title><link rel="stylesheet" href="../style.css">
+<style>
+  .skel { height: 18px; margin: 14px 0; border-radius: 4px; background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%); background-size: 400% 100%; animation: shimmer 1.4s infinite; }
+  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  .spinner { width: 36px; height: 36px; border: 4px solid #d3e3fd; border-top-color: #0b57d0; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  table.data td.num { text-align: right; }
+</style></head>
+<body>
+<div class="sitebar"><b>Painel Financeiro</b><span class="spacer"></span><a href="#">Visão geral</a><a href="#">Relatórios</a></div>
+<main class="page">
+  <h1 style="font-weight:400">Relatórios</h1>
+  <div id="loading"><p role="status">Carregando…</p><div class="skel" style="width:60%"></div><div class="skel"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:70%"></div></div>
+  <div id="ready" hidden>
+    <p>Relatório mensal de receitas e despesas de 2026.</p>
+    <button class="btn primary" type="button" id="generate">Gerar relatório</button>
+  </div>
+  <div id="working" style="display:none;align-items:center;gap:16px"><div class="spinner" aria-hidden="true"></div><p role="status">Gerando relatório…</p></div>
+  <div id="result" hidden></div>
+</main>
+<script src="../common.js"></script>
+<script>
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const $ = id => document.getElementById(id);
+const brl = n => 'R$ ' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const exported = [];
+
+setTimeout(() => { $('loading').hidden = true; $('ready').hidden = false; }, 5000);
+
+$('generate').addEventListener('click', () => {
+  $('ready').hidden = true;
+  $('working').style.display = 'flex';
+  setTimeout(showTable, 4000);
+});
+
+function showTable() {
+  $('working').style.display = 'none';
+  const rnd = seeded(2026);
+  const rows = MONTHS.map(m => {
+    const income = 80000 + rnd() * 40000, cost = 60000 + rnd() * 40000;
+    return h('tr', {}, h('td', {}, m), h('td', { class: 'num' }, brl(income)), h('td', { class: 'num' }, brl(cost)),
+      h('td', { class: 'num' }, brl(income - cost)),
+      h('td', {}, h('button', { class: 'btn', type: 'button', onclick: () => exportMonth(m) }, 'Exportar ' + m)));
+  });
+  $('result').replaceChildren(h('table', { class: 'data' },
+    h('thead', {}, h('tr', {}, ...['Mês', 'Receita', 'Despesas', 'Saldo', 'Ações'].map(t => h('th', {}, t)))),
+    h('tbody', {}, ...rows)));
+  $('result').hidden = false;
+}
+
+async function exportMonth(m) {
+  if (!exported.includes(m)) exported.push(m);
+  await postState('slow-page', { exported: [...exported] });
+  toast(`Relatório de ${m} exportado`);
+}
+</script>
+</body>
+</html>

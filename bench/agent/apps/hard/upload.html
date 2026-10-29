@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Enviar comprovante</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<div class="sitebar"><b>Condomínio Solar</b><span class="spacer"></span><a href="#">Boletos</a><a href="#">Comunicados</a></div>
+<main class="page" style="max-width:640px">
+  <h1 style="font-weight:400">Enviar comprovante</h1>
+  <p>Envie o comprovante de pagamento da taxa condominial de outubro (PDF, até 5 MB).</p>
+  <form id="form" novalidate>
+    <div class="field"><label for="file">Comprovante</label><input id="file" type="file" accept=".pdf,application/pdf,image/*"></div>
+    <p class="error" role="alert" id="err"></p>
+    <button class="btn primary" type="submit">Enviar</button>
+  </form>
+  <p id="done" role="status" style="font-size:20px;color:#137333"></p>
+</main>
+<script src="../common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const file = $('file').files[0];
+  if (!file) { $('err').textContent = 'Selecione o arquivo do comprovante.'; return; }
+  $('err').textContent = '';
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  const sha256 = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  await postState('file-upload', { uploaded: { name: file.name, size: file.size, sha256 } });
+  $('done').textContent = `Comprovante "${file.name}" enviado`;
+});
+</script>
+</body>
+</html>

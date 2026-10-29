@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><title>Internet Banking</title><link rel="stylesheet" href="../style.css"></head>
+<body>
+<div class="sitebar"><b>Banco Aurora · Internet Banking</b><span class="spacer"></span><a href="#">Extrato</a><a href="#">Pix</a><a href="#">Sair</a></div>
+<main class="page" style="display:flex;gap:32px;max-width:1300px">
+  <aside style="width:280px"><h2 style="font-weight:400">Sua conta</h2>
+    <p>Agência 0001 · Conta 12345-6</p><p>Saldo disponível<br><b style="font-size:22px">R$ 4.870,32</b></p></aside>
+  <section style="flex:1"><h1 style="font-weight:400">Área Pix</h1>
+    <iframe id="frame" title="Transferência Pix" style="width:100%;height:560px;border:1px solid #e0e0e0;border-radius:12px"></iframe></section>
+</main>
+<script>
+// The transfer widget is served from another site (localhost vs 127.0.0.1), so Chrome
+// runs it in a separate, out-of-process frame.
+document.getElementById('frame').src = `http://localhost:${location.port}/apps/hard/transfer-frame.html`;
+</script>
+</body>
+</html>
