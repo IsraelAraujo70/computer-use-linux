@@ -22,7 +22,9 @@ use std::{
     time::{Duration, Instant},
 };
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{ConnectionExt as _, ImageFormat, ImageOrder, VisualClass, Window};
+use x11rb::protocol::xproto::{
+    Atom, AtomEnum, ConnectionExt as _, ImageFormat, ImageOrder, VisualClass, Window,
+};
 use x11rb::{
     reexports::x11rb_protocol::{
         parse_display::{parse_display, ConnectAddress},
@@ -244,6 +246,29 @@ pub(crate) struct X11Display {
     screen: usize,
 }
 
+/// The window that takes input at a root point, as far as the X server says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct WindowAtPoint {
+    pub window: Window,
+    /// Its `_NET_WM_PID`, when it names its process.
+    pub pid: Option<u32>,
+    /// Its `_NET_WM_NAME`, else `WM_NAME`.
+    pub title: Option<String>,
+}
+
+impl std::fmt::Display for WindowAtPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "window 0x{:x}", self.window)?;
+        if let Some(title) = self.title.as_deref().filter(|title| !title.is_empty()) {
+            write!(f, " \"{title}\"")?;
+        }
+        if let Some(pid) = self.pid {
+            write!(f, " (pid {pid})")?;
+        }
+        Ok(())
+    }
+}
+
 /// Root-window pixels as tightly packed RGB8.
 pub(crate) struct RootImage {
     pub width: u32,
@@ -423,6 +448,63 @@ impl X11Display {
             height: u32::from(height),
             rgb,
         })
+    }
+
+    /// The window at root point `(x, y)`: walking down the stack of mapped
+    /// windows containing the point, the deepest one with `_NET_WM_PID`
+    /// (the app's client window, not the window manager's frame), else the
+    /// deepest window there. `None` when only the root is there.
+    pub(crate) fn window_at(&self, (x, y): (i16, i16)) -> Result<Option<WindowAtPoint>> {
+        let atom =
+            |name: &[u8]| -> Result<Atom> { Ok(self.conn.intern_atom(false, name)?.reply()?.atom) };
+        let pid_atom = atom(b"_NET_WM_PID")?;
+        let mut window = self.root;
+        let mut deepest = None;
+        let mut owned = None;
+        for _ in 0..32 {
+            let child = self
+                .conn
+                .translate_coordinates(self.root, window, x, y)?
+                .reply()?
+                .child;
+            if child == x11rb::NONE {
+                break;
+            }
+            let pid = self
+                .conn
+                .get_property(false, child, pid_atom, AtomEnum::CARDINAL, 0, 1)?
+                .reply()?
+                .value32()
+                .and_then(|mut values| values.next());
+            if pid.is_some() {
+                owned = Some((child, pid));
+            }
+            deepest = Some(child);
+            window = child;
+        }
+        let Some((window, pid)) = owned.or(deepest.map(|window| (window, None))) else {
+            return Ok(None);
+        };
+        Ok(Some(WindowAtPoint {
+            window,
+            pid,
+            title: self.title(window)?,
+        }))
+    }
+
+    /// A window's `_NET_WM_NAME`, else its `WM_NAME`.
+    fn title(&self, window: Window) -> Result<Option<String>> {
+        let net_wm_name = self.conn.intern_atom(false, b"_NET_WM_NAME")?.reply()?.atom;
+        for property in [net_wm_name, AtomEnum::WM_NAME.into()] {
+            let reply = self
+                .conn
+                .get_property(false, window, property, AtomEnum::ANY, 0, 256)?
+                .reply()?;
+            if !reply.value.is_empty() {
+                return Ok(Some(String::from_utf8_lossy(&reply.value).into_owned()));
+            }
+        }
+        Ok(None)
     }
 
     /// Absolute root-window origin of each window's client area, the value

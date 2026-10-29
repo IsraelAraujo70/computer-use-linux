@@ -1672,9 +1672,11 @@ impl ComputerUseLinux {
         }
     }
 
-    /// The centre of the element an action names, by id or selector. An
-    /// element whose centre is not on the visible page is refused with the
-    /// call that brings it into view, since input there would land elsewhere.
+    /// The centre of the element an action names, by id or selector, from
+    /// its current bounds. An element whose centre is not on the visible
+    /// page is refused with the call that brings it into view, and one whose
+    /// centre is covered by another app's window is refused naming that
+    /// window, since input there would land elsewhere.
     async fn visible_element_center(
         &self,
         element_index: Option<u32>,
@@ -1685,15 +1687,79 @@ impl ComputerUseLinux {
         let node =
             self.resolve_cached_node(element_index, selector, ElementResolvePurpose::Click)?;
         let label = crate::outline::element_label(&node);
-        if let Some(center) = node.bounds.as_ref().and_then(bounds_center) {
-            if self.point_visible_for(&node, center).await {
-                return Ok((label, center));
-            }
+        let outside = || {
+            format!(
+                "{label} is outside the visible window; scroll it into view with scroll(element_index={}) and retry",
+                node.index
+            )
+        };
+        let cached_center = node.bounds.as_ref().and_then(bounds_center);
+        if !matches!(cached_center, Some(center) if self.point_visible_for(&node, center).await) {
+            return Err(outside());
         }
-        Err(format!(
-            "{label} is outside the visible window; scroll it into view with scroll(element_index={}) and retry",
-            node.index
-        ))
+        // The window may have moved since the snapshot: act on the bounds
+        // the element has now.
+        let mut fresh = crate::atspi_tree::read_element(&node.object_ref)
+            .await
+            .map_err(|error| {
+                format!(
+                    "{label} could not be reread ({}); call get_app_state and retry",
+                    first_line(&format!("{error:#}"))
+                )
+            })?;
+        fresh.index = node.index;
+        let center = fresh
+            .bounds
+            .as_ref()
+            .and_then(bounds_center)
+            .ok_or_else(outside)?;
+        if !self.point_visible_for(&fresh, center).await {
+            return Err(outside());
+        }
+        self.check_window_at(&node, &label, center).await?;
+        Ok((label, center))
+    }
+
+    /// Refuses pointer input at `point` for an element unless the X11 window
+    /// there belongs to the element's app (`window_in_the_way`). Skipped off
+    /// native X11, where the X server does not see every window.
+    async fn check_window_at(
+        &self,
+        node: &AccessibilityNode,
+        label: &str,
+        (x, y): (i32, i32),
+    ) -> std::result::Result<(), String> {
+        if !crate::x11_display::is_native_x11_session() {
+            return Ok(());
+        }
+        let owner_pid = match object_ref_owner_pid(&node.object_ref).await {
+            Ok(Some(pid)) => Some(pid),
+            _ => self
+                .last_snapshot
+                .lock()
+                .ok()
+                .and_then(|snapshot| snapshot.pid),
+        };
+        let point = (
+            i16::try_from(x).map_err(|_| format!("{x},{y} is off the X screen"))?,
+            i16::try_from(y).map_err(|_| format!("{x},{y} is off the X screen"))?,
+        );
+        let under = crate::x11_display::with_x11_display(
+            crate::x11_display::X11_QUERY_TIMEOUT,
+            move |display| display.window_at(point),
+        )
+        .await
+        .and_then(|result| result)
+        .map_err(|error| {
+            format!(
+                "could not ask the X server which window is under {x},{y}: {}",
+                first_line(&format!("{error:#}"))
+            )
+        })?;
+        match window_in_the_way(label, (x, y), owner_pid, under.as_ref()) {
+            Some(message) => Err(message),
+            None => Ok(()),
+        }
     }
 
     async fn drop_files(
@@ -6603,6 +6669,36 @@ fn focus_probe_feedback(
     }
 }
 
+/// Why pointer input at `point` would miss `label`, whose app is
+/// `owner_pid`, given the X11 window there; `None` when that window is the
+/// app's.
+fn window_in_the_way(
+    label: &str,
+    (x, y): (i32, i32),
+    owner_pid: Option<u32>,
+    under: Option<&crate::x11_display::WindowAtPoint>,
+) -> Option<String> {
+    let Some(under) = under else {
+        return Some(format!(
+            "no window is under {x},{y}, where {label} should be; call get_app_state and retry"
+        ));
+    };
+    let Some(owner_pid) = owner_pid else {
+        return Some(format!(
+            "could not tell which app owns {label}, so {under} at {x},{y} cannot be confirmed to be its window"
+        ));
+    };
+    match under.pid {
+        Some(pid) if pid == owner_pid => None,
+        Some(_) => Some(format!(
+            "{under} is in the way of {label} (pid {owner_pid}) at {x},{y}; bring the element's window to the front with activate_window and retry"
+        )),
+        None => Some(format!(
+            "{under} is at {x},{y} and does not name its process, so it cannot be confirmed to be the window of {label} (pid {owner_pid})"
+        )),
+    }
+}
+
 fn node_target_mismatch_message(element_index: u32, owner_pid: u32, target_pid: u32) -> String {
     format!(
         "element_index {element_index} comes from the latest get_app_state snapshot of pid {owner_pid}, not the target pid {target_pid}. Call get_app_state for the target app and use an index from that result."
@@ -8351,6 +8447,80 @@ mod tests {
             "{}",
             result.message
         );
+    }
+
+    #[tokio::test]
+    async fn drag_rereads_the_element_instead_of_trusting_cached_bounds() {
+        let backend = ComputerUseLinux::default();
+        let mut frame = node(
+            1,
+            Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            }),
+        );
+        frame.role = "frame".to_string();
+        let mut card = node(
+            2,
+            Some(Bounds {
+                x: 10,
+                y: 10,
+                width: 50,
+                height: 20,
+            }),
+        );
+        card.parent_index = Some(1);
+        card.object_ref = ":1.9999/org/a11y/atspi/accessible/2".to_string();
+        backend.cache_nodes(&[frame, card]);
+        let result = backend
+            .drag(Parameters(DragParams {
+                from_element_index: Some(2),
+                end_x: Some(5),
+                end_y: Some(5),
+                ..Default::default()
+            }))
+            .await
+            .0;
+        assert!(!result.ok);
+        assert!(
+            result.message.contains("could not be reread"),
+            "{}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn input_is_refused_when_another_apps_window_is_at_the_point() {
+        use crate::x11_display::WindowAtPoint;
+        let label = "[4] list \"Done\"";
+        let chrome = WindowAtPoint {
+            window: 0x400001,
+            pid: Some(100),
+            title: Some("Kanban - Chromium".to_string()),
+        };
+        assert_eq!(
+            window_in_the_way(label, (5, 5), Some(100), Some(&chrome)),
+            None
+        );
+        let terminal = WindowAtPoint {
+            window: 0x600001,
+            pid: Some(200),
+            title: Some("xterm".to_string()),
+        };
+        let covered = window_in_the_way(label, (5, 5), Some(100), Some(&terminal)).unwrap();
+        assert!(
+            covered.contains("window 0x600001 \"xterm\" (pid 200) is in the way"),
+            "{covered}"
+        );
+        let anonymous = WindowAtPoint {
+            pid: None,
+            ..terminal
+        };
+        assert!(window_in_the_way(label, (5, 5), Some(100), Some(&anonymous)).is_some());
+        assert!(window_in_the_way(label, (5, 5), None, Some(&chrome)).is_some());
+        assert!(window_in_the_way(label, (5, 5), Some(100), None).is_some());
     }
 
     #[tokio::test]
