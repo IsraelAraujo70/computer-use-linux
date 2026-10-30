@@ -4416,9 +4416,17 @@ impl ComputerUseLinux {
                 }
             ));
         }
+        let mut after = crate::page_view::page_view(&settled.nodes, options);
+        if let Some(editor) = crate::page_view::focused_element(&settled.nodes)
+            .filter(|node| crate::page_view::focus_needs_full_text(node))
+        {
+            if let Some((_, Some(text))) = read_field(&editor.object_ref).await {
+                after.focus = Some(crate::page_view::describe_focus(editor, Some(&text)));
+            }
+        }
         report.push_str(&crate::page_view::change_report(
             &crate::page_view::page_view(&before, options),
-            &crate::page_view::page_view(&settled.nodes, options),
+            &after,
         ));
         self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
             .await;

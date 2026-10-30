@@ -179,7 +179,7 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
         browser: document.is_some(),
         entries,
         omitted,
-        focus: tree.focused().map(|at| describe_focus(&nodes[at])),
+        focus: tree.focused().map(|at| describe_focus(&nodes[at], None)),
     }
 }
 
@@ -929,14 +929,47 @@ fn has_state(node: &AccessibilityNode, state: &str) -> bool {
         .any(|candidate| candidate.eq_ignore_ascii_case(state))
 }
 
-/// `[id] role "name"`, plus `value="…"` for an editable element.
-fn describe_focus(node: &AccessibilityNode) -> String {
+/// The element holding keyboard focus in a snapshot: the deepest one
+/// reporting `focused`.
+pub fn focused_element(nodes: &[AccessibilityNode]) -> Option<&AccessibilityNode> {
+    Tree::new(nodes).focused().map(|at| &nodes[at])
+}
+
+/// Whether the focus line needs a fuller read of the element for its
+/// value: a rich-text editor whose own text is only the embedded-object
+/// marks of its paragraphs (a Chromium contenteditable).
+pub fn focus_needs_full_text(node: &AccessibilityNode) -> bool {
+    crate::fields::is_editable(node)
+        && node
+            .text
+            .as_ref()
+            .and_then(|text| text.content.as_deref())
+            .is_some_and(|text| text.contains(crate::fields::EMBEDDED_OBJECT))
+}
+
+/// `[id] role "name"`, plus `value="…"` for an editable element: `full_text`
+/// when the caller read the editor with its paragraphs
+/// (`fields::expanded_text`), else the element's own text. A multi-line
+/// value prints its lines joined by a literal `\n`, as set_value reads it
+/// back. A rich-text editor's own text is only embedded-object marks
+/// (`focus_needs_full_text`), so without `full_text` its value is unknown
+/// and left out rather than shown as `""`.
+pub fn describe_focus(node: &AccessibilityNode, full_text: Option<&str>) -> String {
     let mut line = element_label(node);
-    if node.supports_editable_text || has_state(node, "editable") {
-        let text = clean(node.text.as_ref().and_then(|text| text.content.as_deref()))
-            .or_else(|| clean(node.value.as_ref().and_then(|value| value.text.as_deref())))
-            .unwrap_or_default();
-        line.push_str(&format!(" value=\"{}\"", truncate(&text, 200)));
+    if !crate::fields::is_editable(node) {
+        return line;
+    }
+    let value = match full_text {
+        Some(text) => Some(crate::fields::shown_text(Some(text))),
+        None if focus_needs_full_text(node) => None,
+        None => Some(
+            crate::fields::field_text(node)
+                .map(|text| crate::fields::shown_text(Some(&text)))
+                .unwrap_or_default(),
+        ),
+    };
+    if let Some(value) = value {
+        line.push_str(&format!(" value=\"{}\"", truncate(&value, 200)));
     }
     line
 }
@@ -1429,6 +1462,46 @@ mod tests {
              - [40] list item \"Marina\"\n\
              focus: [88] entry \"Corpo\" value=\"\"\n\
              title: \"Contrato - Chromium\"\n"
+        );
+    }
+
+    #[test]
+    fn the_focus_line_never_shows_a_rich_text_editor_as_empty() {
+        let mut editor = with_text(
+            node(88, Some(10), "entry", "Corpo da mensagem"),
+            "\u{fffc}\u{fffc}",
+        );
+        editor.states = vec!["focused".into(), "editable".into(), "multi-line".into()];
+        assert!(focus_needs_full_text(&editor));
+        // Its own text is only paragraph marks: the value is unknown.
+        assert_eq!(
+            describe_focus(&editor, None),
+            "[88] entry \"Corpo da mensagem\""
+        );
+        assert_eq!(
+            describe_focus(&editor, Some("Olá Ana,\nSegue o contrato.\n")),
+            "[88] entry \"Corpo da mensagem\" value=\"Olá Ana,\\nSegue o contrato.\""
+        );
+        let view = page_view(&browser(vec![editor]), ViewOptions::default());
+        assert_eq!(
+            view.focus.as_deref(),
+            Some("[88] entry \"Corpo da mensagem\"")
+        );
+
+        // A text area's own text is its value, lines and all; an empty
+        // field is still shown empty.
+        let mut area = with_text(node(89, Some(10), "entry", "Notas"), "um\ndois");
+        area.states = vec!["editable".into(), "multi-line".into()];
+        assert!(!focus_needs_full_text(&area));
+        assert_eq!(
+            describe_focus(&area, None),
+            "[89] entry \"Notas\" value=\"um\\ndois\""
+        );
+        let mut empty = node(90, Some(10), "entry", "Assunto");
+        empty.states = vec!["editable".into()];
+        assert_eq!(
+            describe_focus(&empty, None),
+            "[90] entry \"Assunto\" value=\"\""
         );
     }
 
