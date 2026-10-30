@@ -4380,7 +4380,7 @@ impl ComputerUseLinux {
             .map(|object_ref| self.label_for_ref(object_ref))
             .collect();
         if observe && input_reached_app {
-            let report = self.observe_changes().await;
+            let report = self.observe_changes(&echo.targets).await;
             let landed_nowhere = output.ok
                 && matches!(output.action.as_str(), "click" | "perform_action")
                 && report.starts_with("changes: none");
@@ -4517,8 +4517,10 @@ impl ComputerUseLinux {
     /// limit passed: `SETTLE_LIMIT`, or `BUSY_SETTLE_LIMIT` once the page
     /// looked busy, which the report then says. An action that changed
     /// nothing therefore takes two reads. Each read is `read_page`: only the
-    /// web document in a browser. Logs the reads and time to stderr.
-    async fn observe_changes(&self) -> String {
+    /// web document in a browser. `targets` (object refs of the elements
+    /// acted on) lead a report cut for length. Logs the reads and time to
+    /// stderr.
+    async fn observe_changes(&self, targets: &[String]) -> String {
         let acted = std::time::Instant::now();
         let before = self
             .last_snapshot
@@ -4598,9 +4600,20 @@ impl ComputerUseLinux {
                 after.focus = Some(crate::page_view::describe_focus(editor, Some(&text)));
             }
         }
+        let target_ids: Vec<u32> = self
+            .element_ids
+            .lock()
+            .map(|mut ids| {
+                targets
+                    .iter()
+                    .map(|object_ref| ids.id_for(object_ref))
+                    .collect()
+            })
+            .unwrap_or_default();
         report.push_str(&crate::page_view::change_report(
             &crate::page_view::page_view(&before, options),
             &after,
+            &target_ids,
         ));
         self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
             .await;

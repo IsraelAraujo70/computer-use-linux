@@ -12,8 +12,22 @@ use crate::atspi_tree::{AccessibilityNode, Bounds};
 use crate::outline::{clean, element_label, render_line, render_line_placed, truncate};
 use std::collections::{HashMap, HashSet};
 
-/// Change lines above this many give way to the whole current outline.
+/// Change lines above this many are cut to the `SHOWN_CHANGE_LINES` that
+/// matter most, with a count of the rest.
 pub const MAX_CHANGE_LINES: usize = 40;
+/// Change lines a report over `MAX_CHANGE_LINES` prints.
+pub const SHOWN_CHANGE_LINES: usize = 30;
+/// Roles of the elements that tell the user something happened: alerts,
+/// status messages (toasts, counters), dialogs. A change in or of one ranks
+/// right after the acted element's own in a cut change report.
+const NOTICE_ROLES: [&str; 6] = [
+    "alert",
+    "alert dialog",
+    "dialog",
+    "status bar",
+    "notification",
+    "log",
+];
 /// Most element lines a view draws once elements outside the visible area
 /// count. Visible elements are always drawn; outside ones fill what is left.
 pub const OUTLINE_MAX_LINES: usize = 250;
@@ -43,6 +57,9 @@ pub struct ViewEntry {
     pub label: String,
     /// Whether the element lies in the visible area (or has no bounds).
     pub visible: bool,
+    /// Whether it is or lies inside an alert, status message or dialog
+    /// (`NOTICE_ROLES`).
+    notice: bool,
     /// Everything but the position, untruncated: a change here is a `~`.
     key: String,
 }
@@ -168,6 +185,10 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
             line: candidate.line,
             label: element_label(node),
             visible: candidate.outside.is_none(),
+            notice: NOTICE_ROLES.contains(&tree.role(candidate.at).as_str())
+                || tree
+                    .ancestor_with_role(candidate.at, &NOTICE_ROLES)
+                    .is_some(),
             key: content_key(node),
         });
     }
@@ -519,9 +540,11 @@ pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
 /// new elements, `-` gone ones, `~` same id with different content or newly
 /// in the visible area (other moves do not count), then the focus, and the
 /// title and URL when they changed. An element the current view leaves out
-/// for its budget is not gone. Over `MAX_CHANGE_LINES` lines the whole
-/// current outline is printed instead.
-pub fn change_report(before: &PageView, after: &PageView) -> String {
+/// for its budget is not gone. Over `MAX_CHANGE_LINES` lines only the
+/// `SHOWN_CHANGE_LINES` that matter most are printed (`ChangeRank`: the
+/// elements acted on, `targets`, first), in their usual order, and the rest
+/// are counted.
+pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> String {
     let before_keys: HashMap<u32, &ViewEntry> = before
         .entries
         .iter()
@@ -533,13 +556,24 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
         .map(|entry| entry.id)
         .chain(after.omitted.iter().copied())
         .collect();
+    let rank = |entry: &ViewEntry, new: bool| {
+        if targets.contains(&entry.id) {
+            ChangeRank::Target
+        } else if new && entry.notice {
+            ChangeRank::Notice
+        } else if entry.visible {
+            ChangeRank::Visible
+        } else {
+            ChangeRank::Other
+        }
+    };
     let mut added = Vec::new();
     let mut changed = Vec::new();
     for entry in &after.entries {
         match before_keys.get(&entry.id) {
-            None => added.push(format!("+ {}", entry.line)),
+            None => added.push((format!("+ {}", entry.line), rank(entry, true))),
             Some(old) if old.key != entry.key || (entry.visible && !old.visible) => {
-                changed.push(format!("~ {}", entry.line))
+                changed.push((format!("~ {}", entry.line), rank(entry, true)))
             }
             Some(_) => {}
         }
@@ -570,28 +604,53 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
             *inside_gone.entry(top).or_default() += 1;
         }
     }
-    let removed: Vec<String> = removed
+    let removed: Vec<(String, ChangeRank)> = removed
         .into_iter()
-        .map(|entry| match inside_gone.get(&entry.id) {
-            Some(count) => format!("- {} (and {count} inside)", entry.label),
-            None => format!("- {}", entry.label),
+        .map(|entry| {
+            let line = match inside_gone.get(&entry.id) {
+                Some(count) => format!("- {} (and {count} inside)", entry.label),
+                None => format!("- {}", entry.label),
+            };
+            (line, rank(entry, false))
         })
         .collect();
 
     let mut out = String::new();
-    let total = added.len() + changed.len() + removed.len();
-    if total > MAX_CHANGE_LINES {
-        out.push_str(&format!(
-            "page changed ({} added, {} removed); current outline:\n",
-            added.len(),
-            gone.len()
-        ));
-        out.push_str(&after.outline());
-    } else if total == 0 {
+    let lines: Vec<&(String, ChangeRank)> = added.iter().chain(&changed).chain(&removed).collect();
+    let total = lines.len();
+    if total == 0 {
         out.push_str("changes: none\n");
+    } else if total > MAX_CHANGE_LINES {
+        let mut by_rank: Vec<usize> = (0..total).collect();
+        by_rank.sort_by_key(|&at| (lines[at].1, at));
+        let shown: HashSet<usize> = by_rank.into_iter().take(SHOWN_CHANGE_LINES).collect();
+        out.push_str(&format!(
+            "changes ({total}; the {SHOWN_CHANGE_LINES} that matter most):\n"
+        ));
+        for (at, (line, _)) in lines.iter().enumerate() {
+            if shown.contains(&at) {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+        let hidden = |range: std::ops::Range<usize>| range.filter(|at| !shown.contains(at)).count();
+        let counts: Vec<String> = [
+            (hidden(0..added.len()), "added"),
+            (hidden(added.len()..added.len() + changed.len()), "changed"),
+            (hidden(added.len() + changed.len()..total), "removed"),
+        ]
+        .into_iter()
+        .filter(|(count, _)| *count > 0)
+        .map(|(count, kind)| format!("{count} {kind}"))
+        .collect();
+        out.push_str(&format!(
+            "… and {} more changes ({}); call get_app_state for the whole page\n",
+            total - SHOWN_CHANGE_LINES,
+            counts.join(", ")
+        ));
     } else {
         out.push_str(&format!("changes ({total}):\n"));
-        for line in added.iter().chain(&changed).chain(&removed) {
+        for (line, _) in lines {
             out.push_str(line);
             out.push('\n');
         }
@@ -610,6 +669,17 @@ pub fn change_report(before: &PageView, after: &PageView) -> String {
         }
     }
     out
+}
+
+/// How much a change line matters when a report must leave some out, most
+/// first: the element acted on, a new or changed alert, status message or
+/// dialog (`NOTICE_ROLES`), anything in the visible area, the rest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ChangeRank {
+    Target,
+    Notice,
+    Visible,
+    Other,
 }
 
 /// Roles of a dialog that can stand in front of the rest of a page.
@@ -1397,7 +1467,7 @@ mod tests {
         let after = page_view(&spliced, ViewOptions::default());
         assert_eq!(after.tabs, before.tabs);
         assert_eq!(
-            change_report(&before, &after),
+            change_report(&before, &after, &[]),
             "changes (2):\n\
              + [14] status bar \"Mensagem enviada\" @10,700 300x30\n\
              - [12] button \"Enviar\"\n\
@@ -1457,7 +1527,7 @@ mod tests {
             });
         }
         assert_eq!(
-            change_report(&before, &page_view(&moved, ViewOptions::default())),
+            change_report(&before, &page_view(&moved, ViewOptions::default()), &[]),
             "changes: none\n"
         );
 
@@ -1471,7 +1541,7 @@ mod tests {
         );
         let after = page_view(&after_nodes, ViewOptions::default());
         assert_eq!(
-            change_report(&before, &after),
+            change_report(&before, &after, &[]),
             "changes (3):\n\
              + [88] entry \"Corpo\" @10,400 900x160 {focused,editable}\n\
              ~ [11] heading \"Contrato de locação\" @10,110 300x30\n\
@@ -1549,7 +1619,10 @@ mod tests {
         // An element the snapshot lacks is placed against the page.
         let mut popup = at(node(900, None, "button", "Fechar"), 0, 2000, 50, 20);
         popup.states = vec!["enabled".into()];
-        assert_eq!(placed_line(&page, &popup), "[900] button \"Fechar\" (below)");
+        assert_eq!(
+            placed_line(&page, &popup),
+            "[900] button \"Fechar\" (below)"
+        );
     }
 
     #[test]
@@ -1567,15 +1640,28 @@ mod tests {
         let before = page_view(&browser(list), ViewOptions::default());
         let after = page_view(&browser(Vec::new()), ViewOptions::default());
         assert_eq!(
-            change_report(&before, &after),
+            change_report(&before, &after, &[]),
             "changes (1):\n- [20] list box \"Hora\" (and 30 inside)\n"
         );
     }
 
     #[test]
-    fn a_large_change_prints_the_whole_outline() {
-        let before = page_view(&browser(Vec::new()), ViewOptions::default());
-        let rows: Vec<AccessibilityNode> = (0..41)
+    fn a_large_change_prints_the_acted_element_notices_and_visible_lines_first() {
+        let check_box = |checked: bool| {
+            let mut node = at(
+                node(60, Some(10), "check box", "Selecionar"),
+                0,
+                2000,
+                20,
+                20,
+            );
+            if checked {
+                node.states = vec!["checked".into()];
+            }
+            node
+        };
+        let before = page_view(&browser(vec![check_box(false)]), ViewOptions::default());
+        let mut page: Vec<AccessibilityNode> = (0..41)
             .map(|row| {
                 at(
                     node(100 + row, Some(10), "row", &format!("r{row}")),
@@ -1586,15 +1672,35 @@ mod tests {
                 )
             })
             .collect();
-        let after = page_view(&browser(rows), ViewOptions::default());
-        let report = change_report(&before, &after);
-        assert!(
-            report.starts_with("page changed (41 added, 0 removed); current outline:\n"),
-            "{report}"
+        page.push(at(
+            node(200, Some(10), "status bar", "Pedido arquivado"),
+            0,
+            700,
+            300,
+            20,
+        ));
+        page.push(check_box(true));
+        let after = page_view(&browser(page), ViewOptions::default());
+        let report = change_report(&before, &after, &[60]);
+        let lines: Vec<&str> = report.lines().collect();
+        assert_eq!(lines[0], "changes (43; the 30 that matter most):");
+        // In their usual order: added, then changed.
+        assert_eq!(lines[1], "+ [100] row \"r0\" @0,100 10x10");
+        assert_eq!(lines[28], "+ [127] row \"r27\" @0,100 10x10");
+        assert_eq!(
+            lines[29],
+            "+ [200] status bar \"Pedido arquivado\" @0,700 300x20"
         );
-        assert!(report.contains("--- page ---\n[10] document web"));
-        assert!(report.contains("  [140] row \"r40\""));
-        assert!(!report.contains("\n+ "));
+        assert_eq!(
+            lines[30],
+            "~ [60] check box \"Selecionar\" (below) {checked}"
+        );
+        assert_eq!(
+            lines[31],
+            "… and 13 more changes (13 added); call get_app_state for the whole page"
+        );
+        assert!(!report.contains("[128] row"), "{report}");
+        assert!(!report.contains("--- page ---"), "{report}");
     }
 
     /// A mail list of `rows` rows 40 px tall from y=110, in a 700 px tall
@@ -1754,7 +1860,7 @@ mod tests {
         let before = page_view(&inbox(20, 110), ViewOptions::default());
         // Twenty rows appended below the fold are new.
         let after = page_view(&inbox(40, 110), ViewOptions::default());
-        let report = change_report(&before, &after);
+        let report = change_report(&before, &after, &[]);
         assert!(report.starts_with("changes (20):\n"), "{report}");
         assert!(
             report.contains("+ [139] list item \"Mensagem 039\" (below)\n"),
@@ -1771,7 +1877,7 @@ mod tests {
                 height: 690,
             });
         }
-        let report = change_report(&before, &page_view(&scrolled, ViewOptions::default()));
+        let report = change_report(&before, &page_view(&scrolled, ViewOptions::default()), &[]);
         assert_eq!(
             report,
             "changes (2):\n\
@@ -1780,13 +1886,13 @@ mod tests {
         );
         // A row left out for the budget is not gone.
         let big = page_view(&inbox(400, 110), ViewOptions::default());
-        assert!(change_report(&big, &big).starts_with("changes: none"));
+        assert!(change_report(&big, &big, &[]).starts_with("changes: none"));
         let mut fewer = big.clone();
         fewer.entries.retain(|entry| entry.id != 300);
         fewer.omitted.insert(300);
         let mut drawn_before = big;
         drawn_before.omitted.remove(&300);
-        assert_eq!(change_report(&drawn_before, &fewer), "changes: none\n");
+        assert_eq!(change_report(&drawn_before, &fewer, &[]), "changes: none\n");
     }
 
     fn disabled(mut node: AccessibilityNode) -> AccessibilityNode {
