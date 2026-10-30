@@ -1,0 +1,9 @@
+{"t": 1793335728.016954, "method": "initialize", "tool": null, "args": null, "ms": 22.6, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335728.0228245, "method": "tools/list", "tool": null, "args": null, "ms": 2.5, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335729.814844, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 296.8, "bytes": 12762, "images": 0, "is_error": false}
+{"t": 1793335731.259118, "method": "tools/call", "tool": "click", "args": {"element_index": 95, "observe": false}, "ms": 104.4, "bytes": 272, "images": 0, "is_error": false}
+{"t": 1793335731.6086385, "method": "tools/call", "tool": "click", "args": {"element_index": 251, "observe": false}, "ms": 104.5, "bytes": 276, "images": 0, "is_error": false}
+{"t": 1793335731.6731982, "method": "tools/call", "tool": "click", "args": {"element_index": 395, "observe": false}, "ms": 2.6, "bytes": 273, "images": 0, "is_error": false}
+{"t": 1793335733.197919, "method": "tools/call", "tool": "find_elements", "args": {"role": "check box", "states": ["checked"]}, "ms": 176.8, "bytes": 893, "images": 0, "is_error": false}
+{"t": 1793335734.6740544, "method": "tools/call", "tool": "click", "args": {"element_index": 54}, "ms": 377.9, "bytes": 969, "images": 0, "is_error": false}
+{"t": 1793335737.68608, "method": "tools/call", "tool": "click", "args": {"element_index": 475}, "ms": 1711.9, "bytes": 2235, "images": 0, "is_error": false}

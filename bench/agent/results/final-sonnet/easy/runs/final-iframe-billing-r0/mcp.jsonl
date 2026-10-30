@@ -1,0 +1,7 @@
+{"t": 1793335177.3740697, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335177.3803103, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335179.251902, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 216.6, "bytes": 4056, "images": 0, "is_error": false}
+{"t": 1793335181.1499689, "method": "tools/call", "tool": "set_value", "args": {"element_index": 56, "value": "30130-010"}, "ms": 473.1, "bytes": 449, "images": 0, "is_error": false}
+{"t": 1793335181.3679507, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab"}, "ms": 210.6, "bytes": 328, "images": 0, "is_error": false}
+{"t": 1793335184.0261075, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 59, "value": "Avenida Afonso Pena"}, {"element_index": 62, "value": "1500"}, {"element_index": 65, "value": "Belo Horizonte"}, {"element_index": 68, "value": "MG - Minas Gerais"}]}, "ms": 1115.9, "bytes": 1215, "images": 0, "is_error": false}
+{"t": 1793335185.539127, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 409.6, "bytes": 499, "images": 0, "is_error": false}

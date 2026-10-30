@@ -1,0 +1,40 @@
+{"t": 1793335789.1267822, "method": "initialize", "tool": null, "args": null, "ms": 22.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793335789.13413, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793335791.4374115, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 689.0, "bytes": 152341, "images": 1, "is_error": false}
+{"t": 1793335792.5463097, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 23.8, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793335792.902425, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "S\u00e3o Paulo"}, "ms": 23.4, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793335793.27007, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 23.4, "bytes": 763, "images": 0, "is_error": false}
+{"t": 1793335794.5907967, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 387}, "ms": 208.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335795.050489, "method": "tools/call", "tool": "type_text", "args": {"text": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 420.9, "bytes": 889, "images": 0, "is_error": false}
+{"t": 1793335795.2591686, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 463}, "ms": 203.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335795.5942693, "method": "tools/call", "tool": "type_text", "args": {"text": "S\u00e3o Paulo"}, "ms": 330.3, "bytes": 859, "images": 0, "is_error": false}
+{"t": 1793335795.8234046, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 568}, "ms": 224.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335796.5154054, "method": "tools/call", "tool": "type_text", "args": {"text": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 633.0, "bytes": 972, "images": 0, "is_error": false}
+{"t": 1793335796.5975301, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 76.5, "bytes": 71136, "images": 1, "is_error": false}
+{"t": 1793335799.0854313, "method": "tools/call", "tool": "press_key", "args": {"key": "ctrl+a"}, "ms": 197.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793335800.1014016, "method": "tools/call", "tool": "type_text", "args": {"text": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase", "title": "Cadastro de cliente"}, "ms": 702.9, "bytes": 1304, "images": 0, "is_error": false}
+{"t": 1793335800.19213, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 85.0, "bytes": 71136, "images": 1, "is_error": false}
+{"t": 1793335803.0609682, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 463}, "ms": 206.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335803.3158808, "method": "tools/call", "tool": "press_key", "args": {"key": "ctrl+a"}, "ms": 208.2, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793335803.6948392, "method": "tools/call", "tool": "type_text", "args": {"text": "S\u00e3"}, "ms": 301.4, "bytes": 846, "images": 0, "is_error": false}
+{"t": 1793335803.7622073, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 62.3, "bytes": 70336, "images": 1, "is_error": false}
+{"t": 1793335804.9357252, "method": "tools/call", "tool": "press_key", "args": {"key": "ctrl+shift+u"}, "ms": 206.3, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793335805.2696073, "method": "tools/call", "tool": "type_text", "args": {"text": "e3 "}, "ms": 292.9, "bytes": 846, "images": 0, "is_error": false}
+{"t": 1793335805.3512352, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 76.1, "bytes": 68784, "images": 1, "is_error": false}
+{"t": 1793335808.3702364, "method": "tools/call", "tool": "type_text", "args": {"text": "\u00e3"}, "ms": 281.7, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793335808.6521454, "method": "tools/call", "tool": "type_text", "args": {"text": "\u00e7"}, "ms": 276.2, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793335808.7234259, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 65.1, "bytes": 68228, "images": 1, "is_error": false}
+{"t": 1793335813.5934873, "method": "tools/call", "tool": "click", "args": {"x": 700, "y": 83}, "ms": 202.1, "bytes": 804, "images": 0, "is_error": false}
+{"t": 1793335817.2434914, "method": "tools/call", "tool": "type_text", "args": {"text": "javascript:(function(){var e=document.querySelectorAll('input,textarea'),v=['Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo','S\u00e3o Paulo','Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase'];for(var i=0;i<3;i++){e[i].value=v[i];e[i].dispatchEvent(new Event('input',{bubbles:true}));e[i].dispatchEvent(new Event('change',{bubbles:true}));}})()"}, "ms": 2384.1, "bytes": 1516, "images": 0, "is_error": false}
+{"t": 1793335817.4171546, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 165.1, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793335817.4938197, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 71.3, "bytes": 68628, "images": 1, "is_error": false}
+{"t": 1793335820.865626, "method": "tools/call", "tool": "click", "args": {"x": 700, "y": 83}, "ms": 201.6, "bytes": 804, "images": 0, "is_error": false}
+{"t": 1793335825.0669258, "method": "tools/call", "tool": "type_text", "args": {"text": "javascript:(function(){var e=document.querySelectorAll('input,textarea'),v=['Jo\\\\u00e3o Concei\\\\u00e7\\\\u00e3o Ara\\\\u00fajo','S\\\\u00e3o Paulo','Pre\\\\u00e7o: 1.234,56 \\\\u20ac \\\\u2014 \\\\u00f3timo! \\\\u00dcber fa\\\\u00e7ade \\\\ud83d\\\\ude00 a\\\\u00e7\\\\u00e3o \\\\u00eanfase'];for(var i=0;i<3;i++){e[i].value=v[i];e[i].dispatchEvent(new Event('input',{bubbles:true}));e[i].dispatchEvent(new Event('change',{bubbles:true}));}})()"}, "ms": 3003.5, "bytes": 1800, "images": 0, "is_error": false}
+{"t": 1793335825.2393522, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 166.7, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793335825.3242702, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 79.3, "bytes": 80180, "images": 1, "is_error": false}
+{"t": 1793335831.7175567, "method": "tools/call", "tool": "click", "args": {"x": 700, "y": 83}, "ms": 201.4, "bytes": 804, "images": 0, "is_error": false}
+{"t": 1793335834.979938, "method": "tools/call", "tool": "type_text", "args": {"text": "javascript:(function(){var e=document.querySelectorAll('input,textarea'),v=['Jo%C3%A3o Concei%C3%A7%C3%A3o Ara%C3%BAjo','S%C3%A3o Paulo','Pre%C3%A7o: 1.234,56 %E2%82%AC %E2%80%94 %C3%B3timo! %C3%9Cber fa%C3%A7ade %F0%9F%98%80 a%C3%A7%C3%A3o %C3%AAnfase'];for(var i=0;i<3;i++){e[i].value=decodeURIComponent(v[i]);e[i].dispatchEvent(new Event('input',{bubbles:true}));e[i].dispatchEvent(new Event('change',{bubbles:true}));}})()"}, "ms": 3087.8, "bytes": 1692, "images": 0, "is_error": false}
+{"t": 1793335835.15, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 164.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793335835.2172103, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 59.3, "bytes": 70152, "images": 1, "is_error": false}
+{"t": 1793335836.562374, "method": "tools/call", "tool": "click", "args": {"x": 712, "y": 648}, "ms": 199.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335836.6289523, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 61.3, "bytes": 71700, "images": 1, "is_error": false}

@@ -1,0 +1,45 @@
+{
+ "run_id": "final-async-autocomplete-r1",
+ "variant": "final",
+ "task": "async-autocomplete",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 25.03,
+ "agent_tool_calls": 7,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 8161.7,
+ "mcp_bytes_total": 137446,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "type_text",
+  "wait_for",
+  "screenshot",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 100169,
+  "cached": 96619,
+  "output": 659
+ },
+ "final": "I filled in the address form (CEP 88010-000, Rua Felipe Schmidt, Número 200, Cidade \"Florianópolis - SC\", picked from the suggestion list) and clicked \"Salvar endereço\". The click went through, but the page showed no confirmation message, so I can't confirm the save from the page.",
+ "state": {
+  "saved": {
+   "cep": "88010-000",
+   "street": "Rua Felipe Schmidt",
+   "number": "200",
+   "city": "Florianópolis",
+   "uf": "SC"
+  }
+ }
+}

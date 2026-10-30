@@ -1,0 +1,40 @@
+{
+ "run_id": "baseline-slow-page-r0",
+ "variant": "baseline",
+ "task": "slow-page",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 16.45,
+ "agent_tool_calls": 6,
+ "agent_tool_errors": 0,
+ "mcp_calls": 6,
+ "mcp_ms_total": 2474.7,
+ "mcp_bytes_total": 264301,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "screenshot",
+  "wait_for",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 136533,
+  "cached": 128035,
+  "output": 493
+ },
+ "final": "Gerei o relatório na página Relatórios e exportei só o de Março; a página mostrou a confirmação \"Relatório de Março exportado\".",
+ "state": {
+  "exported": [
+   "Março"
+  ]
+ }
+}

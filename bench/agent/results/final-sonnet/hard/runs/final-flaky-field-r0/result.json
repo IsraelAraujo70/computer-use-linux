@@ -1,0 +1,40 @@
+{
+ "run_id": "final-flaky-field-r0",
+ "variant": "final",
+ "task": "flaky-field",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 9.45,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1662.6,
+ "mcp_bytes_total": 3078,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 39107,
+  "cached": 36409,
+  "output": 329
+ },
+ "final": "Preenchi o formulário de Pagamento com os dados do cartão da MARIA S OLIVEIRA e cliquei em Pagar. A página mostrou \"Pagamento aprovado\".",
+ "state": {
+  "paid": {
+   "name": "MARIA S OLIVEIRA",
+   "card_digits": "4111111111111111",
+   "expiry": "12/28",
+   "cvv": "123"
+  }
+ }
+}

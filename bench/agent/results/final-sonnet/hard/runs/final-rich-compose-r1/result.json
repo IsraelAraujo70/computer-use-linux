@@ -1,0 +1,46 @@
+{
+ "run_id": "final-rich-compose-r1",
+ "variant": "final",
+ "task": "rich-compose",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 13.5,
+ "agent_tool_calls": 7,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 4099.4,
+ "mcp_bytes_total": 5564,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "type_text",
+  "press_key",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 70124,
+  "cached": 70114,
+  "output": 611
+ },
+ "final": "Enviei o e-mail para ana.souza@example.com com o assunto \"Relatório de outubro\" e o corpo de duas linhas (\"Olá, Ana!\" e \"Segue o relatório de outubro.\"). O app mostrou \"Mensagem enviada\".",
+ "state": {
+  "sent": {
+   "to": [
+    "ana.souza@example.com"
+   ],
+   "subject": "Relatório de outubro",
+   "body_text": "Olá, Ana!\nSegue o relatório de outubro.",
+   "body_html": "<div>Olá, Ana!</div><div>Segue o relatório de outubro.</div>"
+  }
+ }
+}

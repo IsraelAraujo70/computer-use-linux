@@ -1,0 +1,15 @@
+{"t": 1793335266.3115764, "method": "initialize", "tool": null, "args": null, "ms": 24.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793335266.322617, "method": "tools/list", "tool": null, "args": null, "ms": 6.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793335269.0237615, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 1155.2, "bytes": 368963, "images": 1, "is_error": false}
+{"t": 1793335271.528603, "method": "tools/call", "tool": "click", "args": {"element_index": 314}, "ms": 213.2, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793335271.7391706, "method": "tools/call", "tool": "click", "args": {"element_index": 392}, "ms": 203.6, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793335272.0235658, "method": "tools/call", "tool": "click", "args": {"element_index": 464}, "ms": 270.7, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793335273.9316938, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 5, "x": 950, "y": 700}, "ms": 392.1, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793335275.200671, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 83.1, "bytes": 174820, "images": 1, "is_error": false}
+{"t": 1793335276.8295674, "method": "tools/call", "tool": "click", "args": {"x": 457, "y": 921}, "ms": 201.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335277.7370734, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 10, "x": 950, "y": 600}, "ms": 696.4, "bytes": 699, "images": 0, "is_error": false}
+{"t": 1793335279.0234709, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 73.4, "bytes": 164073, "images": 1, "is_error": false}
+{"t": 1793335280.8448763, "method": "tools/call", "tool": "click", "args": {"x": 1380, "y": 286}, "ms": 200.4, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793335280.918713, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 68.1, "bytes": 162333, "images": 1, "is_error": false}
+{"t": 1793335282.6690714, "method": "tools/call", "tool": "click", "args": {"x": 1120, "y": 664}, "ms": 202.7, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793335282.7470157, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 72.4, "bytes": 163821, "images": 1, "is_error": false}

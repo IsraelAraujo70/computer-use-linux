@@ -1,0 +1,17 @@
+{"t": 1793335543.5568914, "method": "initialize", "tool": null, "args": null, "ms": 23.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793335543.5641575, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793335545.7435179, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 679.7, "bytes": 176773, "images": 1, "is_error": false}
+{"t": 1793335548.7271733, "method": "tools/call", "tool": "click", "args": {"x": 1881, "y": 195}, "ms": 206.3, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793335550.3688915, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 64.4, "bytes": 57870, "images": 1, "is_error": false}
+{"t": 1793335552.3228743, "method": "tools/call", "tool": "click", "args": {"x": 1742, "y": 279}, "ms": 201.0, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793335554.672142, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 76.6, "bytes": 89267, "images": 1, "is_error": false}
+{"t": 1793335556.859848, "method": "tools/call", "tool": "click", "args": {"x": 830, "y": 502}, "ms": 209.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335559.1719172, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 72.4, "bytes": 91931, "images": 1, "is_error": false}
+{"t": 1793335561.983415, "method": "tools/call", "tool": "click", "args": {"x": 715, "y": 673}, "ms": 204.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335562.7114244, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "Chrome", "role": "combo box"}, "ms": 552.0, "bytes": 456, "images": 0, "is_error": false}
+{"t": 1793335565.3003578, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 631}, "ms": 201.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335567.8705783, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 74.9, "bytes": 89312, "images": 1, "is_error": false}
+{"t": 1793335570.6764433, "method": "tools/call", "tool": "click", "args": {"x": 750, "y": 687}, "ms": 202.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335570.7536252, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 71.5, "bytes": 89736, "images": 1, "is_error": false}
+{"t": 1793335573.513757, "method": "tools/call", "tool": "click", "args": {"x": 1174, "y": 785}, "ms": 200.4, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793335573.5781162, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 59.5, "bytes": 55267, "images": 1, "is_error": false}

@@ -1,0 +1,43 @@
+{
+ "run_id": "baseline-virtual-list-r0",
+ "variant": "baseline",
+ "task": "virtual-list",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.56,
+ "agent_tool_calls": 9,
+ "agent_tool_errors": 0,
+ "mcp_calls": 9,
+ "mcp_ms_total": 5202.1,
+ "mcp_bytes_total": 851613,
+ "screenshots": 3,
+ "tools_used": [
+  "find_elements",
+  "get_app_state",
+  "scroll",
+  "find_elements",
+  "screenshot",
+  "scroll",
+  "find_elements",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 206184,
+  "cached": 188870,
+  "output": 963
+ },
+ "final": "I archived order #1377 using its \"Arquivar pedido #1377\" button. The page confirmed it with the message \"Pedido #1377 arquivado\", and the count dropped from 2.000 to 1.999. I didn't archive any other order.",
+ "state": {
+  "archived": [
+   "1377"
+  ]
+ }
+}

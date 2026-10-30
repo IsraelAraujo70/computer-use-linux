@@ -1,0 +1,19 @@
+{"t": 1793338497.3833005, "method": "initialize", "tool": null, "args": null, "ms": 22.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338497.3897972, "method": "tools/list", "tool": null, "args": null, "ms": 6.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338505.8390079, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 283.9, "bytes": 496407, "images": 1, "is_error": false}
+{"t": 1793338508.7221842, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 278.7, "bytes": 496591, "images": 1, "is_error": false}
+{"t": 1793338511.925091, "method": "tools/call", "tool": "click", "args": {"x": 447, "y": 194}, "ms": 211.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338512.2606878, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 334.2, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793338514.7994483, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 287.5, "bytes": 486159, "images": 1, "is_error": false}
+{"t": 1793338520.443955, "method": "tools/call", "tool": "press_key", "args": {"key": "ENTER"}, "ms": 158.9, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793338525.9358988, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 283.8, "bytes": 485223, "images": 1, "is_error": false}
+{"t": 1793338531.194711, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 283.3, "bytes": 485223, "images": 1, "is_error": false}
+{"t": 1793338534.9202256, "method": "tools/call", "tool": "click", "args": {"x": 284, "y": 419}, "ms": 207.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338535.0692003, "method": "tools/call", "tool": "scroll", "args": {"x": 1500, "y": 900, "direction": "down", "amount": 655}, "ms": 147.6, "bytes": 706, "images": 0, "is_error": false}
+{"t": 1793338537.1001902, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 287.9, "bytes": 488760, "images": 1, "is_error": false}
+{"t": 1793338543.5226536, "method": "tools/call", "tool": "click", "args": {"x": 284, "y": 760}, "ms": 203.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338543.7241967, "method": "tools/call", "tool": "click", "args": {"x": 464, "y": 253}, "ms": 200.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338545.6838262, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 279.2, "bytes": 484952, "images": 1, "is_error": false}
+{"t": 1793338548.543944, "method": "tools/call", "tool": "click", "args": {"x": 426, "y": 299}, "ms": 208.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338548.747624, "method": "tools/call", "tool": "click", "args": {"x": 463, "y": 460}, "ms": 202.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338550.7051392, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 272.5, "bytes": 495144, "images": 1, "is_error": false}

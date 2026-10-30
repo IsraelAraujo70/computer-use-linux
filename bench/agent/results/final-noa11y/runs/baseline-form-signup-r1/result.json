@@ -1,0 +1,63 @@
+{
+ "run_id": "baseline-form-signup-r1",
+ "variant": "baseline",
+ "task": "form-signup",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 45.84,
+ "agent_tool_calls": 24,
+ "agent_tool_errors": 0,
+ "mcp_calls": 24,
+ "mcp_ms_total": 5612.2,
+ "mcp_bytes_total": 1028796,
+ "screenshots": 7,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "get_app_state",
+  "press_key",
+  "press_key",
+  "click",
+  "click",
+  "get_app_state",
+  "click",
+  "press_key",
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 499980,
+  "cached": 455168,
+  "output": 855
+ },
+ "final": "Created Joana Ribeiro’s account with the Pro plan.",
+ "state": {
+  "submitted": {
+   "name": "Joana Ribeiro",
+   "email": "joana.ribeiro@example.com",
+   "phone": "(31) 98765-4321",
+   "state": "Minas Gerais",
+   "plan": "Pro",
+   "terms": true
+  }
+ }
+}

@@ -1,0 +1,18 @@
+{"t": 1793340707.6687431, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793340707.6711102, "method": "tools/list", "tool": null, "args": null, "ms": 2.0, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793340716.1714838, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 146.0, "bytes": 165292, "images": 1, "is_error": false}
+{"t": 1793340717.8181856, "method": "tools/call", "tool": "ocr", "args": {}, "ms": 42.0, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793340720.7601986, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 44.9, "bytes": 164915, "images": 1, "is_error": false}
+{"t": 1793340724.5930927, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 460}, "ms": 261.6, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340724.8202963, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010"}, "ms": 225.8, "bytes": 205, "images": 0, "is_error": false}
+{"t": 1793340725.0819235, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 535}, "ms": 260.3, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340725.464775, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena"}, "ms": 381.4, "bytes": 205, "images": 0, "is_error": false}
+{"t": 1793340725.7261236, "method": "tools/call", "tool": "click", "args": {"x": 416, "y": 624}, "ms": 260.2, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340725.9180386, "method": "tools/call", "tool": "type_text", "args": {"text": "1500"}, "ms": 190.6, "bytes": 206, "images": 0, "is_error": false}
+{"t": 1793340726.1767547, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 624}, "ms": 257.5, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340726.4353373, "method": "tools/call", "tool": "type_text", "args": {"text": "Belo Horizonte"}, "ms": 257.3, "bytes": 206, "images": 0, "is_error": false}
+{"t": 1793340726.696525, "method": "tools/call", "tool": "click", "args": {"x": 1040, "y": 624}, "ms": 259.8, "bytes": 167, "images": 0, "is_error": false}
+{"t": 1793340730.573865, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 42.0, "bytes": 210548, "images": 1, "is_error": false}
+{"t": 1793340734.3920224, "method": "tools/call", "tool": "click", "args": {"x": 1020, "y": 487}, "ms": 259.9, "bytes": 150, "images": 0, "is_error": false}
+{"t": 1793340734.6537216, "method": "tools/call", "tool": "click", "args": {"x": 448, "y": 686}, "ms": 260.4, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340737.141289, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 38.0, "bytes": 165928, "images": 1, "is_error": false}

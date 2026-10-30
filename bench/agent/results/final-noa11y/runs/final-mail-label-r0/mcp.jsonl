@@ -1,0 +1,21 @@
+{"t": 1793338445.394848, "method": "initialize", "tool": null, "args": null, "ms": 23.2, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793338445.3964674, "method": "tools/list", "tool": null, "args": null, "ms": 1.2, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793338452.1670735, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 149.0, "bytes": 493880, "images": 1, "is_error": false}
+{"t": 1793338455.0815053, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 44.6, "bytes": 493483, "images": 1, "is_error": false}
+{"t": 1793338459.7661562, "method": "tools/call", "tool": "click", "args": {"x": 455, "y": 195}, "ms": 262.0, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793338460.0154116, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 247.8, "bytes": 205, "images": 0, "is_error": false}
+{"t": 1793338460.1895435, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 172.8, "bytes": 134, "images": 0, "is_error": false}
+{"t": 1793338462.1519651, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 37.1, "bytes": 485699, "images": 1, "is_error": false}
+{"t": 1793338470.883729, "method": "tools/call", "tool": "wait_for", "args": {"timeout_ms": 3000}, "ms": 3233.0, "bytes": 337, "images": 0, "is_error": false}
+{"t": 1793338470.925089, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 39.8, "bytes": 482139, "images": 1, "is_error": false}
+{"t": 1793338475.855428, "method": "tools/call", "tool": "click", "args": {"x": 284, "y": 419}, "ms": 261.3, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793338476.137706, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 1400, "y": 850}, "ms": 281.0, "bytes": 157, "images": 0, "is_error": false}
+{"t": 1793338476.1806407, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 41.6, "bytes": 485672, "images": 1, "is_error": false}
+{"t": 1793338479.6866384, "method": "tools/call", "tool": "click", "args": {"x": 284, "y": 762}, "ms": 261.9, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793338479.947628, "method": "tools/call", "tool": "click", "args": {"x": 467, "y": 253}, "ms": 259.5, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793338479.9844518, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 35.3, "bytes": 481844, "images": 1, "is_error": false}
+{"t": 1793338483.401105, "method": "tools/call", "tool": "click", "args": {"x": 426, "y": 299}, "ms": 259.7, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793338483.6618714, "method": "tools/call", "tool": "click", "args": {"x": 460, "y": 459}, "ms": 259.5, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793338483.701157, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 38.0, "bytes": 492036, "images": 1, "is_error": false}
+{"t": 1793338487.1177876, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 2, "x": 1400, "y": 500}, "ms": 282.8, "bytes": 155, "images": 0, "is_error": false}
+{"t": 1793338487.155462, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 36.4, "bytes": 485888, "images": 1, "is_error": false}

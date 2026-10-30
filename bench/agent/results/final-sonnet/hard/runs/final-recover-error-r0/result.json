@@ -1,0 +1,41 @@
+{
+ "run_id": "final-recover-error-r0",
+ "variant": "final",
+ "task": "recover-error",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 10.89,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2650.4,
+ "mcp_bytes_total": 3716,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 66126,
+  "cached": 63178,
+  "output": 421
+ },
+ "final": "I changed Telefone to (11) 91234-5678 and saved it. The first save failed with \"Não foi possível salvar\", so I clicked \"Salvar alterações\" again. The page then showed \"Alterações salvas\", with the other fields unchanged.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

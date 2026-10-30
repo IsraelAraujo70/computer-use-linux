@@ -1,0 +1,52 @@
+{
+ "run_id": "final-calendar-event-r0",
+ "variant": "final",
+ "task": "calendar-event",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.87,
+ "agent_tool_calls": 13,
+ "agent_tool_errors": 0,
+ "mcp_calls": 13,
+ "mcp_ms_total": 3708.7,
+ "mcp_bytes_total": 156287,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "type_text",
+  "set_value",
+  "click",
+  "click",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 213066,
+  "cached": 201555,
+  "output": 1132
+ },
+ "final": "I created and saved the event \"Dentista\" for November 18, 2026 at 14:30 (the end time defaulted to 15:30). After saving, I didn't re-open the November view to check that it appears on the 18th.",
+ "state": {
+  "events": [
+   {
+    "title": "Dentista",
+    "date": "2026-11-18",
+    "start": "14:30",
+    "end": "15:30"
+   }
+  ]
+ }
+}

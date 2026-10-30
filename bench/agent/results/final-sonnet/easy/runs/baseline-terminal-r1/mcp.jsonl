@@ -1,0 +1,5 @@
+{"t": 1793335766.519989, "method": "initialize", "tool": null, "args": null, "ms": 22.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793335766.5281093, "method": "tools/list", "tool": null, "args": null, "ms": 4.4, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793335768.3986812, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Alacritty", "include_screenshot": false}, "ms": 236.3, "bytes": 2589, "images": 0, "is_error": false}
+{"t": 1793335771.2856727, "method": "tools/call", "tool": "type_text", "args": {"text": "mkdir -p /tmp/agent-cu-bench/term && echo 'ola mundo 42' > /tmp/agent-cu-bench/term/nota.txt && cat /tmp/agent-cu-bench/term/nota.txt\n", "wm_class": "Alacritty"}, "ms": 1249.7, "bytes": 1454, "images": 0, "is_error": false}
+{"t": 1793335771.8101778, "method": "tools/call", "tool": "screenshot", "args": {"wm_class": "Alacritty", "scale": 0.5}, "ms": 517.2, "bytes": 51237, "images": 1, "is_error": false}

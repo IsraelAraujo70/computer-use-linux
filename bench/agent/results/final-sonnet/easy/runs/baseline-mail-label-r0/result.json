@@ -1,0 +1,56 @@
+{
+ "run_id": "baseline-mail-label-r0",
+ "variant": "baseline",
+ "task": "mail-label",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 28.18,
+ "agent_tool_calls": 17,
+ "agent_tool_errors": 0,
+ "mcp_calls": 16,
+ "mcp_ms_total": 3660.5,
+ "mcp_bytes_total": 1622578,
+ "screenshots": 5,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "press_key",
+  "scroll",
+  "screenshot",
+  "click",
+  "scroll",
+  "click",
+  "screenshot",
+  "click",
+  "click",
+  "screenshot",
+  "scroll",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 416657,
+  "cached": 393074,
+  "output": 1504
+ },
+ "final": "I applied the Financeiro label to both Banco Aurora emails, \"Sua fatura de outubro chegou\" and \"Comprovante de transferência\". Both now show the label in the list. I didn't label any other email and didn't archive anything.",
+ "state": {
+  "labels": {
+   "l4": [
+    "Financeiro"
+   ],
+   "l23": [
+    "Financeiro"
+   ]
+  },
+  "archived": []
+ }
+}

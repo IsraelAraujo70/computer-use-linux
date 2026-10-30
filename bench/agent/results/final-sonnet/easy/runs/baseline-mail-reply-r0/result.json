@@ -1,0 +1,49 @@
+{
+ "run_id": "baseline-mail-reply-r0",
+ "variant": "baseline",
+ "task": "mail-reply",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 18.76,
+ "agent_tool_calls": 10,
+ "agent_tool_errors": 0,
+ "mcp_calls": 10,
+ "mcp_ms_total": 3732.7,
+ "mcp_bytes_total": 469072,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "find_elements",
+  "click",
+  "screenshot",
+  "click",
+  "type_text",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 267486,
+  "cached": 237189,
+  "output": 795
+ },
+ "final": "I replied to Marina Costa's \"Contrato de locação - assinatura\" email with \"Recebido, obrigado.\" and sent it. The app showed \"Mensagem enviada\" afterward.",
+ "state": {
+  "sent": [
+   {
+    "in_reply_to": "m7",
+    "to": "marina.costa@example.com",
+    "body": "Recebido, obrigado."
+   }
+  ],
+  "archived": []
+ }
+}

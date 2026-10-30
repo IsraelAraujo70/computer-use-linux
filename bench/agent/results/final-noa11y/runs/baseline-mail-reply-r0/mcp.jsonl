@@ -1,0 +1,12 @@
+{"t": 1793338365.1741223, "method": "initialize", "tool": null, "args": null, "ms": 23.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338365.1817718, "method": "tools/list", "tool": null, "args": null, "ms": 6.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338372.9287107, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 284.0, "bytes": 472967, "images": 1, "is_error": false}
+{"t": 1793338375.5572338, "method": "tools/call", "tool": "click", "args": {"x": 659, "y": 543}, "ms": 211.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338377.2048247, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 277.6, "bytes": 194971, "images": 1, "is_error": false}
+{"t": 1793338379.1520054, "method": "tools/call", "tool": "click", "args": {"x": 392, "y": 563}, "ms": 220.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338379.2332025, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.3, "bytes": 1293, "images": 0, "is_error": false}
+{"t": 1793338381.4090858, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 474.3, "bytes": 203411, "images": 1, "is_error": false}
+{"t": 1793338384.4451485, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388610, "text": "Recebido, obrigado."}, "ms": 436.7, "bytes": 1271, "images": 0, "is_error": false}
+{"t": 1793338387.427574, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 461.1, "bytes": 207343, "images": 1, "is_error": false}
+{"t": 1793338390.779339, "method": "tools/call", "tool": "click", "args": {"x": 388, "y": 850}, "ms": 205.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338393.2010915, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 466.9, "bytes": 464188, "images": 1, "is_error": false}

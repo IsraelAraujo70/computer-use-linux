@@ -10,3 +10,6 @@ date	variant	change	binary_commit	runs	success_rate	tasks_per_min	mean_wall_s	me
 2026-10-29	v6 (easy check, FINAL conditions)	+off-screen content within budget, document-only settle reads, infinite-list scroll until	380c79f	30	1.00	2.577	23	6.7	0.2	195	interleaved vs baseline (0.97, 1.241): 2.08x
 2026-10-30	FINAL v8 (easy, Terra, final conditions)	v6 + target echo, compact reports, chip hint, delivery evidence, review-2 fixes	e0d2cda	30	1.00	2.619	23	5.3	0.2	204	interleaved vs baseline (1.00, 1.266): 2.07x, bar met
 2026-10-30	FINAL v8 (hard, Terra, final conditions)	same	e0d2cda	36	1.00	2.515	24	5.2	0.0	196	interleaved vs baseline (0.69, 1.100): +31pp, 2.29x, bar met; virtual-list median 61s vs 31s baseline
+2026-10-30	FINAL v8 (easy, Sonnet 5.5)	same binary	e0d2cda	20	1.00	4.638	13	6.0	0.3	96	interleaved vs baseline (1.00, 2.040): 2.27x
+2026-10-30	FINAL v8 (hard, Sonnet 5.5)	same binary	e0d2cda	24	1.00	3.769	16	4.7	0.1	65	interleaved vs baseline (0.75, 1.853): +25pp, 2.03x
+2026-10-30	FINAL v8 (easy, Terra, bots flags WITHOUT a11y)	same binary	e0d2cda	20	1.00	1.464	41	16.2	6.5	598	vs baseline (1.00, 1.419): 1.03x -> gain needs --force-renderer-accessibility

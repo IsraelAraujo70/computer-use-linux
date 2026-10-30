@@ -1,0 +1,62 @@
+{
+ "run_id": "baseline-flaky-field-r0",
+ "variant": "baseline",
+ "task": "flaky-field",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.86,
+ "agent_tool_calls": 25,
+ "agent_tool_errors": 0,
+ "mcp_calls": 25,
+ "mcp_ms_total": 5782.3,
+ "mcp_bytes_total": 687715,
+ "screenshots": 7,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "screenshot",
+  "set_value",
+  "click",
+  "type_text",
+  "screenshot",
+  "click",
+  "press_key",
+  "type_text",
+  "screenshot",
+  "click",
+  "screenshot",
+  "press_key",
+  "type_text",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 209978,
+  "cached": 191098,
+  "output": 1827
+ },
+ "final": "Preenchi o cartão (MARIA S OLIVEIRA, 4111 1111 1111 1111, 12/28, CVV 123) e cliquei em Pagar; a página mostrou \"Pagamento aprovado\". O Chrome também abriu um aviso \"Save card?\", que não respondi.",
+ "state": {
+  "paid": {
+   "name": "MARIA S OLIVEIRA",
+   "card_digits": "4111111111111111",
+   "expiry": "12/28",
+   "cvv": "123"
+  }
+ }
+}

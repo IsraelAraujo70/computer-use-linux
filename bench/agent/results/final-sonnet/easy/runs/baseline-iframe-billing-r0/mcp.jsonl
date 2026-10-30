@@ -1,0 +1,12 @@
+{"t": 1793335158.0880926, "method": "initialize", "tool": null, "args": null, "ms": 22.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793335158.0961938, "method": "tools/list", "tool": null, "args": null, "ms": 4.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793335160.3011181, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 713.2, "bytes": 189950, "images": 1, "is_error": false}
+{"t": 1793335162.7872705, "method": "tools/call", "tool": "click", "args": {"x": 773, "y": 461}, "ms": 209.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335163.1512508, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010"}, "ms": 342.0, "bytes": 857, "images": 0, "is_error": false}
+{"t": 1793335163.3583956, "method": "tools/call", "tool": "click", "args": {"x": 773, "y": 536}, "ms": 201.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335164.793099, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 63.7, "bytes": 59458, "images": 1, "is_error": false}
+{"t": 1793335166.9239526, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena\t1500\tBelo Horizonte\t"}, "ms": 534.4, "bytes": 928, "images": 0, "is_error": false}
+{"t": 1793335167.2111719, "method": "tools/call", "tool": "type_text", "args": {"text": "MG"}, "ms": 281.4, "bytes": 843, "images": 0, "is_error": false}
+{"t": 1793335168.7757466, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 76.0, "bytes": 63514, "images": 1, "is_error": false}
+{"t": 1793335170.4409091, "method": "tools/call", "tool": "click", "args": {"x": 449, "y": 685}, "ms": 206.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335170.5148394, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 68.7, "bytes": 65287, "images": 1, "is_error": false}

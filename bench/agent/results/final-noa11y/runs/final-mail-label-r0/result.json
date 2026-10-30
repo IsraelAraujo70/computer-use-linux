@@ -1,0 +1,59 @@
+{
+ "run_id": "final-mail-label-r0",
+ "variant": "final",
+ "task": "mail-label",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 48.43,
+ "agent_tool_calls": 19,
+ "agent_tool_errors": 0,
+ "mcp_calls": 19,
+ "mcp_ms_total": 6203.1,
+ "mcp_bytes_total": 3902450,
+ "screenshots": 8,
+ "tools_used": [
+  "get_app_state",
+  "screenshot",
+  "click",
+  "type_text",
+  "press_key",
+  "screenshot",
+  "wait_for",
+  "screenshot",
+  "click",
+  "scroll",
+  "screenshot",
+  "click",
+  "click",
+  "screenshot",
+  "click",
+  "click",
+  "screenshot",
+  "scroll",
+  "screenshot"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 554585,
+  "cached": 472448,
+  "output": 749
+ },
+ "final": "Apliquei a etiqueta Financeiro aos dois e-mails do Banco Aurora, sem arquivar nada.",
+ "state": {
+  "labels": {
+   "l4": [
+    "Financeiro"
+   ],
+   "l23": [
+    "Financeiro"
+   ]
+  },
+  "archived": []
+ }
+}

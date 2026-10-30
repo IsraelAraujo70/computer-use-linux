@@ -1,0 +1,28 @@
+{"t": 1793338158.1109734, "method": "initialize", "tool": null, "args": null, "ms": 23.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338158.1182659, "method": "tools/list", "tool": null, "args": null, "ms": 3.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338160.247227, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 639.9, "bytes": 166031, "images": 1, "is_error": false}
+{"t": 1793338161.3625174, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 207.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338162.3225145, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 66.0, "bytes": 51978, "images": 1, "is_error": false}
+{"t": 1793338163.6564193, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 200.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338163.7193477, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 57.9, "bytes": 51978, "images": 1, "is_error": false}
+{"t": 1793338164.6584432, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 80.8, "bytes": 1279, "images": 0, "is_error": false}
+{"t": 1793338165.867763, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 96}, "ms": 24.3, "bytes": 581, "images": 0, "is_error": false}
+{"t": 1793338166.0824165, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 66.1, "bytes": 51978, "images": 1, "is_error": false}
+{"t": 1793338166.966381, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 80.1, "bytes": 1280, "images": 0, "is_error": false}
+{"t": 1793338168.6847615, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome", "include_screenshot": false, "max_nodes": 300}, "ms": 322.1, "bytes": 13162, "images": 0, "is_error": false}
+{"t": 1793338170.0781343, "method": "tools/call", "tool": "press_key", "args": {"key": "space"}, "ms": 193.7, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793338170.1609633, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 77.4, "bytes": 1280, "images": 0, "is_error": false}
+{"t": 1793338171.0524437, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 68.1, "bytes": 52139, "images": 1, "is_error": false}
+{"t": 1793338172.947954, "method": "tools/call", "tool": "list_apps", "args": {}, "ms": 32.0, "bytes": 69832, "images": 0, "is_error": false}
+{"t": 1793338176.3165452, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Chrome", "role": "dialog", "timeout_ms": 3000}, "ms": 3455.8, "bytes": 338, "images": 0, "is_error": false}
+{"t": 1793338177.9677835, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 206.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338182.7770798, "method": "tools/call", "tool": "wait_for", "args": {"condition": "changed", "timeout_ms": 4000}, "ms": 4741.3, "bytes": 338, "images": 0, "is_error": false}
+{"t": 1793338183.8144505, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4, "full_screen": true}, "ms": 69.1, "bytes": 50355, "images": 1, "is_error": false}
+{"t": 1793338185.0645485, "method": "tools/call", "tool": "set_value", "args": {"name": "Comprovante: No file chosen", "value": "/tmp/agent-cu-bench/files/comprovante-outubro.pdf"}, "ms": 25.2, "bytes": 786, "images": 0, "is_error": false}
+{"t": 1793338186.2230513, "method": "tools/call", "tool": "focused_window", "args": {}, "ms": 80.9, "bytes": 1160, "images": 0, "is_error": false}
+{"t": 1793338187.7962039, "method": "tools/call", "tool": "click", "args": {"x": 1000, "y": 413}, "ms": 207.3, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793338187.8800328, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 78.5, "bytes": 1280, "images": 0, "is_error": false}
+{"t": 1793338189.1562662, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 66.9, "bytes": 50427, "images": 1, "is_error": false}
+{"t": 1793338190.9896526, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 189.9, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793338191.9436421, "method": "tools/call", "tool": "wait_for", "args": {"condition": "changed", "timeout_ms": 6000, "title": "Open"}, "ms": 653.7, "bytes": 392, "images": 0, "is_error": false}
+{"t": 1793338192.7633321, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 78.8, "bytes": 1280, "images": 0, "is_error": false}

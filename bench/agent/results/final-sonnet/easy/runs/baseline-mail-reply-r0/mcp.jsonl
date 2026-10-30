@@ -1,0 +1,12 @@
+{"t": 1793334813.2322838, "method": "initialize", "tool": null, "args": null, "ms": 24.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793334813.2412245, "method": "tools/list", "tool": null, "args": null, "ms": 5.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793334815.9741392, "method": "tools/call", "tool": "get_app_state", "args": {"wm_class": "chrome"}, "ms": 944.1, "bytes": 52428, "images": 0, "is_error": false}
+{"t": 1793334817.6786022, "method": "tools/call", "tool": "click", "args": {"element_index": 118}, "ms": 24.3, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793334819.8608365, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "name": "Responder"}, "ms": 397.8, "bytes": 453, "images": 0, "is_error": false}
+{"t": 1793334821.2895517, "method": "tools/call", "tool": "click", "args": {"element_index": 92}, "ms": 24.3, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793334823.4776173, "method": "tools/call", "tool": "screenshot", "args": {"title": "Correio", "scale": 0.5}, "ms": 520.5, "bytes": 114056, "images": 1, "is_error": false}
+{"t": 1793334824.8326623, "method": "tools/call", "tool": "click", "args": {"x": 1080, "y": 730}, "ms": 200.0, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793334825.237029, "method": "tools/call", "tool": "type_text", "args": {"text": "Recebido, obrigado."}, "ms": 399.8, "bytes": 877, "images": 0, "is_error": false}
+{"t": 1793334826.6156275, "method": "tools/call", "tool": "screenshot", "args": {"title": "Correio", "scale": 0.5}, "ms": 511.6, "bytes": 110220, "images": 1, "is_error": false}
+{"t": 1793334827.6941953, "method": "tools/call", "tool": "click", "args": {"x": 387, "y": 851}, "ms": 199.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793334829.0679018, "method": "tools/call", "tool": "screenshot", "args": {"title": "Correio", "scale": 0.4}, "ms": 510.4, "bytes": 187653, "images": 1, "is_error": false}

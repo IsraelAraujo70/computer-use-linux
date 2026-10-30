@@ -1,0 +1,55 @@
+{
+ "run_id": "baseline-mail-label-r1",
+ "variant": "baseline",
+ "task": "mail-label",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.51,
+ "agent_tool_calls": 16,
+ "agent_tool_errors": 0,
+ "mcp_calls": 15,
+ "mcp_ms_total": 3435.0,
+ "mcp_bytes_total": 1626782,
+ "screenshots": 5,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "screenshot",
+  "press_key",
+  "scroll",
+  "screenshot",
+  "click",
+  "click",
+  "click",
+  "screenshot",
+  "click",
+  "scroll",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 310671,
+  "cached": 304447,
+  "output": 1279
+ },
+ "final": "Both Banco Aurora emails (\"Sua fatura de outubro chegou\" and \"Comprovante de transferência\") now have the label Financeiro, and nothing was archived. I saw the label on the first email in the list. I didn't scroll back down to check the second one, but the app confirmed with \"Marcadores aplicados\".",
+ "state": {
+  "labels": {
+   "l4": [
+    "Financeiro"
+   ],
+   "l23": [
+    "Financeiro"
+   ]
+  },
+  "archived": []
+ }
+}

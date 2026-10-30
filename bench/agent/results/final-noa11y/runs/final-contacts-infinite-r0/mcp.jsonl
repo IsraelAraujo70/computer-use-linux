@@ -1,0 +1,15 @@
+{"t": 1793338823.0863647, "method": "initialize", "tool": null, "args": null, "ms": 23.8, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793338823.0885072, "method": "tools/list", "tool": null, "args": null, "ms": 1.7, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793338835.3542845, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 146.6, "bytes": 308928, "images": 1, "is_error": false}
+{"t": 1793338838.7381456, "method": "tools/call", "tool": "ocr", "args": {}, "ms": 43.6, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793338841.391549, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 38.8, "bytes": 305051, "images": 1, "is_error": false}
+{"t": 1793338849.2968104, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+f"}, "ms": 186.1, "bytes": 135, "images": 0, "is_error": false}
+{"t": 1793338849.5001707, "method": "tools/call", "tool": "type_text", "args": {"text": "Val\u00e9ria Nunes"}, "ms": 202.0, "bytes": 218, "images": 0, "is_error": false}
+{"t": 1793338849.5369227, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 35.1, "bytes": 301207, "images": 1, "is_error": false}
+{"t": 1793338853.120939, "method": "tools/call", "tool": "press_key", "args": {"key": "Escape"}, "ms": 173.5, "bytes": 135, "images": 0, "is_error": false}
+{"t": 1793338855.1071992, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 30, "x": 1200, "y": 800}, "ms": 1984.9, "bytes": 157, "images": 0, "is_error": false}
+{"t": 1793338855.1506815, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 42.1, "bytes": 300108, "images": 1, "is_error": false}
+{"t": 1793338860.3617747, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 35, "x": 1200, "y": 800}, "ms": 2292.7, "bytes": 158, "images": 0, "is_error": false}
+{"t": 1793338860.405696, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 42.8, "bytes": 294164, "images": 1, "is_error": false}
+{"t": 1793338864.3013704, "method": "tools/call", "tool": "click", "args": {"x": 1843, "y": 411}, "ms": 262.1, "bytes": 138, "images": 0, "is_error": false}
+{"t": 1793338864.340739, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 37.9, "bytes": 306348, "images": 1, "is_error": false}

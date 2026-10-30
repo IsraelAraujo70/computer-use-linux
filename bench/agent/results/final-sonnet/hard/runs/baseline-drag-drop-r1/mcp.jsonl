@@ -1,0 +1,14 @@
+{"t": 1793338131.0887985, "method": "initialize", "tool": null, "args": null, "ms": 22.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338131.0960996, "method": "tools/list", "tool": null, "args": null, "ms": 3.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338133.2983994, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 676.0, "bytes": 196643, "images": 1, "is_error": false}
+{"t": 1793338135.0118973, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 364, "end_x": 1580, "end_y": 560}, "ms": 85.4, "bytes": 465, "images": 0, "is_error": false}
+{"t": 1793338137.0905476, "method": "tools/call", "tool": "click", "args": {"x": 300, "y": 364}, "ms": 213.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338138.0676823, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 62.4, "bytes": 87919, "images": 1, "is_error": false}
+{"t": 1793338139.5902488, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 364, "end_x": 1580, "end_y": 560}, "ms": 79.8, "bytes": 465, "images": 0, "is_error": false}
+{"t": 1793338141.6519704, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Revisar contrato"}, "ms": 404.3, "bytes": 551, "images": 0, "is_error": false}
+{"t": 1793338142.5498774, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 82}, "ms": 25.4, "bytes": 589, "images": 0, "is_error": false}
+{"t": 1793338143.5738788, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 64.8, "bytes": 87919, "images": 1, "is_error": false}
+{"t": 1793338145.6241515, "method": "tools/call", "tool": "click", "args": {"x": 300, "y": 364, "button": "right"}, "ms": 203.1, "bytes": 814, "images": 0, "is_error": false}
+{"t": 1793338147.6987565, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 80.0, "bytes": 117748, "images": 1, "is_error": false}
+{"t": 1793338150.0464997, "method": "tools/call", "tool": "press_key", "args": {"key": "escape"}, "ms": 181.3, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793338150.348037, "method": "tools/call", "tool": "drag", "args": {"start_x": 200, "start_y": 360, "end_x": 1500, "end_y": 600}, "ms": 78.8, "bytes": 466, "images": 0, "is_error": false}

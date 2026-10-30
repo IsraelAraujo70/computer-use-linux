@@ -1,0 +1,63 @@
+{
+ "run_id": "baseline-accents-form-r1",
+ "variant": "baseline",
+ "task": "accents-form",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 40.87,
+ "agent_tool_calls": 27,
+ "agent_tool_errors": 0,
+ "mcp_calls": 27,
+ "mcp_ms_total": 13278.7,
+ "mcp_bytes_total": 659009,
+ "screenshots": 7,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "screenshot",
+  "type_text",
+  "screenshot",
+  "press_key",
+  "type_text",
+  "press_key",
+  "screenshot",
+  "press_key",
+  "press_key",
+  "type_text",
+  "screenshot",
+  "press_key",
+  "type_text",
+  "press_key",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 239116,
+  "cached": 226384,
+  "output": 3727
+ },
+ "final": "I filled in Nome completo, Cidade and Observações with the exact text and clicked Salvar, and the page showed \"Cliente salvo\".\n\nTyping the accented characters directly failed, because the input tool dropped them. I set the three field values with a short `javascript:` snippet in the address bar instead. It decoded the accents and symbols from percent-escapes, and the fields showed the right text before I saved.",
+ "state": {
+  "saved": {
+   "name": "João Conceição Araújo",
+   "city": "São Paulo",
+   "notes": "Preço: 1.234,56 € — ótimo! Über façade 😀 ação ênfase"
+  }
+ }
+}

@@ -1,0 +1,13 @@
+{"t": 1793337897.1016958, "method": "initialize", "tool": null, "args": null, "ms": 22.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793337897.110294, "method": "tools/list", "tool": null, "args": null, "ms": 4.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793337899.5337498, "method": "tools/call", "tool": "find_elements", "args": {"name": "Arquivar pedido #1377", "app_name_or_bundle_identifier": "chrome"}, "ms": 853.4, "bytes": 371, "images": 0, "is_error": false}
+{"t": 1793337901.6989377, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 1167.9, "bytes": 498662, "images": 1, "is_error": false}
+{"t": 1793337904.794838, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 16, "x": 1000, "y": 700}, "ms": 1066.4, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793337905.530793, "method": "tools/call", "tool": "find_elements", "args": {"role": "list item", "limit": 3, "app_name_or_bundle_identifier": "chrome"}, "ms": 728.5, "bytes": 1009, "images": 0, "is_error": false}
+{"t": 1793337908.6691492, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1.8, "x": 1000, "y": 700}, "ms": 202.2, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793337909.4863682, "method": "tools/call", "tool": "find_elements", "args": {"name": "Arquivar pedido #137", "app_name_or_bundle_identifier": "chrome"}, "ms": 698.7, "bytes": 371, "images": 0, "is_error": false}
+{"t": 1793337911.5348787, "method": "tools/call", "tool": "find_elements", "args": {"role": "list item", "limit": 2, "app_name_or_bundle_identifier": "chrome"}, "ms": 789.2, "bytes": 781, "images": 0, "is_error": false}
+{"t": 1793337914.1289692, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 7.2, "x": 1000, "y": 700}, "ms": 529.0, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793337914.8715549, "method": "tools/call", "tool": "find_elements", "args": {"name": "Arquivar pedido #1377", "app_name_or_bundle_identifier": "chrome"}, "ms": 736.7, "bytes": 474, "images": 0, "is_error": false}
+{"t": 1793337915.9790192, "method": "tools/call", "tool": "click", "args": {"element_index": 223}, "ms": 25.0, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793337916.233252, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 78.9, "bytes": 171788, "images": 1, "is_error": false}

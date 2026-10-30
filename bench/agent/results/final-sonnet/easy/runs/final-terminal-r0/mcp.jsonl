@@ -1,0 +1,5 @@
+{"t": 1793335305.1557047, "method": "initialize", "tool": null, "args": null, "ms": 23.1, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335305.16181, "method": "tools/list", "tool": null, "args": null, "ms": 2.4, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335308.3821945, "method": "tools/call", "tool": "type_text", "args": {"text": "mkdir -p /tmp/agent-cu-bench/term && echo \"ola mundo 42\" > /tmp/agent-cu-bench/term/nota.txt && cat /tmp/agent-cu-bench/term/nota.txt\n", "wm_class": "Alacritty"}, "ms": 1115.8, "bytes": 369, "images": 0, "is_error": false}
+{"t": 1793335309.4134603, "method": "tools/call", "tool": "ocr", "args": {"query": "ola"}, "ms": 40.0, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793335311.3659546, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 39.9, "bytes": 99961, "images": 1, "is_error": false}

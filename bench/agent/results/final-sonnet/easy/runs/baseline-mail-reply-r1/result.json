@@ -1,0 +1,49 @@
+{
+ "run_id": "baseline-mail-reply-r1",
+ "variant": "baseline",
+ "task": "mail-reply",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 18.86,
+ "agent_tool_calls": 10,
+ "agent_tool_errors": 0,
+ "mcp_calls": 10,
+ "mcp_ms_total": 2449.2,
+ "mcp_bytes_total": 1032183,
+ "screenshots": 5,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "type_text",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 262925,
+  "cached": 244654,
+  "output": 735
+ },
+ "final": "Respondi ao e-mail \"Contrato de locação - assinatura\", da Marina Costa, com \"Recebido, obrigado.\" e enviei. A tela mostrou \"Mensagem enviada\".",
+ "state": {
+  "sent": [
+   {
+    "in_reply_to": "m7",
+    "to": "marina.costa@example.com",
+    "body": "Recebido, obrigado."
+   }
+  ],
+  "archived": []
+ }
+}

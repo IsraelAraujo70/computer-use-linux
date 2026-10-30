@@ -1,0 +1,27 @@
+{
+ "variants": {
+  "baseline": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux",
+  "final": "/tmp/agent-cu-bench/bin/final/computer-use-linux"
+ },
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "suite": "hard",
+ "chrome_mode": "bots",
+ "tasks": [
+  "accents-form",
+  "rich-compose",
+  "flaky-field",
+  "virtual-list",
+  "modal-focus",
+  "slow-page",
+  "drag-drop",
+  "file-upload",
+  "multi-tab",
+  "xorigin-iframe",
+  "recover-error",
+  "async-autocomplete"
+ ],
+ "reps": 2,
+ "timeout": 300
+}

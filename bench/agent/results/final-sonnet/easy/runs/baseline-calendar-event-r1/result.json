@@ -1,0 +1,61 @@
+{
+ "run_id": "baseline-calendar-event-r1",
+ "variant": "baseline",
+ "task": "calendar-event",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.86,
+ "agent_tool_calls": 22,
+ "agent_tool_errors": 0,
+ "mcp_calls": 22,
+ "mcp_ms_total": 3770.1,
+ "mcp_bytes_total": 1198122,
+ "screenshots": 10,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "screenshot",
+  "type_text",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "type_text",
+  "screenshot",
+  "press_key",
+  "type_text",
+  "screenshot",
+  "press_key",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 405098,
+  "cached": 395359,
+  "output": 1514
+ },
+ "final": "Criei o evento \"Dentista\" em 18 de novembro de 2026, às 14:30, e salvei. Ele aparece no calendário e o app mostrou \"Evento salvo\".",
+ "state": {
+  "events": [
+   {
+    "title": "Dentista",
+    "date": "2026-11-18",
+    "start": "14:30",
+    "end": "15:30"
+   }
+  ]
+ }
+}

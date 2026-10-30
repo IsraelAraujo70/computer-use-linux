@@ -1,0 +1,10 @@
+{"t": 1793336103.2313585, "method": "initialize", "tool": null, "args": null, "ms": 23.5, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793336103.240737, "method": "tools/list", "tool": null, "args": null, "ms": 5.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793336105.430404, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 656.2, "bytes": 196643, "images": 1, "is_error": false}
+{"t": 1793336106.7645504, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 364, "end_x": 1587, "end_y": 560}, "ms": 84.4, "bytes": 465, "images": 0, "is_error": false}
+{"t": 1793336108.2547438, "method": "tools/call", "tool": "click", "args": {"x": 300, "y": 364}, "ms": 202.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336108.3284726, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 68.9, "bytes": 68054, "images": 1, "is_error": false}
+{"t": 1793336109.8942327, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab"}, "ms": 177.7, "bytes": 697, "images": 0, "is_error": false}
+{"t": 1793336109.9583364, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 57.4, "bytes": 64882, "images": 1, "is_error": false}
+{"t": 1793336112.45108, "method": "tools/call", "tool": "find_elements", "args": {"text": "Revisar contrato"}, "ms": 315.3, "bytes": 551, "images": 0, "is_error": false}
+{"t": 1793336114.1124003, "method": "tools/call", "tool": "drag", "args": {"start_x": 200, "start_y": 380, "end_x": 1500, "end_y": 580}, "ms": 79.4, "bytes": 465, "images": 0, "is_error": false}

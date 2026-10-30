@@ -1,0 +1,48 @@
+{
+ "run_id": "baseline-xorigin-iframe-r0",
+ "variant": "baseline",
+ "task": "xorigin-iframe",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 11.94,
+ "agent_tool_calls": 11,
+ "agent_tool_errors": 0,
+ "mcp_calls": 11,
+ "mcp_ms_total": 2911.4,
+ "mcp_bytes_total": 323784,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 111863,
+  "cached": 99390,
+  "output": 807
+ },
+ "final": "Fiz a transferência Pix de R$ 150,00 para maria@example.com com a descrição \"Aluguel\". Cliquei em Continuar e depois em Confirmar transferência, e a página mostrou \"Transferência realizada\". O saldo exibido continuou R$ 4.870,32.",
+ "state": {
+  "transfer": {
+   "key": "maria@example.com",
+   "amount": "150,00",
+   "description": "Aluguel",
+   "confirmed": true
+  }
+ }
+}

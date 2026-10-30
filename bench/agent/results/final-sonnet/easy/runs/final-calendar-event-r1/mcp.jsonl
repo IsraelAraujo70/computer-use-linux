@@ -1,0 +1,16 @@
+{"t": 1793335403.8506882, "method": "initialize", "tool": null, "args": null, "ms": 22.9, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335403.8564236, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335405.5787323, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 221.1, "bytes": 5589, "images": 0, "is_error": false}
+{"t": 1793335406.9684315, "method": "tools/call", "tool": "click", "args": {"element_index": 51}, "ms": 228.9, "bytes": 2230, "images": 0, "is_error": false}
+{"t": 1793335408.7739675, "method": "tools/call", "tool": "click", "args": {"x": 1060, "y": 610}, "ms": 330.6, "bytes": 344, "images": 0, "is_error": false}
+{"t": 1793335409.8960707, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 800}, "ms": 72.8, "bytes": 68434, "images": 1, "is_error": false}
+{"t": 1793335411.36921, "method": "tools/call", "tool": "click", "args": {"x": 1080, "y": 545}, "ms": 321.4, "bytes": 193, "images": 0, "is_error": false}
+{"t": 1793335412.2522857, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 800}, "ms": 63.0, "bytes": 68434, "images": 1, "is_error": false}
+{"t": 1793335414.3086207, "method": "tools/call", "tool": "click", "args": {"element_index": 57}, "ms": 233.3, "bytes": 1121, "images": 0, "is_error": false}
+{"t": 1793335415.587813, "method": "tools/call", "tool": "set_value", "args": {"element_index": 342, "value": "Dentista"}, "ms": 339.2, "bytes": 407, "images": 0, "is_error": false}
+{"t": 1793335416.3084333, "method": "tools/call", "tool": "set_value", "args": {"element_index": 348, "value": "14:30"}, "ms": 715.4, "bytes": 647, "images": 0, "is_error": false}
+{"t": 1793335416.572002, "method": "tools/call", "tool": "click", "args": {"element_index": 345}, "ms": 257.1, "bytes": 3377, "images": 0, "is_error": false}
+{"t": 1793335417.5485704, "method": "tools/call", "tool": "click", "args": {"element_index": 455}, "ms": 255.7, "bytes": 2843, "images": 0, "is_error": false}
+{"t": 1793335418.5081098, "method": "tools/call", "tool": "click", "args": {"element_index": 508}, "ms": 241.0, "bytes": 517, "images": 0, "is_error": false}
+{"t": 1793335419.8771937, "method": "tools/call", "tool": "click", "args": {"element_index": 353}, "ms": 235.0, "bytes": 2116, "images": 0, "is_error": false}
+{"t": 1793335420.7635255, "method": "tools/call", "tool": "find_elements", "args": {"text": "Dentista"}, "ms": 102.8, "bytes": 546, "images": 0, "is_error": false}

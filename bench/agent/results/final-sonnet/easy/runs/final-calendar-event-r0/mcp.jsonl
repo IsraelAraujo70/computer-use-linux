@@ -1,0 +1,15 @@
+{"t": 1793334975.5969706, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793334975.6018202, "method": "tools/list", "tool": null, "args": null, "ms": 1.5, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793334977.4323876, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 231.7, "bytes": 5589, "images": 0, "is_error": false}
+{"t": 1793334978.7084978, "method": "tools/call", "tool": "click", "args": {"element_index": 51}, "ms": 223.3, "bytes": 2230, "images": 0, "is_error": false}
+{"t": 1793334980.2912333, "method": "tools/call", "tool": "click", "args": {"x": 1070, "y": 610}, "ms": 327.0, "bytes": 344, "images": 0, "is_error": false}
+{"t": 1793334981.4660065, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 800}, "ms": 90.4, "bytes": 68434, "images": 1, "is_error": false}
+{"t": 1793334983.4821067, "method": "tools/call", "tool": "click", "args": {"x": 1070, "y": 560}, "ms": 327.4, "bytes": 193, "images": 0, "is_error": false}
+{"t": 1793334984.496791, "method": "tools/call", "tool": "screenshot", "args": {"max_width": 800}, "ms": 65.0, "bytes": 68434, "images": 1, "is_error": false}
+{"t": 1793334987.3870919, "method": "tools/call", "tool": "click", "args": {"element_index": 57}, "ms": 239.9, "bytes": 1121, "images": 0, "is_error": false}
+{"t": 1793334988.9749055, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista", "element_index": 342}, "ms": 422.9, "bytes": 442, "images": 0, "is_error": false}
+{"t": 1793334989.7450151, "method": "tools/call", "tool": "set_value", "args": {"element_index": 348, "value": "14:30"}, "ms": 763.5, "bytes": 647, "images": 0, "is_error": false}
+{"t": 1793334990.0119278, "method": "tools/call", "tool": "click", "args": {"element_index": 345}, "ms": 260.3, "bytes": 3377, "images": 0, "is_error": false}
+{"t": 1793334991.1575093, "method": "tools/call", "tool": "click", "args": {"element_index": 455}, "ms": 259.2, "bytes": 2843, "images": 0, "is_error": false}
+{"t": 1793334992.2592947, "method": "tools/call", "tool": "click", "args": {"element_index": 508}, "ms": 238.6, "bytes": 517, "images": 0, "is_error": false}
+{"t": 1793334993.5663185, "method": "tools/call", "tool": "click", "args": {"element_index": 353}, "ms": 259.5, "bytes": 2116, "images": 0, "is_error": false}

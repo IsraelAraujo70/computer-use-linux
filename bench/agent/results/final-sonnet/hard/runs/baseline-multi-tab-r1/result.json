@@ -1,0 +1,44 @@
+{
+ "run_id": "baseline-multi-tab-r1",
+ "variant": "baseline",
+ "task": "multi-tab",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 22.97,
+ "agent_tool_calls": 10,
+ "agent_tool_errors": 0,
+ "mcp_calls": 10,
+ "mcp_ms_total": 2672.1,
+ "mcp_bytes_total": 384866,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "screenshot",
+  "ocr",
+  "find_elements",
+  "press_key",
+  "click",
+  "type_text",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 178812,
+  "cached": 168819,
+  "output": 749
+ },
+ "final": "Paguei o boleto: abri o \"Ver boleto\", digitei a linha digitável (34191.79001 01043.510047 91020.150008 1 96610000012345) no formulário e cliquei em \"Pagar\". A página mostrou \"Pagamento agendado\".",
+ "state": {
+  "paid": {
+   "code": "34191.79001 01043.510047 91020.150008 1 96610000012345"
+  }
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "run_id": "final-recover-error-r1",
+ "variant": "final",
+ "task": "recover-error",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 11.79,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2588.9,
+ "mcp_bytes_total": 3716,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 66126,
+  "cached": 64753,
+  "output": 427
+ },
+ "final": "Alterei o Telefone para (11) 91234-5678 em \"Meu perfil\" e salvei. A primeira tentativa de salvar deu erro, e a segunda mostrou \"Alterações salvas\". Nome e E-mail ficaram como estavam.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

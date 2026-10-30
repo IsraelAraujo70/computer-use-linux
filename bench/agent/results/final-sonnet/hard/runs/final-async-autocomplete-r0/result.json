@@ -1,0 +1,45 @@
+{
+ "run_id": "final-async-autocomplete-r0",
+ "variant": "final",
+ "task": "async-autocomplete",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 22.18,
+ "agent_tool_calls": 7,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 8183.3,
+ "mcp_bytes_total": 141092,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "type_text",
+  "wait_for",
+  "screenshot",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 117144,
+  "cached": 111075,
+  "output": 643
+ },
+ "final": "I filled in the form (CEP 88010-000, Rua Felipe Schmidt, Número 200, Cidade \"Florianópolis - SC\" picked from the suggestions) and clicked \"Salvar endereço\". The page showed \"Endereço salvo\".",
+ "state": {
+  "saved": {
+   "cep": "88010-000",
+   "street": "Rua Felipe Schmidt",
+   "number": "200",
+   "city": "Florianópolis",
+   "uf": "SC"
+  }
+ }
+}

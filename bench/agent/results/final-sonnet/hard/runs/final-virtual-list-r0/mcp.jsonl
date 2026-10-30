@@ -1,0 +1,13 @@
+{"t": 1793335956.0678227, "method": "initialize", "tool": null, "args": null, "ms": 23.3, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335956.0736248, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335958.0659614, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Arquivar pedido #1377"}, "ms": 230.5, "bytes": 847, "images": 0, "is_error": false}
+{"t": 1793335992.5772946, "method": "tools/call", "tool": "scroll", "args": {"element_index": 59, "until": {"name": "Arquivar pedido #1377"}}, "ms": 33214.5, "bytes": 166, "images": 0, "is_error": true}
+{"t": 1793335993.9345884, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 144.9, "bytes": 5858, "images": 0, "is_error": false}
+{"t": 1793335996.4638956, "method": "tools/call", "tool": "scroll", "args": {"element_index": 59, "direction": "down", "pages": 17}, "ms": 374.0, "bytes": 2960, "images": 0, "is_error": false}
+{"t": 1793335999.8235154, "method": "tools/call", "tool": "scroll", "args": {"x": 900, "y": 600, "direction": "down", "pages": 17}, "ms": 1520.1, "bytes": 2954, "images": 0, "is_error": false}
+{"t": 1793336002.606695, "method": "tools/call", "tool": "scroll", "args": {"x": 900, "y": 600, "direction": "down", "pages": 3}, "ms": 661.5, "bytes": 2923, "images": 0, "is_error": false}
+{"t": 1793336005.4644108, "method": "tools/call", "tool": "scroll", "args": {"x": 900, "y": 600, "direction": "down", "pages": 2.5}, "ms": 655.5, "bytes": 2906, "images": 0, "is_error": false}
+{"t": 1793336005.6320424, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Arquivar pedido #1377"}, "ms": 162.4, "bytes": 847, "images": 0, "is_error": false}
+{"t": 1793336008.0684109, "method": "tools/call", "tool": "scroll", "args": {"x": 900, "y": 600, "direction": "down", "pages": 1}, "ms": 548.3, "bytes": 2916, "images": 0, "is_error": false}
+{"t": 1793336008.240743, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "name": "Arquivar pedido #1377"}, "ms": 166.4, "bytes": 480, "images": 0, "is_error": false}
+{"t": 1793336010.3245945, "method": "tools/call", "tool": "click", "args": {"element_index": 12936}, "ms": 481.4, "bytes": 3045, "images": 0, "is_error": false}

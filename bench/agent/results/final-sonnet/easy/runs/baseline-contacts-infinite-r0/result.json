@@ -1,0 +1,42 @@
+{
+ "run_id": "baseline-contacts-infinite-r0",
+ "variant": "baseline",
+ "task": "contacts-infinite",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 24.12,
+ "agent_tool_calls": 8,
+ "agent_tool_errors": 0,
+ "mcp_calls": 8,
+ "mcp_ms_total": 12614.6,
+ "mcp_bytes_total": 470529,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "find_elements",
+  "scroll",
+  "find_elements",
+  "screenshot",
+  "perform_action",
+  "find_elements",
+  "find_elements"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 201053,
+  "cached": 186816,
+  "output": 864
+ },
+ "final": "I starred Valéria Nunes in the contacts list. Her star toggle now shows as pressed, and I didn't touch any other contact.",
+ "state": {
+  "starred": [
+   "c170"
+  ]
+ }
+}

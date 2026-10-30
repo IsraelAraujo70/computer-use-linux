@@ -1,0 +1,42 @@
+{
+ "run_id": "final-order-support-r1",
+ "variant": "final",
+ "task": "order-support",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 11.54,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2132.4,
+ "mcp_bytes_total": 10385,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 76118,
+  "cached": 76108,
+  "output": 432
+ },
+ "final": "Abri e enviei o chamado do pedido #4821 (categoria Entrega, rastreio BR482193XQ, mensagem \"Pedido não chegou\"). A página mostrou \"Chamado aberto\".",
+ "state": {
+  "ticket": {
+   "order": "4821",
+   "tracking": "BR482193XQ",
+   "category": "Entrega",
+   "message": "Pedido não chegou"
+  }
+ }
+}

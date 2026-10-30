@@ -1,0 +1,42 @@
+{
+ "run_id": "baseline-drag-drop-r1",
+ "variant": "baseline",
+ "task": "drag-drop",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": false,
+ "detail": "no card moved",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 23.42,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 2154.4,
+ "mcp_bytes_total": 495088,
+ "screenshots": 4,
+ "tools_used": [
+  "get_app_state",
+  "drag",
+  "click",
+  "screenshot",
+  "drag",
+  "find_elements",
+  "perform_action",
+  "screenshot",
+  "click",
+  "screenshot",
+  "press_key",
+  "drag"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 287241,
+  "cached": 275140,
+  "output": 1519
+ },
+ "final": "I couldn't move 'Revisar contrato' to 'Concluído'; it is still in 'A fazer', and no other card was changed. The board needs a drag-and-drop, and the drag tool fails here because `ydotool` isn't installed. Clicking the card and invoking its accessibility action didn't move it.",
+ "state": {}
+}

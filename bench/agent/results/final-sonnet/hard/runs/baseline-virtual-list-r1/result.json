@@ -1,0 +1,45 @@
+{
+ "run_id": "baseline-virtual-list-r1",
+ "variant": "baseline",
+ "task": "virtual-list",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 22.17,
+ "agent_tool_calls": 11,
+ "agent_tool_errors": 0,
+ "mcp_calls": 11,
+ "mcp_ms_total": 6875.9,
+ "mcp_bytes_total": 676455,
+ "screenshots": 2,
+ "tools_used": [
+  "find_elements",
+  "get_app_state",
+  "scroll",
+  "find_elements",
+  "scroll",
+  "find_elements",
+  "find_elements",
+  "scroll",
+  "find_elements",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 207129,
+  "cached": 203995,
+  "output": 1425
+ },
+ "final": "Order #1377 is archived. The app showed a \"Pedido #1377 arquivado\" confirmation, and the list count dropped from 2.000 to 1.999. I archived no other order.",
+ "state": {
+  "archived": [
+   "1377"
+  ]
+ }
+}

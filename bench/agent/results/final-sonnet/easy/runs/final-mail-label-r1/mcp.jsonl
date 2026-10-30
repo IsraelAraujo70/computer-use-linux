@@ -1,0 +1,10 @@
+{"t": 1793335386.7711773, "method": "initialize", "tool": null, "args": null, "ms": 25.7, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335386.7772434, "method": "tools/list", "tool": null, "args": null, "ms": 2.7, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335388.5038784, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 250.5, "bytes": 11360, "images": 0, "is_error": false}
+{"t": 1793335390.669267, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 390.5, "bytes": 564, "images": 0, "is_error": false}
+{"t": 1793335390.9656985, "method": "tools/call", "tool": "scroll", "args": {"element_index": 275}, "ms": 289.7, "bytes": 3673, "images": 0, "is_error": false}
+{"t": 1793335392.8116012, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 400.9, "bytes": 601, "images": 0, "is_error": false}
+{"t": 1793335392.9535806, "method": "tools/call", "tool": "find_elements", "args": {"text": "Banco Aurora"}, "ms": 135.4, "bytes": 1153, "images": 0, "is_error": false}
+{"t": 1793335394.4585974, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores"}, "ms": 384.4, "bytes": 979, "images": 0, "is_error": false}
+{"t": 1793335396.1785915, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 402.4, "bytes": 476, "images": 0, "is_error": false}
+{"t": 1793335396.501025, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 315.9, "bytes": 3382, "images": 0, "is_error": false}

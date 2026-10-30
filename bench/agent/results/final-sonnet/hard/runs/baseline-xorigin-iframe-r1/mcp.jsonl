@@ -1,0 +1,13 @@
+{"t": 1793338252.9680831, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338252.9760814, "method": "tools/list", "tool": null, "args": null, "ms": 4.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338255.3214886, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 744.3, "bytes": 180168, "images": 1, "is_error": false}
+{"t": 1793338257.4954379, "method": "tools/call", "tool": "click", "args": {"x": 1115, "y": 461}, "ms": 210.7, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793338257.956466, "method": "tools/call", "tool": "type_text", "args": {"text": "maria@example.com"}, "ms": 386.3, "bytes": 873, "images": 0, "is_error": false}
+{"t": 1793338258.159917, "method": "tools/call", "tool": "click", "args": {"x": 1115, "y": 536}, "ms": 197.6, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793338258.4780796, "method": "tools/call", "tool": "type_text", "args": {"text": "150,00"}, "ms": 312.6, "bytes": 851, "images": 0, "is_error": false}
+{"t": 1793338258.6911051, "method": "tools/call", "tool": "click", "args": {"x": 1115, "y": 612}, "ms": 206.4, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793338259.0232344, "method": "tools/call", "tool": "type_text", "args": {"text": "Aluguel"}, "ms": 325.4, "bytes": 853, "images": 0, "is_error": false}
+{"t": 1793338259.2365258, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 661}, "ms": 207.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338260.797056, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 68.2, "bytes": 86672, "images": 1, "is_error": false}
+{"t": 1793338262.5454094, "method": "tools/call", "tool": "click", "args": {"x": 858, "y": 656}, "ms": 212.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338262.6191907, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 67.6, "bytes": 50359, "images": 1, "is_error": false}

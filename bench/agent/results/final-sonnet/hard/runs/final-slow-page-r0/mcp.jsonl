@@ -1,0 +1,6 @@
+{"t": 1793336068.3524575, "method": "initialize", "tool": null, "args": null, "ms": 22.4, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793336068.358378, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793336070.1558743, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 184.3, "bytes": 731, "images": 0, "is_error": false}
+{"t": 1793336071.397709, "method": "tools/call", "tool": "click", "args": {"element_index": 54}, "ms": 164.6, "bytes": 471, "images": 0, "is_error": false}
+{"t": 1793336075.6443994, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Mar\u00e7o"}, "ms": 3042.5, "bytes": 783, "images": 0, "is_error": false}
+{"t": 1793336077.0494657, "method": "tools/call", "tool": "click", "args": {"element_index": 135}, "ms": 381.5, "bytes": 574, "images": 0, "is_error": false}

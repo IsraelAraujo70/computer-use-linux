@@ -1,0 +1,17 @@
+{
+ "run_id": "final-accents-form-r1",
+ "variant": "final",
+ "binary": "/tmp/agent-cu-bench/bin/final/computer-use-linux",
+ "task": "accents-form",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "timeout": 300,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "claude_home": "/tmp/agent-cu-bench/claude-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_mode": "bots"
+}

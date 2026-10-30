@@ -1,0 +1,33 @@
+{
+ "run_id": "baseline-terminal-r0",
+ "variant": "baseline",
+ "task": "terminal",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 8.43,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 2004.1,
+ "mcp_bytes_total": 40275,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "type_text",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 48123,
+  "cached": 44318,
+  "output": 416
+ },
+ "final": "I ran a shell command in the Alacritty terminal that created `/tmp/agent-cu-bench/term/nota.txt` containing only `ola mundo 42`. Running `cat` on it afterwards printed that line.",
+ "state": {}
+}

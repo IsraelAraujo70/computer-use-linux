@@ -1,0 +1,14 @@
+{"t": 1793338399.9932919, "method": "initialize", "tool": null, "args": null, "ms": 25.9, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793338399.9962578, "method": "tools/list", "tool": null, "args": null, "ms": 2.5, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793338409.704253, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 142.4, "bytes": 470440, "images": 1, "is_error": false}
+{"t": 1793338411.6050804, "method": "tools/call", "tool": "ocr", "args": {}, "ms": 45.6, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793338414.146159, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 44.5, "bytes": 470043, "images": 1, "is_error": false}
+{"t": 1793338417.1473062, "method": "tools/call", "tool": "click", "args": {"x": 655, "y": 543}, "ms": 262.9, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793338418.6815298, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 39.4, "bytes": 188491, "images": 1, "is_error": false}
+{"t": 1793338423.042307, "method": "tools/call", "tool": "click", "args": {"x": 392, "y": 563}, "ms": 261.1, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793338424.5344825, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 34.9, "bytes": 199531, "images": 1, "is_error": false}
+{"t": 1793338427.8649445, "method": "tools/call", "tool": "click", "args": {"x": 518, "y": 700}, "ms": 263.8, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793338428.163549, "method": "tools/call", "tool": "type_text", "args": {"text": "Recebido, obrigado."}, "ms": 296.6, "bytes": 206, "images": 0, "is_error": false}
+{"t": 1793338429.6179144, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 34.9, "bytes": 203480, "images": 1, "is_error": false}
+{"t": 1793338431.7693832, "method": "tools/call", "tool": "click", "args": {"x": 389, "y": 852}, "ms": 262.1, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793338433.5407252, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 36.8, "bytes": 460324, "images": 1, "is_error": false}

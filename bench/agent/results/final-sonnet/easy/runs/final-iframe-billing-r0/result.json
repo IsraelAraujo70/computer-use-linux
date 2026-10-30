@@ -1,0 +1,43 @@
+{
+ "run_id": "final-iframe-billing-r0",
+ "variant": "final",
+ "task": "iframe-billing",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 11.64,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2425.8,
+ "mcp_bytes_total": 6547,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "press_key",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 71301,
+  "cached": 67094,
+  "output": 503
+ },
+ "final": "I filled in the billing address on the checkout page: CEP 30130-010, Avenida Afonso Pena, number 1500, Belo Horizonte, MG. I then clicked \"Confirmar endereço\", and the page showed \"Endereço confirmado\".",
+ "state": {
+  "billing": {
+   "cep": "30130-010",
+   "street": "Avenida Afonso Pena",
+   "number": "1500",
+   "city": "Belo Horizonte",
+   "uf": "MG"
+  }
+ }
+}

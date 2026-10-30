@@ -1,0 +1,28 @@
+{"t": 1793340450.4509003, "method": "initialize", "tool": null, "args": null, "ms": 23.0, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793340450.4525132, "method": "tools/list", "tool": null, "args": null, "ms": 1.2, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793340457.6339405, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 146.4, "bytes": 143014, "images": 1, "is_error": false}
+{"t": 1793340459.8675432, "method": "tools/call", "tool": "ocr", "args": {}, "ms": 38.7, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793340461.43085, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 41.7, "bytes": 142647, "images": 1, "is_error": false}
+{"t": 1793340464.7230964, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 261.1, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340464.9797947, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 255.1, "bytes": 205, "images": 0, "is_error": false}
+{"t": 1793340467.2405186, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 500}, "ms": 260.6, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340467.5716352, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 329.6, "bytes": 205, "images": 0, "is_error": false}
+{"t": 1793340467.8348198, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 580}, "ms": 261.6, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340468.2023582, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 365.9, "bytes": 206, "images": 0, "is_error": false}
+{"t": 1793340468.4628422, "method": "tools/call", "tool": "click", "args": {"x": 850, "y": 660}, "ms": 259.1, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340471.3185277, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 41.4, "bytes": 139748, "images": 1, "is_error": false}
+{"t": 1793340476.2645, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 174.3, "bytes": 131, "images": 0, "is_error": false}
+{"t": 1793340476.4388459, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 172.9, "bytes": 135, "images": 0, "is_error": false}
+{"t": 1793340476.7013721, "method": "tools/call", "tool": "click", "args": {"x": 766, "y": 729}, "ms": 261.0, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340476.9640367, "method": "tools/call", "tool": "click", "args": {"x": 682, "y": 773}, "ms": 260.9, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340477.000501, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 35.0, "bytes": 140292, "images": 1, "is_error": false}
+{"t": 1793340480.4806006, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 660}, "ms": 261.8, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340480.7052858, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "x": 950, "y": 820, "pages": 1}, "ms": 222.6, "bytes": 156, "images": 0, "is_error": false}
+{"t": 1793340480.7494497, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 42.6, "bytes": 144424, "images": 1, "is_error": false}
+{"t": 1793340483.375954, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "x": 950, "y": 800, "pages": 1}, "ms": 221.8, "bytes": 154, "images": 0, "is_error": false}
+{"t": 1793340483.4113722, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 34.1, "bytes": 139748, "images": 1, "is_error": false}
+{"t": 1793340485.790706, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "x": 950, "y": 800, "pages": 0.4}, "ms": 183.9, "bytes": 158, "images": 0, "is_error": false}
+{"t": 1793340485.825381, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 33.0, "bytes": 144168, "images": 1, "is_error": false}
+{"t": 1793340488.6243525, "method": "tools/call", "tool": "click", "args": {"x": 735, "y": 885}, "ms": 260.9, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340488.885759, "method": "tools/call", "tool": "click", "args": {"x": 727, "y": 823}, "ms": 260.0, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340488.9211113, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 34.1, "bytes": 144756, "images": 1, "is_error": false}

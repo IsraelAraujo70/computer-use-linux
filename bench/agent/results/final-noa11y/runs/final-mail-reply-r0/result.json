@@ -1,0 +1,51 @@
+{
+ "run_id": "final-mail-reply-r0",
+ "variant": "final",
+ "task": "mail-reply",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 42.07,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 1725.0,
+ "mcp_bytes_total": 1993563,
+ "screenshots": 6,
+ "tools_used": [
+  "get_app_state",
+  "ocr",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "type_text",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 690883,
+  "cached": 603904,
+  "output": 487
+ },
+ "final": "Respondi à Marina: “Recebido, obrigado.”",
+ "state": {
+  "sent": [
+   {
+    "in_reply_to": "m7",
+    "to": "marina.costa@example.com",
+    "body": "Recebido, obrigado."
+   }
+  ],
+  "archived": []
+ }
+}

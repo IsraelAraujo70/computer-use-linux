@@ -1,0 +1,41 @@
+{
+ "run_id": "final-xorigin-iframe-r1",
+ "variant": "final",
+ "task": "xorigin-iframe",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 9.94,
+ "agent_tool_calls": 4,
+ "agent_tool_errors": 0,
+ "mcp_calls": 4,
+ "mcp_ms_total": 1388.0,
+ "mcp_bytes_total": 4174,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 53623,
+  "cached": 53615,
+  "output": 344
+ },
+ "final": "Fiz a transferência Pix de R$ 150,00 para maria@example.com com a descrição \"Aluguel\". O app mostrou \"Transferência realizada\".",
+ "state": {
+  "transfer": {
+   "key": "maria@example.com",
+   "amount": "150,00",
+   "description": "Aluguel",
+   "confirmed": true
+  }
+ }
+}

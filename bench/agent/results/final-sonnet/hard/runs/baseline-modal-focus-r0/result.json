@@ -1,0 +1,47 @@
+{
+ "run_id": "baseline-modal-focus-r0",
+ "variant": "baseline",
+ "task": "modal-focus",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 12.9,
+ "agent_tool_calls": 11,
+ "agent_tool_errors": 0,
+ "mcp_calls": 11,
+ "mcp_ms_total": 3144.6,
+ "mcp_bytes_total": 274162,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 110250,
+  "cached": 98281,
+  "output": 864
+ },
+ "final": "Preenchi o formulário \"Fale conosco\" com Carlos Mendes, carlos@example.com e \"Quero cancelar minha assinatura.\" e cliquei em \"Enviar mensagem\"; a página mostrou \"Mensagem enviada\". Um pop-up de newsletter apareceu e eu o fechei com \"Agora não\", sem assinar.",
+ "state": {
+  "sent": {
+   "name": "Carlos Mendes",
+   "email": "carlos@example.com",
+   "message": "Quero cancelar minha assinatura."
+  }
+ }
+}

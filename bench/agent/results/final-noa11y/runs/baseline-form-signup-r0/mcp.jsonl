@@ -1,0 +1,26 @@
+{"t": 1793338697.2549224, "method": "initialize", "tool": null, "args": null, "ms": 24.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338697.2614307, "method": "tools/list", "tool": null, "args": null, "ms": 6.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338704.896025, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 276.4, "bytes": 145541, "images": 1, "is_error": false}
+{"t": 1793338707.9951062, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 421}, "ms": 209.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338708.33917, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 342.1, "bytes": 865, "images": 0, "is_error": false}
+{"t": 1793338708.5441763, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 500}, "ms": 203.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338708.9595625, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 413.6, "bytes": 889, "images": 0, "is_error": false}
+{"t": 1793338709.162129, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 580}, "ms": 201.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338709.5121987, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 348.2, "bytes": 869, "images": 0, "is_error": false}
+{"t": 1793338709.7178981, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 660}, "ms": 204.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338711.3168685, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 280.1, "bytes": 146170, "images": 1, "is_error": false}
+{"t": 1793338713.7012916, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 158.2, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793338713.8591337, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 156.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793338714.0598319, "method": "tools/call", "tool": "click", "args": {"x": 766, "y": 730}, "ms": 199.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338714.2635386, "method": "tools/call", "tool": "click", "args": {"x": 682, "y": 773}, "ms": 202.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338714.5365787, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 271.4, "bytes": 146714, "images": 1, "is_error": false}
+{"t": 1793338717.5833976, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 660}, "ms": 206.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338717.745235, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 160.2, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793338718.0240073, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 277.0, "bytes": 142722, "images": 1, "is_error": false}
+{"t": 1793338721.7256124, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 950, "y": 850}, "ms": 148.8, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793338722.0001538, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 273.1, "bytes": 147394, "images": 1, "is_error": false}
+{"t": 1793338724.8406641, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 0.5, "x": 950, "y": 850}, "ms": 126.2, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793338725.1283917, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 286.0, "bytes": 147138, "images": 1, "is_error": false}
+{"t": 1793338727.8992863, "method": "tools/call", "tool": "click", "args": {"x": 739, "y": 884}, "ms": 202.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338728.105834, "method": "tools/call", "tool": "click", "args": {"x": 726, "y": 823}, "ms": 204.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338728.387536, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 279.9, "bytes": 147650, "images": 1, "is_error": false}

@@ -1,0 +1,21 @@
+{"t": 1793340207.7979126, "method": "initialize", "tool": null, "args": null, "ms": 23.1, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793340207.8002667, "method": "tools/list", "tool": null, "args": null, "ms": 1.6, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793340214.540701, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 159.1, "bytes": 493880, "images": 1, "is_error": false}
+{"t": 1793340216.7110274, "method": "tools/call", "tool": "ocr", "args": {}, "ms": 42.9, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793340218.091968, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 42.4, "bytes": 493483, "images": 1, "is_error": false}
+{"t": 1793340221.5068958, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 194}, "ms": 263.1, "bytes": 136, "images": 0, "is_error": false}
+{"t": 1793340221.7531655, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 245.1, "bytes": 205, "images": 0, "is_error": false}
+{"t": 1793340221.925921, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 171.1, "bytes": 134, "images": 0, "is_error": false}
+{"t": 1793340221.9651668, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 37.9, "bytes": 485347, "images": 1, "is_error": false}
+{"t": 1793340225.285828, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 35.5, "bytes": 482763, "images": 1, "is_error": false}
+{"t": 1793340231.0957143, "method": "tools/call", "tool": "click", "args": {"x": 1100, "y": 194}, "ms": 261.1, "bytes": 138, "images": 0, "is_error": false}
+{"t": 1793340231.1400547, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 43.0, "bytes": 479304, "images": 1, "is_error": false}
+{"t": 1793340234.4638681, "method": "tools/call", "tool": "click", "args": {"x": 284, "y": 420}, "ms": 261.6, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340234.7470207, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 1400, "y": 800}, "ms": 281.7, "bytes": 157, "images": 0, "is_error": false}
+{"t": 1793340234.7885842, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 39.9, "bytes": 485632, "images": 1, "is_error": false}
+{"t": 1793340238.526155, "method": "tools/call", "tool": "click", "args": {"x": 284, "y": 761}, "ms": 260.5, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340238.7881594, "method": "tools/call", "tool": "click", "args": {"x": 463, "y": 253}, "ms": 260.7, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340238.836225, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 46.5, "bytes": 481844, "images": 1, "is_error": false}
+{"t": 1793340241.9756875, "method": "tools/call", "tool": "click", "args": {"x": 427, "y": 299}, "ms": 263.5, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340242.237792, "method": "tools/call", "tool": "click", "args": {"x": 461, "y": 460}, "ms": 260.8, "bytes": 137, "images": 0, "is_error": false}
+{"t": 1793340242.2781098, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 39.1, "bytes": 492036, "images": 1, "is_error": false}

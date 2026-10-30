@@ -1,0 +1,43 @@
+{
+ "run_id": "final-form-signup-r0",
+ "variant": "final",
+ "task": "form-signup",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 10.79,
+ "agent_tool_calls": 4,
+ "agent_tool_errors": 0,
+ "mcp_calls": 4,
+ "mcp_ms_total": 2015.5,
+ "mcp_bytes_total": 42083,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 67590,
+  "cached": 64252,
+  "output": 438
+ },
+ "final": "I filled in the sign-up form for Joana Ribeiro with the e-mail, phone, state Minas Gerais and plan Pro, accepted the terms and clicked \"Criar conta\". The page now shows \"Conta criada!\".",
+ "state": {
+  "submitted": {
+   "name": "Joana Ribeiro",
+   "email": "joana.ribeiro@example.com",
+   "phone": "(31) 98765-4321",
+   "state": "Minas Gerais",
+   "plan": "Pro",
+   "terms": true
+  }
+ }
+}

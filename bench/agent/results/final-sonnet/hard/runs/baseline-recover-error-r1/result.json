@@ -1,0 +1,43 @@
+{
+ "run_id": "baseline-recover-error-r1",
+ "variant": "baseline",
+ "task": "recover-error",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 14.05,
+ "agent_tool_calls": 8,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 2045.8,
+ "mcp_bytes_total": 250707,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 175102,
+  "cached": 174198,
+  "output": 642
+ },
+ "final": "Telefone agora é (11) 91234-5678 e a página mostra \"Alterações salvas\". O primeiro clique em Salvar deu erro (\"Não foi possível salvar\"); o segundo funcionou. Nome e e-mail ficaram como estavam.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

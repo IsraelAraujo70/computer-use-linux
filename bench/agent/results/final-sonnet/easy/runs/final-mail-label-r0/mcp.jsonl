@@ -1,0 +1,10 @@
+{"t": 1793334848.8022535, "method": "initialize", "tool": null, "args": null, "ms": 23.9, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793334848.8074436, "method": "tools/list", "tool": null, "args": null, "ms": 2.1, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793334850.5053072, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 253.3, "bytes": 11360, "images": 0, "is_error": false}
+{"t": 1793334852.9918773, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 384.4, "bytes": 564, "images": 0, "is_error": false}
+{"t": 1793334853.2822454, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 283.3, "bytes": 620, "images": 0, "is_error": false}
+{"t": 1793334853.9544458, "method": "tools/call", "tool": "scroll", "args": {"element_index": 71, "direction": "down", "pages": 5}, "ms": 666.6, "bytes": 3474, "images": 0, "is_error": false}
+{"t": 1793334855.872154, "method": "tools/call", "tool": "click", "args": {"element_index": 69}, "ms": 442.6, "bytes": 979, "images": 0, "is_error": false}
+{"t": 1793334857.4503622, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 382.0, "bytes": 476, "images": 0, "is_error": false}
+{"t": 1793334857.7421255, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 286.4, "bytes": 3382, "images": 0, "is_error": false}
+{"t": 1793334859.2564497, "method": "tools/call", "tool": "find_elements", "args": {"text": "Financeiro"}, "ms": 141.5, "bytes": 727, "images": 0, "is_error": false}

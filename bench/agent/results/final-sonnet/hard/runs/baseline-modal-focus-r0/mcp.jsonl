@@ -1,0 +1,13 @@
+{"t": 1793336040.4320168, "method": "initialize", "tool": null, "args": null, "ms": 23.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793336040.4408047, "method": "tools/list", "tool": null, "args": null, "ms": 4.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793336042.7623653, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 718.9, "bytes": 151569, "images": 1, "is_error": false}
+{"t": 1793336044.7680523, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 421}, "ms": 209.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336045.1918125, "method": "tools/call", "tool": "type_text", "args": {"text": "Carlos Mendes"}, "ms": 364.9, "bytes": 865, "images": 0, "is_error": false}
+{"t": 1793336045.4004238, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 496}, "ms": 202.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336045.8027909, "method": "tools/call", "tool": "type_text", "args": {"text": "carlos@example.com"}, "ms": 397.0, "bytes": 875, "images": 0, "is_error": false}
+{"t": 1793336046.0083263, "method": "tools/call", "tool": "click", "args": {"x": 960, "y": 602}, "ms": 199.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336046.5080247, "method": "tools/call", "tool": "type_text", "args": {"text": "Quero cancelar minha assinatura."}, "ms": 494.2, "bytes": 903, "images": 0, "is_error": false}
+{"t": 1793336046.7186034, "method": "tools/call", "tool": "click", "args": {"x": 749, "y": 682}, "ms": 203.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336047.7910464, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 71.0, "bytes": 62479, "images": 1, "is_error": false}
+{"t": 1793336049.7172935, "method": "tools/call", "tool": "click", "args": {"x": 1025, "y": 702}, "ms": 225.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793336049.7796905, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 57.2, "bytes": 53443, "images": 1, "is_error": false}

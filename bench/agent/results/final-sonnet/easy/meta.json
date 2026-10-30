@@ -1,0 +1,25 @@
+{
+ "variants": {
+  "baseline": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux",
+  "final": "/tmp/agent-cu-bench/bin/final/computer-use-linux"
+ },
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "suite": "easy",
+ "chrome_mode": "bots",
+ "tasks": [
+  "mail-reply",
+  "mail-label",
+  "calendar-event",
+  "form-signup",
+  "settings-dialog",
+  "contacts-infinite",
+  "iframe-billing",
+  "order-support",
+  "invoices-bulk",
+  "terminal"
+ ],
+ "reps": 2,
+ "timeout": 360
+}

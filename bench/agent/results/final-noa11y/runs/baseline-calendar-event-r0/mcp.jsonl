@@ -1,0 +1,29 @@
+{"t": 1793338560.2431557, "method": "initialize", "tool": null, "args": null, "ms": 23.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793338560.2490873, "method": "tools/list", "tool": null, "args": null, "ms": 5.4, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793338568.3406959, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 282.3, "bytes": 185571, "images": 1, "is_error": false}
+{"t": 1793338571.434077, "method": "tools/call", "tool": "click", "args": {"x": 473, "y": 196}, "ms": 206.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338571.6378157, "method": "tools/call", "tool": "click", "args": {"x": 1060, "y": 585}, "ms": 201.7, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793338571.9239314, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 284.6, "bytes": 163241, "images": 1, "is_error": false}
+{"t": 1793338576.184631, "method": "tools/call", "tool": "click", "args": {"x": 62, "y": 263}, "ms": 200.7, "bytes": 803, "images": 0, "is_error": false}
+{"t": 1793338576.4715362, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 285.1, "bytes": 191001, "images": 1, "is_error": false}
+{"t": 1793338578.9663775, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista"}, "ms": 306.5, "bytes": 855, "images": 0, "is_error": false}
+{"t": 1793338579.1706054, "method": "tools/call", "tool": "click", "args": {"x": 944, "y": 613}, "ms": 202.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793338579.4444418, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 272.2, "bytes": 201678, "images": 1, "is_error": false}
+{"t": 1793338584.1053255, "method": "tools/call", "tool": "click", "args": {"x": 973, "y": 649}, "ms": 202.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338584.3768713, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 269.7, "bytes": 201850, "images": 1, "is_error": false}
+{"t": 1793338586.499146, "method": "tools/call", "tool": "click", "args": {"x": 854, "y": 780}, "ms": 201.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338586.70194, "method": "tools/call", "tool": "click", "args": {"x": 741, "y": 700}, "ms": 201.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338588.9031982, "method": "tools/call", "tool": "press_key", "args": {"key": "1"}, "ms": 163.9, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793338589.0653625, "method": "tools/call", "tool": "press_key", "args": {"key": "4"}, "ms": 158.7, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793338589.2308714, "method": "tools/call", "tool": "press_key", "args": {"key": "3"}, "ms": 164.0, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793338589.3889651, "method": "tools/call", "tool": "press_key", "args": {"key": "0"}, "ms": 156.4, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793338589.6665514, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 276.1, "bytes": 199174, "images": 1, "is_error": false}
+{"t": 1793338592.5627072, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 172.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793338592.845912, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 281.7, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793338593.052564, "method": "tools/call", "tool": "click", "args": {"x": 928, "y": 699}, "ms": 205.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793338593.2253158, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 170.9, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793338593.5053287, "method": "tools/call", "tool": "type_text", "args": {"text": "15:30"}, "ms": 278.7, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793338593.7084916, "method": "tools/call", "tool": "click", "args": {"x": 1040, "y": 665}, "ms": 201.7, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793338593.9785566, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 268.6, "bytes": 185950, "images": 1, "is_error": false}
+{"t": 1793338598.5942755, "method": "tools/call", "tool": "click", "args": {"x": 1174, "y": 773}, "ms": 200.8, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793338598.8747804, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 279.0, "bytes": 164614, "images": 1, "is_error": false}

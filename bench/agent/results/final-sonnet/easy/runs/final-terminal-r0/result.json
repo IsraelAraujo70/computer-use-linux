@@ -1,0 +1,33 @@
+{
+ "run_id": "final-terminal-r0",
+ "variant": "final",
+ "task": "terminal",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 9.28,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1195.7,
+ "mcp_bytes_total": 100833,
+ "screenshots": 1,
+ "tools_used": [
+  "type_text",
+  "ocr",
+  "screenshot"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 52872,
+  "cached": 48560,
+  "output": 318
+ },
+ "final": "I ran a shell command in the terminal that created `/tmp/agent-cu-bench/term/nota.txt` containing the single line `ola mundo 42`. The `cat` output on screen shows that line.",
+ "state": {}
+}

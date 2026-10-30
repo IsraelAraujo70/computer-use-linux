@@ -1,0 +1,46 @@
+{
+ "run_id": "baseline-contacts-infinite-r1",
+ "variant": "baseline",
+ "task": "contacts-infinite",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 26.79,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 9895.8,
+ "mcp_bytes_total": 595328,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "find_elements",
+  "scroll",
+  "find_elements",
+  "screenshot",
+  "scroll",
+  "find_elements",
+  "screenshot",
+  "scroll",
+  "find_elements",
+  "perform_action",
+  "find_elements"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 231529,
+  "cached": 228143,
+  "output": 1164
+ },
+ "final": "Valéria Nunes is starred now, and the toggle shows as pressed. I haven't checked anyone else's star.",
+ "state": {
+  "starred": [
+   "c170"
+  ]
+ }
+}

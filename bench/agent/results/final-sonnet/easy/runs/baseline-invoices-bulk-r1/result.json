@@ -1,0 +1,49 @@
+{
+ "run_id": "baseline-invoices-bulk-r1",
+ "variant": "baseline",
+ "task": "invoices-bulk",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.86,
+ "agent_tool_calls": 13,
+ "agent_tool_errors": 0,
+ "mcp_calls": 13,
+ "mcp_ms_total": 3777.3,
+ "mcp_bytes_total": 994394,
+ "screenshots": 5,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "scroll",
+  "screenshot",
+  "click",
+  "scroll",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 292620,
+  "cached": 287179,
+  "output": 1083
+ },
+ "final": "I archived the three overdue Acme Ltda invoices: NF-1003, NF-1016 and NF-1028. The page now shows 27 invoices and a \"Faturas arquivadas\" confirmation. I left NF-1012 alone because its client is Acme Logística, not Acme Ltda.",
+ "state": {
+  "archived": [
+   "NF-1003",
+   "NF-1016",
+   "NF-1028"
+  ]
+ }
+}

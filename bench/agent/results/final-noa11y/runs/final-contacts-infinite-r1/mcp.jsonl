@@ -1,0 +1,17 @@
+{"t": 1793340655.7935646, "method": "initialize", "tool": null, "args": null, "ms": 22.5, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793340655.7965367, "method": "tools/list", "tool": null, "args": null, "ms": 2.6, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793340664.4876292, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 146.1, "bytes": 308928, "images": 1, "is_error": false}
+{"t": 1793340666.809558, "method": "tools/call", "tool": "ocr", "args": {}, "ms": 43.3, "bytes": 503, "images": 0, "is_error": false}
+{"t": 1793340668.8170278, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 47.4, "bytes": 308567, "images": 1, "is_error": false}
+{"t": 1793340674.1219034, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+f"}, "ms": 185.5, "bytes": 135, "images": 0, "is_error": false}
+{"t": 1793340676.045189, "method": "tools/call", "tool": "type_text", "args": {"text": "Val\u00e9ria Nunes"}, "ms": 200.2, "bytes": 218, "images": 0, "is_error": false}
+{"t": 1793340677.9747026, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 41.7, "bytes": 300979, "images": 1, "is_error": false}
+{"t": 1793340681.2698314, "method": "tools/call", "tool": "press_key", "args": {"key": "Escape"}, "ms": 173.0, "bytes": 135, "images": 0, "is_error": false}
+{"t": 1793340682.6488814, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 20, "x": 1200, "y": 800}, "ms": 1377.8, "bytes": 157, "images": 0, "is_error": false}
+{"t": 1793340682.6888814, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 38.5, "bytes": 304828, "images": 1, "is_error": false}
+{"t": 1793340689.8262985, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 35, "x": 1200, "y": 800}, "ms": 2314.1, "bytes": 158, "images": 0, "is_error": false}
+{"t": 1793340689.8703494, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 42.8, "bytes": 290268, "images": 1, "is_error": false}
+{"t": 1793340693.3495314, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 8, "x": 1200, "y": 800}, "ms": 650.6, "bytes": 157, "images": 0, "is_error": false}
+{"t": 1793340693.387316, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 36.4, "bytes": 305648, "images": 1, "is_error": false}
+{"t": 1793340697.003306, "method": "tools/call", "tool": "click", "args": {"x": 1843, "y": 411}, "ms": 261.9, "bytes": 138, "images": 0, "is_error": false}
+{"t": 1793340697.0463312, "method": "tools/call", "tool": "screenshot", "args": {}, "ms": 41.6, "bytes": 306348, "images": 1, "is_error": false}

@@ -1,0 +1,6 @@
+{"t": 1793335611.9483197, "method": "initialize", "tool": null, "args": null, "ms": 24.3, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793335611.9542785, "method": "tools/list", "tool": null, "args": null, "ms": 2.4, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793335613.8085546, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Val\u00e9ria"}, "ms": 205.4, "bytes": 821, "images": 0, "is_error": false}
+{"t": 1793335615.0431669, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 130.9, "bytes": 4880, "images": 0, "is_error": false}
+{"t": 1793335624.6849203, "method": "tools/call", "tool": "scroll", "args": {"element_index": 61, "until": {"name": "Marcar Val\u00e9ria Nunes"}}, "ms": 8457.5, "bytes": 519, "images": 0, "is_error": false}
+{"t": 1793335626.3713639, "method": "tools/call", "tool": "click", "args": {"element_index": 961}, "ms": 731.8, "bytes": 544, "images": 0, "is_error": false}

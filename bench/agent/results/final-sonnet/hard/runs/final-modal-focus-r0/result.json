@@ -1,0 +1,39 @@
+{
+ "run_id": "final-modal-focus-r0",
+ "variant": "final",
+ "task": "modal-focus",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 8.33,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1497.2,
+ "mcp_bytes_total": 2645,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 38772,
+  "cached": 36280,
+  "output": 333
+ },
+ "final": "Preenchi o formulário de \"Fale conosco\" com Carlos Mendes, carlos@example.com e \"Quero cancelar minha assinatura.\" e cliquei em \"Enviar mensagem\". A página mostrou \"Mensagem enviada\".",
+ "state": {
+  "sent": {
+   "name": "Carlos Mendes",
+   "email": "carlos@example.com",
+   "message": "Quero cancelar minha assinatura."
+  }
+ }
+}

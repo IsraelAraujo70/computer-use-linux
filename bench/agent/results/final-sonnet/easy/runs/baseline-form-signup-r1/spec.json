@@ -1,0 +1,17 @@
+{
+ "run_id": "baseline-form-signup-r1",
+ "variant": "baseline",
+ "binary": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux",
+ "task": "form-signup",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "timeout": 360,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "claude_home": "/tmp/agent-cu-bench/claude-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_mode": "bots"
+}

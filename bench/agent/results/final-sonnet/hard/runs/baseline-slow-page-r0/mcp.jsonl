@@ -1,0 +1,8 @@
+{"t": 1793336083.3817923, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793336083.3895712, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793336085.6671593, "method": "tools/call", "tool": "get_app_state", "args": {"wm_class": "chrome"}, "ms": 721.0, "bytes": 17556, "images": 0, "is_error": false}
+{"t": 1793336087.997858, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 24.4, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793336091.141123, "method": "tools/call", "tool": "screenshot", "args": {"title": "Relat\u00f3rios", "max_width": 1000}, "ms": 524.5, "bytes": 66588, "images": 1, "is_error": false}
+{"t": 1793336093.3663979, "method": "tools/call", "tool": "wait_for", "args": {"text": "Mar\u00e7o", "timeout_ms": 15000, "title": "Relat\u00f3rios"}, "ms": 650.3, "bytes": 779, "images": 0, "is_error": false}
+{"t": 1793336094.637356, "method": "tools/call", "tool": "click", "args": {"element_index": 188}, "ms": 24.2, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793336096.4519393, "method": "tools/call", "tool": "screenshot", "args": {"title": "Relat\u00f3rios", "max_width": 1000}, "ms": 530.3, "bytes": 177606, "images": 1, "is_error": false}

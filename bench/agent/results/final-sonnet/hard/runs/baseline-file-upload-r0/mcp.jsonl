@@ -1,0 +1,36 @@
+{"t": 1793336143.7010972, "method": "initialize", "tool": null, "args": null, "ms": 26.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793336143.7087069, "method": "tools/list", "tool": null, "args": null, "ms": 5.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793336145.9155848, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 642.3, "bytes": 166031, "images": 1, "is_error": false}
+{"t": 1793336147.585754, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 208.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336148.722928, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 69.2, "bytes": 51978, "images": 1, "is_error": false}
+{"t": 1793336150.2361405, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 201.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793336150.300743, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 59.1, "bytes": 51978, "images": 1, "is_error": false}
+{"t": 1793336151.5028045, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 78.2, "bytes": 1279, "images": 0, "is_error": false}
+{"t": 1793336152.6309526, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 96}, "ms": 25.4, "bytes": 581, "images": 0, "is_error": false}
+{"t": 1793336152.7955859, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 61.1, "bytes": 51978, "images": 1, "is_error": false}
+{"t": 1793336153.9113402, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 75.8, "bytes": 1280, "images": 0, "is_error": false}
+{"t": 1793336155.83813, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 202.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793336156.165764, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 83.2, "bytes": 1280, "images": 0, "is_error": false}
+{"t": 1793336159.4578803, "method": "tools/call", "tool": "wait_for", "args": {"condition": "appears", "role": "dialog", "timeout_ms": 3000}, "ms": 3393.1, "bytes": 338, "images": 0, "is_error": false}
+{"t": 1793336160.9297335, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 71.6, "bytes": 50355, "images": 1, "is_error": false}
+{"t": 1793336162.8600519, "method": "tools/call", "tool": "click", "args": {"x": 730, "y": 413}, "ms": 202.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793336162.929215, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 63.6, "bytes": 50355, "images": 1, "is_error": false}
+{"t": 1793336164.7061381, "method": "tools/call", "tool": "press_key", "args": {"key": "ctrl+l"}, "ms": 201.9, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793336164.7902868, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 77.5, "bytes": 45506, "images": 1, "is_error": false}
+{"t": 1793336166.7925124, "method": "tools/call", "tool": "press_key", "args": {"key": "escape"}, "ms": 167.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793336167.192897, "method": "tools/call", "tool": "click", "args": {"x": 1000, "y": 800}, "ms": 200.8, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793336167.4111953, "method": "tools/call", "tool": "press_key", "args": {"key": "tab"}, "ms": 183.2, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793336167.652885, "method": "tools/call", "tool": "press_key", "args": {"key": "space"}, "ms": 192.3, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793336167.717693, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 60.1, "bytes": 53491, "images": 1, "is_error": false}
+{"t": 1793336169.4584599, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "/tmp/agent-cu-bench/files/comprovante-outubro.pdf"}, "ms": 1.9, "bytes": 756, "images": 0, "is_error": false}
+{"t": 1793336169.5820887, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 59.2, "bytes": 53491, "images": 1, "is_error": false}
+{"t": 1793336171.207005, "method": "tools/call", "tool": "press_key", "args": {"key": "tab"}, "ms": 191.1, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793336171.3927064, "method": "tools/call", "tool": "press_key", "args": {"key": "tab"}, "ms": 180.9, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793336171.607644, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 179.4, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793336171.6850636, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 72.0, "bytes": 53155, "images": 1, "is_error": false}
+{"t": 1793336174.1882625, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome", "include_screenshot": false, "max_nodes": 400}, "ms": 546.0, "bytes": 13406, "images": 0, "is_error": false}
+{"t": 1793336175.861373, "method": "tools/call", "tool": "press_key", "args": {"key": "space"}, "ms": 187.1, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793336179.23182, "method": "tools/call", "tool": "wait_for", "args": {"condition": "changed", "timeout_ms": 3000}, "ms": 3223.0, "bytes": 338, "images": 0, "is_error": false}
+{"t": 1793336179.2945657, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4, "full_screen": true}, "ms": 56.8, "bytes": 50459, "images": 1, "is_error": false}
+{"t": 1793336181.8260279, "method": "tools/call", "tool": "type_text", "args": {"text": "/tmp/agent-cu-bench/files/comprovante-outubro.pdf\n"}, "ms": 600.5, "bytes": 943, "images": 0, "is_error": false}
+{"t": 1793336181.892297, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.4}, "ms": 59.7, "bytes": 50459, "images": 1, "is_error": false}

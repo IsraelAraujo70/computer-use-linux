@@ -1,0 +1,24 @@
+{"t": 1793335427.2001042, "method": "initialize", "tool": null, "args": null, "ms": 22.5, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793335427.208694, "method": "tools/list", "tool": null, "args": null, "ms": 4.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793335429.4984095, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome"}, "ms": 766.4, "bytes": 215851, "images": 1, "is_error": false}
+{"t": 1793335430.637802, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 24.7, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793335430.7800913, "method": "tools/call", "tool": "click", "args": {"element_index": 86}, "ms": 23.9, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793335431.697829, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 78.1, "bytes": 111455, "images": 1, "is_error": false}
+{"t": 1793335433.1924243, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista"}, "ms": 332.7, "bytes": 855, "images": 0, "is_error": false}
+{"t": 1793335433.4009275, "method": "tools/call", "tool": "click", "args": {"x": 958, "y": 613}, "ms": 202.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335434.2741373, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 67.2, "bytes": 115375, "images": 1, "is_error": false}
+{"t": 1793335435.3856, "method": "tools/call", "tool": "click", "args": {"x": 972, "y": 648}, "ms": 201.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793335436.3200288, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 70.7, "bytes": 114868, "images": 1, "is_error": false}
+{"t": 1793335437.8222964, "method": "tools/call", "tool": "click", "args": {"x": 854, "y": 780}, "ms": 201.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335437.897326, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 70.1, "bytes": 104636, "images": 1, "is_error": false}
+{"t": 1793335439.1836164, "method": "tools/call", "tool": "click", "args": {"x": 740, "y": 698}, "ms": 202.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793335439.2575269, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 67.3, "bytes": 111444, "images": 1, "is_error": false}
+{"t": 1793335440.687032, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 322.6, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793335440.7625873, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 69.3, "bytes": 111872, "images": 1, "is_error": false}
+{"t": 1793335442.3171325, "method": "tools/call", "tool": "press_key", "args": {"key": "ctrl+a"}, "ms": 197.6, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793335442.6763744, "method": "tools/call", "tool": "type_text", "args": {"text": "14:30"}, "ms": 305.6, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793335442.7451417, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 63.4, "bytes": 111420, "images": 1, "is_error": false}
+{"t": 1793335443.9180322, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 177.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793335443.9862528, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 63.5, "bytes": 102156, "images": 1, "is_error": false}
+{"t": 1793335445.1678004, "method": "tools/call", "tool": "click", "args": {"x": 1174, "y": 771}, "ms": 200.8, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793335445.2339652, "method": "tools/call", "tool": "screenshot", "args": {"scale": 0.5}, "ms": 61.4, "bytes": 89284, "images": 1, "is_error": false}

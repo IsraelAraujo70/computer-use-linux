@@ -1,0 +1,38 @@
+{
+ "run_id": "baseline-drag-drop-r0",
+ "variant": "baseline",
+ "task": "drag-drop",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": false,
+ "detail": "no card moved",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 14.45,
+ "agent_tool_calls": 8,
+ "agent_tool_errors": 0,
+ "mcp_calls": 8,
+ "mcp_ms_total": 1641.5,
+ "mcp_bytes_total": 332562,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "drag",
+  "click",
+  "screenshot",
+  "press_key",
+  "screenshot",
+  "find_elements",
+  "drag"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 159810,
+  "cached": 147685,
+  "output": 1035
+ },
+ "final": "I couldn't move 'Revisar contrato'. It is still in 'A fazer', and no other card was touched.\n\nThe only way to move a card on this board is by dragging it, and the drag tool fails because `ydotool` isn't installed. Clicking the card did nothing, and Tab only moved focus to the browser toolbar, so I found no keyboard or accessibility route to move it. Installing `ydotool` would let the drag work.",
+ "state": {}
+}

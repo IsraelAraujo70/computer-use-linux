@@ -1,0 +1,40 @@
+{
+ "run_id": "final-flaky-field-r1",
+ "variant": "final",
+ "task": "flaky-field",
+ "rep": 1,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 10.09,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1877.9,
+ "mcp_bytes_total": 3159,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 39141,
+  "cached": 38154,
+  "output": 343
+ },
+ "final": "I filled in the card details (MARIA S OLIVEIRA, 4111 1111 1111 1111, 12/28, CVV 123) on the Pagamento page and clicked \"Pagar\". The page showed \"Pagamento aprovado\".",
+ "state": {
+  "paid": {
+   "name": "MARIA S OLIVEIRA",
+   "card_digits": "4111111111111111",
+   "expiry": "12/28",
+   "cvv": "123"
+  }
+ }
+}

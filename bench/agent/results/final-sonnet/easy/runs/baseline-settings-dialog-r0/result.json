@@ -1,0 +1,54 @@
+{
+ "run_id": "baseline-settings-dialog-r0",
+ "variant": "baseline",
+ "task": "settings-dialog",
+ "rep": 0,
+ "agent": "claude",
+ "model": "claude-sonnet-5-5",
+ "effort": "medium",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 22.32,
+ "agent_tool_calls": 16,
+ "agent_tool_errors": 0,
+ "mcp_calls": 16,
+ "mcp_ms_total": 2976.7,
+ "mcp_bytes_total": 682073,
+ "screenshots": 7,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "find_elements",
+  "set_value",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot",
+  "click",
+  "screenshot"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 346363,
+  "cached": 330052,
+  "output": 1195
+ },
+ "final": "Notification settings are saved. I set the frequency to Semanal and turned on Notificações no navegador, then clicked Salvar. The page showed \"Configurações salvas\". I changed nothing else.",
+ "state": {
+  "saved": {
+   "language": "pt-BR",
+   "display_name": "Israel",
+   "email_digest": true,
+   "frequency": "weekly",
+   "browser_notifications": true
+  }
+ }
+}
