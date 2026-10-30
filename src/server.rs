@@ -1911,8 +1911,18 @@ impl ComputerUseLinux {
     )]
     async fn click_tool(&self, Parameters(params): Parameters<ClickParams>) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.click(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        let Json(output) = self.click(Parameters(params.clone())).await;
+        let echo = if params.x.zip(params.y).is_none() {
+            self.echo_target(
+                params.element_index,
+                None,
+                &params.selector(),
+                ElementResolvePurpose::Click,
+            )
+        } else {
+            Echo::default()
+        };
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -1930,8 +1940,14 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<ActionParams>,
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.perform_action(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        let Json(output) = self.perform_action(Parameters(params.clone())).await;
+        let echo = self.echo_target(
+            params.element_index,
+            params.element_identifier.as_deref(),
+            &params.selector(),
+            ElementResolvePurpose::Action,
+        );
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -1949,8 +1965,14 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<SetValueParams>,
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.set_value(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        let Json(output) = self.set_value(Parameters(params.clone())).await;
+        let echo = self.echo_target(
+            params.element_index,
+            params.element_identifier.as_deref(),
+            &params.selector(),
+            ElementResolvePurpose::SetValue,
+        );
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -1968,8 +1990,20 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<FillFormParams>,
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.fill_form(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        let Json(output) = self.fill_form(Parameters(params.clone())).await;
+        let mut echo = Echo::default();
+        for field in &params.fields {
+            echo.targets.extend(
+                self.echo_target(
+                    field.element_index,
+                    None,
+                    &field.selector(),
+                    ElementResolvePurpose::SetValue,
+                )
+                .targets,
+            );
+        }
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -1985,11 +2019,18 @@ impl ComputerUseLinux {
     async fn scroll_tool(&self, Parameters(params): Parameters<ScrollParams>) -> CallToolResult {
         let observe = params.observe != Some(false);
         let until = params.until.is_some();
+        let element = params.element_index.filter(|_| !until);
         let Json(output) = self.scroll(Parameters(params)).await;
         // A found `until` match already prints its lines and cached the
         // snapshot they come from; a change report would print the page.
         let observe = observe && !(until && output.ok);
-        self.finish_action(output, observe).await
+        let echo = self.echo_target(
+            element,
+            None,
+            &ElementSelector::default(),
+            ElementResolvePurpose::Click,
+        );
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -2004,8 +2045,20 @@ impl ComputerUseLinux {
     )]
     async fn drag_tool(&self, Parameters(params): Parameters<DragParams>) -> CallToolResult {
         let observe = params.observe != Some(false);
+        let mut echo = Echo::default();
+        for element in [params.from_element_index, params.to_element_index] {
+            echo.targets.extend(
+                self.echo_target(
+                    element,
+                    None,
+                    &ElementSelector::default(),
+                    ElementResolvePurpose::Click,
+                )
+                .targets,
+            );
+        }
         let Json(output) = self.drag(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -2023,8 +2076,18 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<DropFilesParams>,
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.drop_files(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        let Json(output) = self.drop_files(Parameters(params.clone())).await;
+        let echo = if params.x.zip(params.y).is_none() {
+            self.echo_target(
+                params.element_index,
+                None,
+                &params.selector(),
+                ElementResolvePurpose::Click,
+            )
+        } else {
+            Echo::default()
+        };
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -2043,7 +2106,7 @@ impl ComputerUseLinux {
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
         let Json(output) = self.press_key(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        self.finish_action(output, observe, Echo::default()).await
     }
 
     #[tool(
@@ -2061,8 +2124,14 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<TypeTextParams>,
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.type_text(Parameters(params)).await;
-        self.finish_action(output, observe).await
+        let Json(output) = self.type_text(Parameters(params.clone())).await;
+        let echo = self.echo_target(
+            params.element_index,
+            None,
+            &params.selector(),
+            ElementResolvePurpose::SetValue,
+        );
+        self.finish_action(output, observe, echo).await
     }
 
     #[tool(
@@ -4271,11 +4340,18 @@ impl ComputerUseLinux {
 
     /// Turns an action's outcome into its text result: `ok: …` or
     /// `error: …`, then (when `observe`) what the action changed, so the
-    /// agent need not look again. Failures report changes only when input
-    /// may already have reached the app, or a dialog may be in the way: a
-    /// failed element action names a blocking dialog (`page_view::blocking_dialog`),
-    /// and so does a click that changed nothing while a modal one is open.
-    async fn finish_action(&self, output: ActionOutput, observe: bool) -> CallToolResult {
+    /// agent need not look again, then a `target:` line per element the
+    /// action named (`echo`): its state read now. Failures report changes
+    /// and targets only when input may already have reached the app, or a
+    /// dialog may be in the way: a failed element action names a blocking
+    /// dialog (`page_view::blocking_dialog`), and so does a click that
+    /// changed nothing while a modal one is open.
+    async fn finish_action(
+        &self,
+        output: ActionOutput,
+        observe: bool,
+        echo: Echo,
+    ) -> CallToolResult {
         let dialog = if !output.ok && DIALOG_CHECKED_ACTIONS.contains(&output.action.as_str()) {
             self.blocking_dialog_note().await
         } else {
@@ -4297,6 +4373,12 @@ impl ComputerUseLinux {
             text.push('\n');
             text.push_str(dialog);
         }
+        // Labels as the agent last saw them, for a target that is gone.
+        let labels: Vec<String> = echo
+            .targets
+            .iter()
+            .map(|object_ref| self.label_for_ref(object_ref))
+            .collect();
         if observe && input_reached_app {
             let report = self.observe_changes().await;
             let landed_nowhere = output.ok
@@ -4316,11 +4398,103 @@ impl ComputerUseLinux {
                 }
             }
         }
+        if input_reached_app {
+            if !text.ends_with('\n') {
+                text.push('\n');
+            }
+            for (object_ref, label) in echo.targets.iter().zip(&labels) {
+                let line = self.target_line(object_ref, label).await;
+                text.push_str(&format!("target: {line}\n"));
+            }
+        }
         let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
         if !output.ok {
             result.is_error = Some(true);
         }
         result
+    }
+
+    /// The `Echo` of an action naming one element, resolved the way the action
+    /// resolved it: a raw identifier, an id (whose object is known even when
+    /// it is gone), or a selector over the cached snapshot. Empty when the
+    /// call names no element.
+    fn echo_target(
+        &self,
+        element_index: Option<u32>,
+        element_identifier: Option<&str>,
+        selector: &ElementSelector<'_>,
+        purpose: ElementResolvePurpose,
+    ) -> Echo {
+        let object_ref = if let Some(identifier) = element_identifier
+            .map(str::trim)
+            .filter(|identifier| !identifier.is_empty())
+        {
+            Some(identifier.to_string())
+        } else if let Some(id) = element_index {
+            self.element_ids
+                .lock()
+                .ok()
+                .and_then(|ids| ids.object_ref(id).map(str::to_string))
+        } else if selector.is_empty() {
+            None
+        } else {
+            self.resolve_cached_node(None, selector, purpose)
+                .ok()
+                .map(|node| node.object_ref)
+        };
+        Echo {
+            targets: object_ref.into_iter().collect(),
+        }
+    }
+
+    /// How the cached snapshot labels an element (`outline::element_label`),
+    /// else `[id]`, else its object ref.
+    fn label_for_ref(&self, object_ref: &str) -> String {
+        let cached = self.last_snapshot.lock().ok().and_then(|cached| {
+            cached
+                .nodes
+                .iter()
+                .find(|node| node.object_ref == object_ref)
+                .map(crate::outline::element_label)
+        });
+        cached.unwrap_or_else(|| {
+            match self
+                .element_ids
+                .lock()
+                .map(|mut ids| ids.id_for(object_ref))
+            {
+                Ok(id) => format!("[{id}]"),
+                Err(_) => object_ref.to_string(),
+            }
+        })
+    }
+
+    /// The `target:` line of an element an action acted on: the element read
+    /// again now, even off-screen, with a rich-text editor's whole text
+    /// (`read_field`), placed against the cached snapshot (`(below)` when
+    /// outside the visible page: `page_view::placed_line`); or, when it
+    /// cannot be read, that `label` is gone.
+    async fn target_line(&self, object_ref: &str, label: &str) -> String {
+        let fresh = read_field(object_ref)
+            .await
+            .filter(|(node, _)| !crate::fields::has_state(node, "defunct"));
+        let Some((mut node, text)) = fresh else {
+            return format!("{label} is gone (removed, or re-rendered under a new id)");
+        };
+        if crate::page_view::focus_needs_full_text(&node) {
+            if let (Some(text), Some(own)) = (text, node.text.as_mut()) {
+                own.content = Some(text);
+            }
+        }
+        if let Ok(mut ids) = self.element_ids.lock() {
+            node.index = ids.id_for(object_ref);
+        }
+        let nodes = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
+        crate::page_view::placed_line(&nodes, &node)
     }
 
     /// `page_view::blocking_dialog` for a failed action: the observed scope
@@ -4783,6 +4957,15 @@ impl ComputerUseLinux {
             }),
         }
     }
+}
+
+/// What an action's result says about the elements it acted on, once the
+/// page settled (`finish_action`).
+#[derive(Debug, Default)]
+struct Echo {
+    /// Object refs of the elements the action named, each echoed as a
+    /// `target:` line with its state after the action.
+    targets: Vec<String>,
 }
 
 /// What `set_value` did to one field.
@@ -5924,7 +6107,10 @@ fn virtualized_list_hint(lists: &[u32], query: &ElementQuery) -> String {
         }
     }
     if let Some(states) = query.states.as_ref().filter(|states| !states.is_empty()) {
-        until.insert("states".to_string(), serde_json::Value::from(states.clone()));
+        until.insert(
+            "states".to_string(),
+            serde_json::Value::from(states.clone()),
+        );
     }
     let others = if lists.len() > 1 {
         let ids: Vec<String> = lists[1..].iter().map(|id| format!("[{id}]")).collect();

@@ -485,6 +485,22 @@ pub fn scrollable_lists(nodes: &[AccessibilityNode]) -> Vec<u32> {
     lists.into_iter().map(|at| nodes[at].index).collect()
 }
 
+/// An element's line placed against a snapshot of its page: `(below)`,
+/// `(above)` or `(off-screen)` in place of its position when it lies wholly
+/// outside where it can be seen (`visible_area`; for an element the
+/// snapshot lacks, the page's area: `shown_part`).
+pub fn placed_line(nodes: &[AccessibilityNode], node: &AccessibilityNode) -> String {
+    let area = if nodes.iter().any(|candidate| candidate.index == node.index) {
+        visible_area(nodes, node.index)
+    } else {
+        shown_part(nodes, None)
+    };
+    let marker = area
+        .and_then(|area| placement(node, &area))
+        .map(|(marker, _)| marker);
+    render_line_placed(node, marker)
+}
+
 /// The overlap of two rectangles, `None` when they do not overlap.
 pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
     let x = a.x.max(b.x);
@@ -1506,6 +1522,37 @@ mod tests {
     }
 
     #[test]
+    fn a_target_line_says_where_the_element_is_and_its_state() {
+        let page = inbox(30, 110);
+        // A row read again after a click: checked, still below the fold.
+        let mut row = page
+            .iter()
+            .find(|node| node.index == 125)
+            .cloned()
+            .expect("row 25 is in the inbox");
+        row.role = "check box".into();
+        row.states = vec!["checked".into(), "enabled".into()];
+        assert_eq!(
+            placed_line(&page, &row),
+            "[125] check box \"Mensagem 025\" (below) {checked}"
+        );
+        // Inside the viewport it keeps its position.
+        let visible = page
+            .iter()
+            .find(|node| node.index == 101)
+            .cloned()
+            .expect("row 1 is in the inbox");
+        assert_eq!(
+            placed_line(&page, &visible),
+            "[101] list item \"Mensagem 001\" @0,150 1000x40"
+        );
+        // An element the snapshot lacks is placed against the page.
+        let mut popup = at(node(900, None, "button", "Fechar"), 0, 2000, 50, 20);
+        popup.states = vec!["enabled".into()];
+        assert_eq!(placed_line(&page, &popup), "[900] button \"Fechar\" (below)");
+    }
+
+    #[test]
     fn a_closed_popup_is_one_removal() {
         let mut list = vec![at(node(20, Some(10), "list box", "Hora"), 0, 200, 100, 300)];
         list.extend((0..30).map(|row| {
@@ -1594,7 +1641,13 @@ mod tests {
         assert_eq!(scrollable_lists(&virtual_list), vec![11]);
         // Five rows fit; an empty list has nothing to scroll.
         assert!(scrollable_lists(&inbox(5, 110)).is_empty());
-        let empty = browser(vec![at(node(11, Some(10), "list", "Vazia"), 0, 110, 1000, 2000)]);
+        let empty = browser(vec![at(
+            node(11, Some(10), "list", "Vazia"),
+            0,
+            110,
+            1000,
+            2000,
+        )]);
         assert!(scrollable_lists(&empty).is_empty());
     }
 
