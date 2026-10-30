@@ -4211,7 +4211,13 @@ impl ComputerUseLinux {
             ),
             None => {
                 let owner = match hint_ref {
-                    Some(object_ref) => object_ref_owner_pid(object_ref).await.ok().flatten(),
+                    Some(object_ref) => {
+                        tokio::time::timeout(FEEDBACK_READ_LIMIT, object_ref_owner_pid(object_ref))
+                            .await
+                            .ok()
+                            .and_then(Result::ok)
+                            .flatten()
+                    }
                     None => None,
                 };
                 let pid = match owner {
@@ -4494,11 +4500,14 @@ impl ComputerUseLinux {
     /// again now, even off-screen, with a rich-text editor's whole text
     /// (`read_field`), placed against the cached snapshot (`(below)` when
     /// outside the visible page: `page_view::placed_line`); or, when it
-    /// cannot be read, that `label` is gone. Also the text it holds now.
+    /// cannot be read, that `label` is gone, or when the app does not answer
+    /// within `FEEDBACK_READ_LIMIT`, that its state is unavailable. Also the
+    /// text it holds now.
     async fn target_line(&self, object_ref: &str, label: &str) -> (String, Option<String>) {
-        let fresh = read_field(object_ref)
-            .await
-            .filter(|(node, _)| !crate::fields::has_state(node, "defunct"));
+        let Ok(fresh) = answered_field_read(object_ref).await else {
+            return (unanswered_target_line(label), None);
+        };
+        let fresh = fresh.filter(|(node, _)| !crate::fields::has_state(node, "defunct"));
         let Some((mut node, text)) = fresh else {
             let gone = format!("{label} is gone (removed, or re-rendered under a new id)");
             return (gone, None);
@@ -5654,9 +5663,12 @@ impl ComputerUseLinux {
                 .as_ref()
                 .zip(crate::page_view::visible_area(&last.nodes, target.index));
             if attempt == 0
-                && crate::atspi_tree::scroll_into_view(&target.object_ref)
-                    .await
-                    .is_ok()
+                && tokio::time::timeout(
+                    FEEDBACK_READ_LIMIT,
+                    crate::atspi_tree::scroll_into_view(&target.object_ref),
+                )
+                .await
+                .is_ok_and(|scrolled| scrolled.is_ok())
             {
                 eprintln!("scroll until: ScrollTo [{}]", target.index);
             } else if let Some(direction) =
@@ -6207,30 +6219,86 @@ const FIELD_SUBTREE_MAX_NODES: usize = 400;
 /// Deepest descendant level of an editor read to expand its text.
 const FIELD_SUBTREE_MAX_DEPTH: u32 = 12;
 
+/// Longest a read-back around an action may take: a field read
+/// (`read_field`, its subtree expansion included), or one AT-SPI call the
+/// settle and scroll reads make outside a snapshot's own deadline. The
+/// AT-SPI connection sets no D-Bus method timeout, so an app that stops
+/// answering after input would otherwise hold the tool forever.
+const FEEDBACK_READ_LIMIT: Duration = Duration::from_millis(1_500);
+
+/// A read the app did not answer within its limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct NoAnswer;
+
+/// A field and the text it holds, as `read_field` returns them.
+type FieldRead = (AccessibilityNode, Option<String>);
+
 /// Rereads a field and the text it holds (`fields::field_text`). An editor
 /// whose text has U+FFFC for embedded paragraphs (a Chromium
 /// contenteditable) is read with its descendants and expanded
-/// (`fields::expanded_text`). `None` when the field cannot be read.
-async fn read_field(object_ref: &str) -> Option<(AccessibilityNode, Option<String>)> {
-    let fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
+/// (`fields::expanded_text`). `None` when the field cannot be read or does
+/// not answer within `FEEDBACK_READ_LIMIT` (`answered_field_read` tells the two
+/// apart).
+async fn read_field(object_ref: &str) -> Option<FieldRead> {
+    answered_field_read(object_ref).await.ok().flatten()
+}
+
+/// `read_field`, with `Err(NoAnswer)` when the element read gets no answer
+/// within `FEEDBACK_READ_LIMIT`, and `Ok(None)` when the element is gone.
+async fn answered_field_read(object_ref: &str) -> Result<Option<FieldRead>, NoAnswer> {
+    read_field_within(
+        object_ref,
+        FEEDBACK_READ_LIMIT,
+        |object_ref| async move { crate::atspi_tree::read_element(&object_ref).await },
+        |object_ref| async move {
+            crate::atspi_tree::read_subtree(
+                &object_ref,
+                FIELD_SUBTREE_MAX_NODES,
+                FIELD_SUBTREE_MAX_DEPTH,
+            )
+            .await
+        },
+    )
+    .await
+}
+
+/// `answered_field_read` over the given element and subtree reads, all
+/// within `limit`: an element read past it is `NoAnswer`; a subtree
+/// expansion past it leaves the text unexpanded.
+async fn read_field_within<Element, ElementRead, Subtree, SubtreeRead>(
+    object_ref: &str,
+    limit: Duration,
+    read_element: Element,
+    read_subtree: Subtree,
+) -> Result<Option<FieldRead>, NoAnswer>
+where
+    Element: FnOnce(String) -> ElementRead,
+    ElementRead: std::future::Future<Output = anyhow::Result<AccessibilityNode>>,
+    Subtree: FnOnce(String) -> SubtreeRead,
+    SubtreeRead: std::future::Future<Output = anyhow::Result<Vec<AccessibilityNode>>>,
+{
+    let deadline = tokio::time::Instant::now() + limit;
+    let fresh = match tokio::time::timeout_at(deadline, read_element(object_ref.to_string())).await
+    {
+        Err(_) => return Err(NoAnswer),
+        Ok(Err(_)) => return Ok(None),
+        Ok(Ok(fresh)) => fresh,
+    };
     let text = crate::fields::field_text(&fresh);
     if text
         .as_deref()
         .is_some_and(|text| text.contains(crate::fields::EMBEDDED_OBJECT))
     {
-        let expanded = crate::atspi_tree::read_subtree(
-            object_ref,
-            FIELD_SUBTREE_MAX_NODES,
-            FIELD_SUBTREE_MAX_DEPTH,
-        )
-        .await
-        .ok()
-        .and_then(|nodes| crate::fields::expanded_text(&nodes));
+        let expanded = tokio::time::timeout_at(deadline, read_subtree(object_ref.to_string()))
+            .await
+            .ok()
+            .and_then(|nodes| nodes.ok())
+            .and_then(|nodes| crate::fields::expanded_text(&nodes));
         if expanded.is_some() {
-            return Some((fresh, expanded));
+            return Ok(Some((fresh, expanded)));
         }
     }
-    Some((fresh, text))
+    Ok(Some((fresh, text)))
 }
 
 /// Rereads a field's text (`read_field`) until `done` holds or `limit`
@@ -7347,6 +7415,15 @@ fn typed_text_evidence(
             (line.starts_with("+ ") || line.starts_with("~ ")) && line.contains(&needle)
         });
     changed.then_some("the change report shows it")
+}
+
+/// The `target:` line of an element whose app did not answer the read-back
+/// within `FEEDBACK_READ_LIMIT`: the action may still have worked.
+fn unanswered_target_line(label: &str) -> String {
+    format!(
+        "{label} (state unavailable: no answer within {:.1} s)",
+        FEEDBACK_READ_LIMIT.as_secs_f64()
+    )
 }
 
 /// A type_text refusal for a window target and an element of another app.
@@ -10891,6 +10968,56 @@ mod node_target_scope_tests {
         assert_eq!(
             typed_delivery(Some("x"), Some("x"), "\n"),
             Delivery::Unverified
+        );
+    }
+
+    #[tokio::test]
+    async fn field_read_back_gives_up_when_the_app_stops_answering() {
+        let limit = Duration::from_millis(50);
+        let mut editor = cached_node(4, ":1.9/org/a11y/atspi/accessible/4");
+        editor.role = "entry".to_string();
+        editor.text = Some(crate::atspi_tree::AccessibilityText {
+            character_count: 3,
+            caret_offset: None,
+            content: Some(format!("a{}b", crate::fields::EMBEDDED_OBJECT)),
+            truncated: false,
+            selections: Vec::new(),
+        });
+        let started = std::time::Instant::now();
+        // The element read never answers: no answer, not "gone".
+        let silent = read_field_within(
+            "obj",
+            limit,
+            |_| std::future::pending::<anyhow::Result<AccessibilityNode>>(),
+            |_| std::future::pending::<anyhow::Result<Vec<AccessibilityNode>>>(),
+        )
+        .await;
+        assert_eq!(silent.map(|read| read.is_some()), Err(NoAnswer));
+        // The editor answers but its subtree expansion does not: the read
+        // still returns, with the unexpanded text.
+        let answered = editor.clone();
+        let partial = read_field_within(
+            "obj",
+            limit,
+            |_| async move { anyhow::Ok(answered) },
+            |_| std::future::pending::<anyhow::Result<Vec<AccessibilityNode>>>(),
+        )
+        .await;
+        let text = partial.ok().flatten().and_then(|(_, text)| text);
+        assert_eq!(text, Some(format!("a{}b", crate::fields::EMBEDDED_OBJECT)));
+        // A failed read is a gone element.
+        let gone = read_field_within(
+            "obj",
+            limit,
+            |_| async { Err::<AccessibilityNode, _>(anyhow::anyhow!("no longer exists")) },
+            |_| std::future::pending::<anyhow::Result<Vec<AccessibilityNode>>>(),
+        )
+        .await;
+        assert_eq!(gone.map(|read| read.is_some()), Ok(false));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert_eq!(
+            unanswered_target_line("[4] entry \"Corpo\""),
+            "[4] entry \"Corpo\" (state unavailable: no answer within 1.5 s)"
         );
     }
 
