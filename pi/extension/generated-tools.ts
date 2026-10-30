@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "200f31dbd77ee03cf9cbc88fa418859356f9b490d3e7f0337f19a73824add70f";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "aa2c9e77d83efac1833094b2dbab8700e0b798493497ba058cf854f0ad200571";
+export const GENERATED_TOOL_CATALOG_HASH = "4269ca7de5870f6a409210f5f01fa654d29af95326edc7c2d58dd235e3cfffb9";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "c24dfa687fee4b64d72f6ab1108884054e8dfeb8b8bde7c40ac57b727f756a46";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -571,7 +571,7 @@ export const GENERATED_MCP_TOOLS =
       "openWorldHint": true,
       "readOnlyHint": true
     },
-    "description": "Observe an app. Returns a header (window, window_id, url, element count) and one line per visible element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
+    "description": "Observe an app. Returns a header (window, window_id, url, element count) and one line per element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. Elements outside the visible area say (below), (above) or (off-screen) instead of @x,y; actions by id still reach them. Very long pages omit the farthest ones. [n] is an element id, valid in every tool while the element exists; re-rendered content gets new ids. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
     "inputSchema": {
       "$defs": {
         "TreeFormat": {
