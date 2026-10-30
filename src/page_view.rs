@@ -331,6 +331,75 @@ fn view_candidates(tree: &Tree<'_>, roots: Vec<usize>, visible: Option<&Bounds>)
     }
     candidates
 }
+/// What a settle read refreshes of a browser snapshot instead of the whole
+/// app: the visible web document, read again with its subtree, and the
+/// window frame and address bar, read again on their own for the title and
+/// URL. The rest of the browser UI is kept from the earlier read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentParts {
+    /// Id of the visible web document.
+    pub document: u32,
+    /// Id of its window frame, whose name is the window title.
+    pub frame: Option<u32>,
+    /// Id of the address bar entry.
+    pub address_bar: Option<u32>,
+}
+
+/// The `DocumentParts` of a snapshot with stable ids; `None` without a
+/// visible web document.
+pub fn document_parts(nodes: &[AccessibilityNode]) -> Option<DocumentParts> {
+    let tree = Tree::new(nodes);
+    let document = tree.visible_document()?;
+    Some(DocumentParts {
+        document: nodes[document].index,
+        frame: tree
+            .ancestor_with_role(document, &["frame", "window", "dialog"])
+            .map(|at| nodes[at].index),
+        address_bar: tree.address_bar_entry(document).map(|at| nodes[at].index),
+    })
+}
+
+/// `base` with the subtree of its element `document` replaced by `fresh` (a
+/// new read of that subtree with stable ids, the document first; its roots
+/// hang under the old document's parent and take its place in the order),
+/// and each `refreshed` element (a new read of one element, `index` set to
+/// its id) in place of the base element with that id, keeping its place in
+/// the tree. `None` when `base` has no element `document`.
+pub fn splice_document(
+    base: &[AccessibilityNode],
+    document: u32,
+    fresh: Vec<AccessibilityNode>,
+    refreshed: &[AccessibilityNode],
+) -> Option<Vec<AccessibilityNode>> {
+    let tree = Tree::new(base);
+    let document = base.iter().position(|node| node.index == document)?;
+    let parent = base[document].parent_index;
+    let mut fresh = Some(fresh);
+    let mut spliced = Vec::with_capacity(base.len());
+    for (at, node) in base.iter().enumerate() {
+        if at == document {
+            spliced.extend(fresh.take().into_iter().flatten().map(|mut node| {
+                if node.parent_index.is_none() {
+                    node.parent_index = parent;
+                }
+                node
+            }));
+        } else if tree.inside(at, document) {
+            continue;
+        } else if let Some(new) = refreshed.iter().find(|new| new.index == node.index) {
+            spliced.push(AccessibilityNode {
+                parent_index: node.parent_index,
+                depth: node.depth,
+                child_count: node.child_count,
+                ..new.clone()
+            });
+        } else {
+            spliced.push(node.clone());
+        }
+    }
+    Some(spliced)
+}
+
 /// The screen area where element `id` can be seen: its web document's
 /// viewport when it is inside the visible document, else its window frame.
 /// `None` when the snapshot shows neither.
@@ -753,20 +822,19 @@ impl<'a> Tree<'a> {
             .or_else(|| documents.first().copied())
     }
 
-    /// The address bar text: an entry outside the document named like an
-    /// address bar, else one whose text looks like a URL.
+    /// The address bar text (`address_bar_entry`).
     fn address_bar(&self, document: usize) -> Option<String> {
+        self.address_bar_entry(document)
+            .and_then(|at| node_text(&self.nodes[at]))
+    }
+
+    /// The address bar: an entry outside the document named like an address
+    /// bar and holding text, else one whose text looks like a URL.
+    fn address_bar_entry(&self, document: usize) -> Option<usize> {
         let entries: Vec<usize> = (0..self.nodes.len())
             .filter(|&at| self.role(at) == "entry" && !self.inside(at, document))
             .collect();
-        let text = |at: usize| {
-            clean(
-                self.nodes[at]
-                    .text
-                    .as_ref()
-                    .and_then(|text| text.content.as_deref()),
-            )
-        };
+        let text = |at: usize| node_text(&self.nodes[at]);
         entries
             .iter()
             .copied()
@@ -776,12 +844,12 @@ impl<'a> Tree<'a> {
                     .as_deref()
                     .is_some_and(|name| name.to_lowercase().contains("address"))
             })
-            .and_then(text)
+            .filter(|&at| text(at).is_some())
             .or_else(|| {
-                entries
-                    .iter()
-                    .filter_map(|&at| text(at))
-                    .find(|text| !text.contains(' ') && text.contains(['.', '/', ':']))
+                entries.iter().copied().find(|&at| {
+                    text(at)
+                        .is_some_and(|text| !text.contains(' ') && text.contains(['.', '/', ':']))
+                })
             })
     }
 
@@ -1175,6 +1243,76 @@ mod tests {
             height: 10,
         };
         assert!(intersect(&apart, &away).is_none());
+    }
+
+    #[test]
+    fn a_settle_read_splices_the_fresh_document_into_the_browser_snapshot() {
+        let base = browser(vec![
+            at(
+                node(11, Some(10), "heading", "Caixa de entrada"),
+                10,
+                110,
+                300,
+                30,
+            ),
+            at(node(12, Some(10), "button", "Enviar"), 10, 150, 90, 30),
+            at(node(13, Some(12), "static", "Enviar"), 10, 150, 90, 30),
+        ]);
+        let parts = document_parts(&base).expect("a visible document");
+        assert_eq!(
+            parts,
+            DocumentParts {
+                document: 10,
+                frame: Some(2),
+                address_bar: Some(3),
+            }
+        );
+        assert_eq!(document_parts(&base[..8]), None);
+
+        // The fresh read: the button is gone, a status appeared; the frame and
+        // address bar were read again on their own (no parent or depth).
+        let mut document = at(node(10, None, "document web", "Correio"), 0, 100, 1000, 700);
+        document.depth = 2;
+        let fresh = vec![
+            document,
+            at(
+                node(11, Some(10), "heading", "Caixa de entrada"),
+                10,
+                110,
+                300,
+                30,
+            ),
+            at(
+                node(14, Some(10), "status bar", "Mensagem enviada"),
+                10,
+                700,
+                300,
+                30,
+            ),
+        ];
+        let frame = node(2, None, "frame", "Enviado - Chromium");
+        let address = with_text(
+            node(3, None, "entry", "Address and search bar"),
+            "example.com/sent",
+        );
+        let spliced = splice_document(&base, 10, fresh, &[frame, address]).expect("spliced");
+
+        let ids: Vec<u32> = spliced.iter().map(|node| node.index).collect();
+        assert_eq!(ids, [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14]);
+        assert_eq!(spliced[1].parent_index, Some(1));
+        assert_eq!(spliced[8].parent_index, Some(2));
+        let before = page_view(&base, ViewOptions::default());
+        let after = page_view(&spliced, ViewOptions::default());
+        assert_eq!(after.tabs, before.tabs);
+        assert_eq!(
+            change_report(&before, &after),
+            "changes (2):\n\
+             + [14] status bar \"Mensagem enviada\" @10,700 300x30\n\
+             - [12] button \"Enviar\"\n\
+             title: \"Enviado - Chromium\"\n\
+             url: example.com/sent\n"
+        );
+        assert!(splice_document(&base, 99, Vec::new(), &[]).is_none());
     }
 
     #[test]
