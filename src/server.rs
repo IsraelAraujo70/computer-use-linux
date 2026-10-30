@@ -2124,13 +2124,17 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<TypeTextParams>,
     ) -> CallToolResult {
         let observe = params.observe != Some(false);
-        let Json(output) = self.type_text(Parameters(params.clone())).await;
-        let echo = self.echo_target(
+        let (Json(output), unverified) = self.send_text(params.clone()).await;
+        let mut echo = self.echo_target(
             params.element_index,
             None,
             &params.selector(),
             ElementResolvePurpose::SetValue,
         );
+        echo.typed = unverified.map(|note| UnverifiedTyping {
+            text: params.text,
+            note,
+        });
         self.finish_action(output, observe, echo).await
     }
 
@@ -2151,32 +2155,32 @@ impl ComputerUseLinux {
         Json(execute_shell(params).await)
     }
 
-    async fn type_text(
-        &self,
-        Parameters(params): Parameters<TypeTextParams>,
-    ) -> Json<ActionOutput> {
-        self.dispatch_type_text(params).await
-    }
-
-    async fn dispatch_type_text(&self, params: TypeTextParams) -> Json<ActionOutput> {
+    /// Types the text and reads its target back. Returns the result and,
+    /// when the read-back could not confirm the text arrived, the sentence
+    /// saying so (`" Dispatched; delivery not verified…"`), left out of the
+    /// message so the caller can first look for the text on the settled
+    /// page (`typed_text_evidence`).
+    async fn send_text(&self, params: TypeTextParams) -> (Json<ActionOutput>, Option<String>) {
         let received = Some(serde_json::json!(params.clone()));
         // Reject before focus changes.
         if params.text.contains('\0') {
-            return Json(action_result(
+            let output = action_result(
                 "type_text",
                 Err("Literal text was not sent: NUL characters are unsupported.".to_string()),
                 received,
-            ));
+            );
+            return (Json(output), None);
         }
         let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let failed = |message: String| {
-            Json(ActionOutput {
+            let output = ActionOutput {
                 ok: false,
                 implemented: true,
                 action: "type_text".to_string(),
                 message,
                 received: received.clone(),
-            })
+            };
+            (Json(output), None)
         };
         let window_target = params.window_target();
         let element = if params.element_index.is_some() || !params.selector().is_empty() {
@@ -2277,8 +2281,9 @@ impl ComputerUseLinux {
         let _input_guard = input_guard;
         let mut output = action_result("type_text", result, received);
         if !output.ok {
-            return Json(output);
+            return (Json(output), None);
         }
+        let mut unverified = None;
         output.message = if crate::fields::typeable_ascii(&params.text) {
             "Sent through xdotool (X11 XTEST).".to_string()
         } else {
@@ -2312,26 +2317,25 @@ impl ComputerUseLinux {
                     );
                 }
                 Delivery::Unverified if read_back.is_none() => {
-                    output.message.push_str(&format!(
+                    unverified = Some(format!(
                         " Dispatched; delivery not verified: {label} exposes no text to read back."
                     ));
                 }
                 Delivery::Unverified => {
-                    output.message.push_str(&format!(
+                    unverified = Some(format!(
                         " Dispatched; delivery not verified: Enter may have submitted {label}, which now holds \"{holds}\"."
                     ));
                 }
             }
         } else {
-            output
-                .message
-                .push_str(" Dispatched; delivery not verified (no element was targeted).");
+            unverified =
+                Some(" Dispatched; delivery not verified (no element was targeted).".to_string());
             if focus.is_some() {
                 let notes = self.input_landing_notes(focus.as_ref(), true).await;
                 output = with_notes(output, notes);
             }
         }
-        Json(output)
+        (Json(output), unverified)
     }
 }
 
@@ -4364,28 +4368,18 @@ impl ComputerUseLinux {
             )
             || output.message.contains("no longer exists")
             || dialog.is_some();
-        let mut text = if output.ok {
-            format!("ok: {}", output.message)
-        } else {
-            format!("error: {}", output.message)
-        };
-        if let Some(dialog) = &dialog {
-            text.push('\n');
-            text.push_str(dialog);
-        }
         // Labels as the agent last saw them, for a target that is gone.
         let labels: Vec<String> = echo
             .targets
             .iter()
             .map(|object_ref| self.label_for_ref(object_ref))
             .collect();
+        let mut report = String::new();
         if observe && input_reached_app {
-            let report = self.observe_changes(&echo.targets).await;
+            report = self.observe_changes(&echo.targets).await;
             let landed_nowhere = output.ok
                 && matches!(output.action.as_str(), "click" | "perform_action")
                 && report.starts_with("changes: none");
-            text.push('\n');
-            text.push_str(&report);
             if landed_nowhere {
                 let nodes = self
                     .last_snapshot
@@ -4394,18 +4388,44 @@ impl ComputerUseLinux {
                     .unwrap_or_default();
                 // The same snapshot twice: only a modal dialog counts.
                 if let Some(dialog) = crate::page_view::blocking_dialog(&nodes, &nodes) {
-                    text.push_str(&format!("note: nothing changed and {dialog}\n"));
+                    report.push_str(&format!("note: nothing changed and {dialog}\n"));
                 }
             }
         }
+        let mut target_lines = String::new();
+        let mut target_text = None;
         if input_reached_app {
+            for (object_ref, label) in echo.targets.iter().zip(&labels) {
+                let (line, text) = self.target_line(object_ref, label).await;
+                target_lines.push_str(&format!("target: {line}\n"));
+                target_text = target_text.or(text);
+            }
+        }
+        let mut message = output.message;
+        if let Some(typed) = &echo.typed {
+            match typed_text_evidence(&typed.text, target_text.as_deref(), &report) {
+                Some(evidence) => message.push_str(&format!(" Delivered: {evidence}.")),
+                None => message.push_str(&typed.note),
+            }
+        }
+        let mut text = if output.ok {
+            format!("ok: {message}")
+        } else {
+            format!("error: {message}")
+        };
+        if let Some(dialog) = &dialog {
+            text.push('\n');
+            text.push_str(dialog);
+        }
+        if !report.is_empty() {
+            text.push('\n');
+            text.push_str(&report);
+        }
+        if !target_lines.is_empty() {
             if !text.ends_with('\n') {
                 text.push('\n');
             }
-            for (object_ref, label) in echo.targets.iter().zip(&labels) {
-                let line = self.target_line(object_ref, label).await;
-                text.push_str(&format!("target: {line}\n"));
-            }
+            text.push_str(&target_lines);
         }
         let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
         if !output.ok {
@@ -4444,6 +4464,7 @@ impl ComputerUseLinux {
         };
         Echo {
             targets: object_ref.into_iter().collect(),
+            typed: None,
         }
     }
 
@@ -4473,16 +4494,17 @@ impl ComputerUseLinux {
     /// again now, even off-screen, with a rich-text editor's whole text
     /// (`read_field`), placed against the cached snapshot (`(below)` when
     /// outside the visible page: `page_view::placed_line`); or, when it
-    /// cannot be read, that `label` is gone.
-    async fn target_line(&self, object_ref: &str, label: &str) -> String {
+    /// cannot be read, that `label` is gone. Also the text it holds now.
+    async fn target_line(&self, object_ref: &str, label: &str) -> (String, Option<String>) {
         let fresh = read_field(object_ref)
             .await
             .filter(|(node, _)| !crate::fields::has_state(node, "defunct"));
         let Some((mut node, text)) = fresh else {
-            return format!("{label} is gone (removed, or re-rendered under a new id)");
+            let gone = format!("{label} is gone (removed, or re-rendered under a new id)");
+            return (gone, None);
         };
         if crate::page_view::focus_needs_full_text(&node) {
-            if let (Some(text), Some(own)) = (text, node.text.as_mut()) {
+            if let (Some(text), Some(own)) = (text.clone(), node.text.as_mut()) {
                 own.content = Some(text);
             }
         }
@@ -4494,7 +4516,7 @@ impl ComputerUseLinux {
             .lock()
             .map(|cached| cached.nodes.clone())
             .unwrap_or_default();
-        crate::page_view::placed_line(&nodes, &node)
+        (crate::page_view::placed_line(&nodes, &node), text)
     }
 
     /// `page_view::blocking_dialog` for a failed action: the observed scope
@@ -4979,6 +5001,17 @@ struct Echo {
     /// Object refs of the elements the action named, each echoed as a
     /// `target:` line with its state after the action.
     targets: Vec<String>,
+    /// type_text whose own read-back could not confirm delivery.
+    typed: Option<UnverifiedTyping>,
+}
+
+/// Text type_text sent without confirming it arrived, and the sentence
+/// saying so, which the result keeps only when the settled page shows no
+/// sign of the text either (`typed_text_evidence`).
+#[derive(Debug)]
+struct UnverifiedTyping {
+    text: String,
+    note: String,
 }
 
 /// What `set_value` did to one field.
@@ -7276,6 +7309,44 @@ fn typed_delivery(before: Option<&str>, after: Option<&str>, text: &str) -> Deli
         (true, true) => Delivery::Unverified,
         (true, false) => Delivery::Unchanged,
     }
+}
+
+/// Where the settled page shows text type_text sent when its own read-back
+/// could not tell: the target's text now (`target_text`), else the value on
+/// the focus line or a `+`/`~` line of the change report `report`. Matched
+/// by the typed text's longest line, whitespace collapsed; against report
+/// lines by its first 40 characters (lines cut long text), and only from 3
+/// characters on, since shorter text matches too much. `None` without such
+/// evidence, or when only Enter was sent.
+fn typed_text_evidence(
+    typed: &str,
+    target_text: Option<&str>,
+    report: &str,
+) -> Option<&'static str> {
+    let longest = typed
+        .lines()
+        .filter_map(|line| crate::outline::clean(Some(line)))
+        .max_by_key(|line| line.chars().count())?;
+    let holds =
+        |text: &str| crate::outline::clean(Some(text)).is_some_and(|text| text.contains(&longest));
+    if target_text.is_some_and(holds) {
+        return Some("the target now holds it");
+    }
+    // Outline lines print double quotes as single ones.
+    let needle: String = longest.replace('"', "'").chars().take(40).collect();
+    let focused = report
+        .lines()
+        .filter_map(|line| line.strip_prefix("focus: "))
+        .filter_map(|line| line.split_once(" value=\""))
+        .any(|(_, value)| value.contains(&needle));
+    if focused {
+        return Some("the focused element now holds it");
+    }
+    let changed = needle.chars().count() >= 3
+        && report.lines().any(|line| {
+            (line.starts_with("+ ") || line.starts_with("~ ")) && line.contains(&needle)
+        });
+    changed.then_some("the change report shows it")
 }
 
 /// A type_text refusal for a window target and an element of another app.
@@ -9773,7 +9844,7 @@ mod tests {
             serde_json::json!({"text": "prefix\0suffix", "window_id": u64::MAX}),
         )
         .unwrap();
-        let Json(result) = server.type_text(Parameters(params)).await;
+        let (Json(result), _) = server.send_text(params).await;
         assert!(!result.ok);
         assert!(
             result.message.contains("NUL characters are unsupported"),
@@ -10780,14 +10851,15 @@ mod node_target_scope_tests {
         backend.cache_snapshot(std::slice::from_ref(&node), Some(111));
 
         let result = backend
-            .dispatch_type_text(TypeTextParams {
+            .send_text(TypeTextParams {
                 text: "x".to_string(),
                 element_index: Some(2),
                 pid: Some(222),
                 ..Default::default()
             })
             .await
-            .0;
+            .0
+             .0;
         assert!(!result.ok);
         // Refused by the target check, not by a failed focus attempt.
         assert!(
@@ -10819,6 +10891,47 @@ mod node_target_scope_tests {
         assert_eq!(
             typed_delivery(Some("x"), Some("x"), "\n"),
             Delivery::Unverified
+        );
+    }
+
+    #[test]
+    fn typed_text_counts_as_delivered_when_the_settled_page_shows_it() {
+        // A recipient field cleared by Enter: the chip is the evidence.
+        let report = "changes (2):\n\
+                      + [301] button \"ana.souza@example.com\" @10,40 180x24\n\
+                      ~ [12] combo box \"Para\" @10,40 600x24 {focused,editable}\n\
+                      focus: [12] combo box \"Para\" value=\"\"\n";
+        assert_eq!(
+            typed_text_evidence("ana.souza@example.com\n", Some(""), report),
+            Some("the change report shows it")
+        );
+        // No element targeted: the focused editor holds the text.
+        let report = "changes: none\nfocus: [88] entry \"Corpo\" value=\"Olá Ana,\\nSegue o \'contrato\'\"\n";
+        assert_eq!(
+            typed_text_evidence("Segue o \"contrato\"", None, report),
+            Some("the focused element now holds it")
+        );
+        assert_eq!(
+            typed_text_evidence("oi", Some("  oi  "), "changes: none\n"),
+            Some("the target now holds it")
+        );
+        // No sign of the text: still unverified. Short text never matches a
+        // change line by chance, and Enter alone proves nothing.
+        assert_eq!(
+            typed_text_evidence(
+                "ana@x.com",
+                Some(""),
+                "changes: none\nfocus: [5] entry \"Busca\" value=\"\"\n"
+            ),
+            None
+        );
+        assert_eq!(
+            typed_text_evidence("a", None, "changes (1):\n+ [7] heading \"Ana\"\n"),
+            None
+        );
+        assert_eq!(
+            typed_text_evidence("\n", None, "changes (1):\n+ [7] x\n"),
+            None
         );
     }
 
