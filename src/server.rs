@@ -5604,7 +5604,7 @@ impl ComputerUseLinux {
             .await?;
             steps += 1;
             *scrolls += 1;
-            let read = self
+            let (read, settled) = self
                 .read_after_scroll_step(plan.hint_ref.as_deref(), &last.nodes, &previous)
                 .await?;
             let loaded = std::time::Instant::now();
@@ -5615,8 +5615,10 @@ impl ComputerUseLinux {
             let before = std::mem::replace(last, read);
             let rows_before = row_keys(&before.nodes);
             let new_rows = row_keys(&last.nodes).difference(&rows_before).count();
-            if let Some(px) = measured_click_px(&before.nodes, &last.nodes, clicks, horizontal) {
-                step.click_px = px;
+            if let Some(px) = measured_click_px(&before.nodes, &last.nodes, clicks, horizontal)
+                .filter(|_| settled)
+            {
+                step.click_px = bounded_click_px(step.click_px, px);
                 step.measured = true;
             }
             eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each; waited {waited} ms for rows)", step.click_px);
@@ -5646,14 +5648,33 @@ impl ComputerUseLinux {
         hint: Option<&str>,
         base: &[AccessibilityNode],
         previous: &[crate::outline::ElementContent],
-    ) -> Result<Rescan, String> {
+    ) -> Result<(Rescan, bool), String> {
         sleep(SCROLL_UNTIL_STEP_WAIT).await;
-        let first = self.read_page(base, hint).await?;
-        if crate::outline::element_contents(&first.nodes) != previous {
-            return Ok(first);
+        let started = std::time::Instant::now();
+        let mut latest = self.read_page(base, hint).await?;
+        let mut contents = crate::outline::element_contents(&latest.nodes);
+        if contents == previous {
+            // Nothing moved yet: give the page one more poll to react.
+            sleep(SETTLE_POLL).await;
+            latest = self.read_page(&latest.nodes, hint).await?;
+            contents = crate::outline::element_contents(&latest.nodes);
         }
-        sleep(SETTLE_POLL).await;
-        self.read_page(&first.nodes, hint).await
+        // Chromium scrolls smoothly, so a read can land mid-animation. Read
+        // until two reads agree; only a settled read may size the next step.
+        loop {
+            if started.elapsed() >= SCROLL_UNTIL_SETTLE_LIMIT {
+                return Ok((latest, false));
+            }
+            sleep(SETTLE_POLL).await;
+            let next = self.read_page(&latest.nodes, hint).await?;
+            let next_contents = crate::outline::element_contents(&next.nodes);
+            let stable = next_contents == contents;
+            latest = next;
+            contents = next_contents;
+            if stable {
+                return Ok((latest, true));
+            }
+        }
     }
 
     /// Waits after a scroll step for a list that is loading more rows: while
@@ -5737,7 +5758,7 @@ impl ComputerUseLinux {
                 break;
             }
             let previous = crate::outline::element_contents(&last.nodes);
-            last = self
+            (last, _) = self
                 .read_after_scroll_step(hint, &last.nodes, &previous)
                 .await?;
         }
@@ -5906,6 +5927,8 @@ fn still_busy_after(busy: Option<&crate::page_view::Busy>, quiet_for: Duration) 
 const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
 /// Wait after a scroll step before reading the tree.
 const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(100);
+/// How long a step's read may wait for Chromium's smooth scroll to settle.
+const SCROLL_UNTIL_SETTLE_LIMIT: Duration = Duration::from_millis(700);
 /// Small wheel scrolls toward a rendered match ScrollTo did not reveal.
 const SCROLL_UNTIL_REVEAL_NUDGES: u32 = 3;
 /// Lines around the match a successful `scroll(until=…)` prints.
@@ -6081,6 +6104,14 @@ fn measured_click_px(
     shifts.sort_unstable();
     let px = f64::from(shifts[shifts.len() / 2]) / f64::from(clicks);
     (5.0..=1000.0).contains(&px).then_some(px)
+}
+
+/// The click size to use next: the new measurement, but at most halving or
+/// doubling the current estimate per step, so one odd read (rows recycled
+/// by a virtual list, a late animation frame) cannot make a step skip past
+/// the rows the list has rendered.
+fn bounded_click_px(current: f64, measured: f64) -> f64 {
+    measured.clamp(current / 2.0, current * 2.0)
 }
 
 /// The outline lines a successful `scroll(until=…)` prints for match `id`:
@@ -9647,6 +9678,14 @@ mod tests {
             None
         );
         assert_eq!(measured_click_px(&before, &before, 10, false), None);
+    }
+
+    #[test]
+    fn one_odd_measurement_cannot_resize_a_step_more_than_twofold() {
+        // A read mid-animation measured 11 px a click; recycled rows 400 px.
+        assert_eq!(bounded_click_px(53.0, 11.0), 26.5);
+        assert_eq!(bounded_click_px(53.0, 400.0), 106.0);
+        assert_eq!(bounded_click_px(53.0, 60.0), 60.0);
     }
 
     #[test]
