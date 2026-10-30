@@ -1,0 +1,52 @@
+{
+ "run_id": "baseline-modal-focus-r2",
+ "variant": "baseline",
+ "task": "modal-focus",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 23.88,
+ "agent_tool_calls": 16,
+ "agent_tool_errors": 0,
+ "mcp_calls": 16,
+ "mcp_ms_total": 4227.2,
+ "mcp_bytes_total": 204821,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "list_windows",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 353188,
+  "cached": 308864,
+  "output": 563
+ },
+ "final": "Enviei a mensagem de Carlos Mendes solicitando o cancelamento da assinatura.",
+ "state": {
+  "sent": {
+   "name": "Carlos Mendes",
+   "email": "carlos@example.com",
+   "message": "Quero cancelar minha assinatura."
+  }
+ }
+}

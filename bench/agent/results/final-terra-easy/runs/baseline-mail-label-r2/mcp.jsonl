@@ -1,0 +1,23 @@
+{"t": 1793321698.362832, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793321698.36858, "method": "tools/list", "tool": null, "args": null, "ms": 5.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793321708.9493601, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 803.4, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793321711.8121712, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 81.1, "bytes": 1291, "images": 0, "is_error": false}
+{"t": 1793321712.0241103, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 210.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793321712.3824534, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 356.2, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793321714.8998976, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 925.3, "bytes": 527573, "images": 1, "is_error": false}
+{"t": 1793321719.8510144, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 191.0, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793321720.8676167, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1015.3, "bytes": 524011, "images": 1, "is_error": false}
+{"t": 1793321725.9818816, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 213.2, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793321726.1916482, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar: Comprovante de transfer\u00eancia"}, "ms": 208.1, "bytes": 1130, "images": 0, "is_error": false}
+{"t": 1793321726.3964145, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Marcadores"}, "ms": 203.2, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793321727.414575, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1014.5, "bytes": 522590, "images": 1, "is_error": false}
+{"t": 1793321730.4608998, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 206.4, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793321730.4857552, "method": "tools/call", "tool": "click", "args": {"element_index": 126}, "ms": 23.5, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793321732.7910466, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 1000, "y": 900}, "ms": 210.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793321733.8229852, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1030.3, "bytes": 541814, "images": 1, "is_error": false}
+{"t": 1793321738.5401893, "method": "tools/call", "tool": "click", "args": {"element_index": 259}, "ms": 209.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793321738.7450714, "method": "tools/call", "tool": "click", "args": {"element_index": 91}, "ms": 203.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793321739.3684125, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 621.8, "bytes": 51862, "images": 0, "is_error": false}
+{"t": 1793321741.5920863, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 206.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793321741.6179307, "method": "tools/call", "tool": "click", "args": {"element_index": 128}, "ms": 24.2, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793321742.224531, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 604.4, "bytes": 51224, "images": 0, "is_error": false}

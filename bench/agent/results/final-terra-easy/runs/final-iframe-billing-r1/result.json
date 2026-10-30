@@ -1,0 +1,41 @@
+{
+ "run_id": "final-iframe-billing-r1",
+ "variant": "final",
+ "task": "iframe-billing",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.31,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 2374.5,
+ "mcp_bytes_total": 5508,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 133688,
+  "cached": 120576,
+  "output": 215
+ },
+ "final": "Filled in and confirmed the billing address.",
+ "state": {
+  "billing": {
+   "cep": "30130-010",
+   "street": "Avenida Afonso Pena",
+   "number": "1500",
+   "city": "Belo Horizonte",
+   "uf": "MG"
+  }
+ }
+}

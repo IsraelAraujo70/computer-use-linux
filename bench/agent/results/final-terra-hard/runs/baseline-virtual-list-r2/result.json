@@ -1,0 +1,41 @@
+{
+ "run_id": "baseline-virtual-list-r2",
+ "variant": "baseline",
+ "task": "virtual-list",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 42.43,
+ "agent_tool_calls": 7,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 4911.6,
+ "mcp_bytes_total": 210968,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 441107,
+  "cached": 408320,
+  "output": 519
+ },
+ "final": "Arquivei o pedido #1377.",
+ "state": {
+  "archived": [
+   "1377"
+  ]
+ }
+}

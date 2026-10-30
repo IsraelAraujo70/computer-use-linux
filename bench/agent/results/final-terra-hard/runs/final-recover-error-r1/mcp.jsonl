@@ -1,0 +1,13 @@
+{"t": 1793323655.6780744, "method": "initialize", "tool": null, "args": null, "ms": 24.4, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793323655.6801372, "method": "tools/list", "tool": null, "args": null, "ms": 1.6, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793323660.7693663, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 186.8, "bytes": 1052, "images": 0, "is_error": false}
+{"t": 1793323662.550226, "method": "tools/call", "tool": "set_value", "args": {"element_index": 60, "value": "(11) 91234-5678"}, "ms": 615.3, "bytes": 377, "images": 0, "is_error": false}
+{"t": 1793323664.7982714, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1149.7, "bytes": 546, "images": 0, "is_error": false}
+{"t": 1793323667.0696633, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1308.6, "bytes": 431, "images": 0, "is_error": false}
+{"t": 1793323668.4807007, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R"}, "ms": 356.6, "bytes": 1009, "images": 0, "is_error": false}
+{"t": 1793323670.4639115, "method": "tools/call", "tool": "set_value", "args": {"element_index": 122, "value": "(11) 91234-5678"}, "ms": 608.6, "bytes": 381, "images": 0, "is_error": false}
+{"t": 1793323671.606541, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 1141.0, "bytes": 551, "images": 0, "is_error": false}
+{"t": 1793323674.6557066, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 1308.5, "bytes": 434, "images": 0, "is_error": false}
+{"t": 1793323674.733705, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 76.7, "bytes": 1129, "images": 0, "is_error": false}
+{"t": 1793323677.1834006, "method": "tools/call", "tool": "click", "args": {"element_index": 108}, "ms": 405.6, "bytes": 430, "images": 0, "is_error": false}
+{"t": 1793323677.2681859, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 83.2, "bytes": 1148, "images": 0, "is_error": false}

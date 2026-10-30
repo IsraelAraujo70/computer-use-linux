@@ -1,0 +1,14 @@
+{"t": 1793320364.742966, "method": "initialize", "tool": null, "args": null, "ms": 24.5, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793320364.7454774, "method": "tools/list", "tool": null, "args": null, "ms": 2.1, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793320376.043623, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 244.5, "bytes": 8336, "images": 0, "is_error": false}
+{"t": 1793320379.1670797, "method": "tools/call", "tool": "set_value", "args": {"element_index": 49, "value": "Banco Aurora"}, "ms": 711.5, "bytes": 408, "images": 0, "is_error": false}
+{"t": 1793320384.0885282, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 437.0, "bytes": 197, "images": 0, "is_error": false}
+{"t": 1793320386.9420693, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 157.5, "bytes": 8356, "images": 0, "is_error": false}
+{"t": 1793320390.5626998, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "list item", "text": "Banco Aurora", "limit": 100}, "ms": 136.6, "bytes": 959, "images": 0, "is_error": false}
+{"t": 1793320392.7251794, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "check box", "name": "Comprovante de transfer\u00eancia"}, "ms": 136.7, "bytes": 517, "images": 0, "is_error": false}
+{"t": 1793320398.3203437, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 505.0, "bytes": 479, "images": 0, "is_error": false}
+{"t": 1793320398.7312207, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 409.0, "bytes": 400, "images": 0, "is_error": false}
+{"t": 1793320399.2508256, "method": "tools/call", "tool": "click", "args": {"element_index": 69}, "ms": 518.2, "bytes": 790, "images": 0, "is_error": false}
+{"t": 1793320402.9782448, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 512.6, "bytes": 381, "images": 0, "is_error": false}
+{"t": 1793320403.3803642, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 400.5, "bytes": 8540, "images": 0, "is_error": false}
+{"t": 1793320405.249624, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Financeiro", "limit": 100}, "ms": 131.5, "bytes": 736, "images": 0, "is_error": false}

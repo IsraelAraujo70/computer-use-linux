@@ -1,0 +1,19 @@
+{"t": 1793321381.5506892, "method": "initialize", "tool": null, "args": null, "ms": 25.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793321381.555856, "method": "tools/list", "tool": null, "args": null, "ms": 4.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793321390.488515, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 701.4, "bytes": 190376, "images": 1, "is_error": false}
+{"t": 1793321394.1213527, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "CEP", "value": "30130-010"}, "ms": 24.1, "bytes": 665, "images": 0, "is_error": false}
+{"t": 1793321394.1467955, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Rua", "value": "Avenida Afonso Pena"}, "ms": 23.9, "bytes": 685, "images": 0, "is_error": false}
+{"t": 1793321394.1736066, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "N\u00famero", "value": "1500"}, "ms": 25.2, "bytes": 663, "images": 0, "is_error": false}
+{"t": 1793321394.1987376, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Cidade", "value": "Belo Horizonte"}, "ms": 23.5, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793321394.2234778, "method": "tools/call", "tool": "perform_action", "args": {"role": "menu item", "name": "MG - Minas Gerais", "action": "select"}, "ms": 23.4, "bytes": 645, "images": 0, "is_error": false}
+{"t": 1793321396.1699147, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 207.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793321396.5027726, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010"}, "ms": 331.1, "bytes": 857, "images": 0, "is_error": false}
+{"t": 1793321396.7037265, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 535}, "ms": 198.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793321397.095468, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena"}, "ms": 389.9, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793321397.2997127, "method": "tools/call", "tool": "click", "args": {"x": 420, "y": 625}, "ms": 202.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793321397.5924084, "method": "tools/call", "tool": "type_text", "args": {"text": "1500"}, "ms": 291.1, "bytes": 848, "images": 0, "is_error": false}
+{"t": 1793321397.7932918, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 625}, "ms": 199.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793321398.1590059, "method": "tools/call", "tool": "type_text", "args": {"text": "Belo Horizonte"}, "ms": 364.3, "bytes": 868, "images": 0, "is_error": false}
+{"t": 1793321401.2006118, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 844.8, "bytes": 184147, "images": 1, "is_error": false}
+{"t": 1793321402.6776881, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 26.7, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793321403.43975, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 759.9, "bytes": 187757, "images": 1, "is_error": false}

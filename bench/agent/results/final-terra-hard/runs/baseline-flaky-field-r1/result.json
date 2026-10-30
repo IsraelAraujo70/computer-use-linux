@@ -1,0 +1,62 @@
+{
+ "run_id": "baseline-flaky-field-r1",
+ "variant": "baseline",
+ "task": "flaky-field",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 38.66,
+ "agent_tool_calls": 25,
+ "agent_tool_errors": 0,
+ "mcp_calls": 25,
+ "mcp_ms_total": 7686.8,
+ "mcp_bytes_total": 913007,
+ "screenshots": 5,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "set_value",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "get_app_state",
+  "click",
+  "press_key",
+  "type_text",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "get_app_state",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 623474,
+  "cached": 568704,
+  "output": 750
+ },
+ "final": "Pagamento realizado e aprovado.",
+ "state": {
+  "paid": {
+   "name": "MARIA S OLIVEIRA",
+   "card_digits": "4111111111111111",
+   "expiry": "12/28",
+   "cvv": "123"
+  }
+ }
+}

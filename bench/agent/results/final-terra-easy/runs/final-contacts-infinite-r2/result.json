@@ -1,0 +1,39 @@
+{
+ "run_id": "final-contacts-infinite-r2",
+ "variant": "final",
+ "task": "contacts-infinite",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 38.96,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 20569.9,
+ "mcp_bytes_total": 6252,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "scroll",
+  "find_elements",
+  "click",
+  "find_elements"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 192855,
+  "cached": 178944,
+  "output": 267
+ },
+ "final": "Starred Valéria Nunes.",
+ "state": {
+  "starred": [
+   "c170"
+  ]
+ }
+}

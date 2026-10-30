@@ -1,0 +1,14 @@
+{"t": 1793323546.6274333, "method": "initialize", "tool": null, "args": null, "ms": 24.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793323546.632807, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793323557.3273802, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 668.8, "bytes": 175073, "images": 1, "is_error": false}
+{"t": 1793323559.6960778, "method": "tools/call", "tool": "click", "args": {"element_index": 99}, "ms": 216.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323562.164188, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome"}, "ms": 718.9, "bytes": 235552, "images": 1, "is_error": false}
+{"t": 1793323566.1976237, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 207.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323567.9958055, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Linha digit\u00e1vel", "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 1.7, "bytes": 953, "images": 0, "is_error": false}
+{"t": 1793323570.023735, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome", "include_screenshot": false}, "ms": 366.2, "bytes": 14090, "images": 0, "is_error": false}
+{"t": 1793323571.7794738, "method": "tools/call", "tool": "set_value", "args": {"element_index": 82, "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 24.4, "bytes": 739, "images": 0, "is_error": false}
+{"t": 1793323577.0822322, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 207.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323577.7105112, "method": "tools/call", "tool": "type_text", "args": {"text": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 626.2, "bytes": 948, "images": 0, "is_error": false}
+{"t": 1793323579.7634754, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome", "include_screenshot": false}, "ms": 571.1, "bytes": 14227, "images": 0, "is_error": false}
+{"t": 1793323582.750209, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 24.5, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793323585.1506257, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome", "include_screenshot": false}, "ms": 401.1, "bytes": 14489, "images": 0, "is_error": false}

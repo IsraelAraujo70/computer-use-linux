@@ -1,0 +1,6 @@
+{"t": 1793323173.217543, "method": "initialize", "tool": null, "args": null, "ms": 25.6, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793323173.2204196, "method": "tools/list", "tool": null, "args": null, "ms": 2.4, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793323179.0875561, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 205.5, "bytes": 2077, "images": 0, "is_error": false}
+{"t": 1793323183.2880912, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 74, "value": "ana.souza@example.com"}, {"element_index": 75, "value": "Relat\u00f3rio de outubro"}, {"element_index": 80, "value": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}]}, "ms": 2740.1, "bytes": 994, "images": 0, "is_error": true}
+{"t": 1793323185.2877398, "method": "tools/call", "tool": "type_text", "args": {"element_index": 74, "text": "ana.souza@example.com"}, "ms": 657.9, "bytes": 461, "images": 0, "is_error": false}
+{"t": 1793323186.9311736, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 298.1, "bytes": 394, "images": 0, "is_error": false}

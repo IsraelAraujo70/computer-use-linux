@@ -1,0 +1,11 @@
+{"t": 1793320494.4956121, "method": "initialize", "tool": null, "args": null, "ms": 23.3, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793320494.4971547, "method": "tools/list", "tool": null, "args": null, "ms": 1.1, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793320500.2610254, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 243.9, "bytes": 5589, "images": 0, "is_error": false}
+{"t": 1793320501.8655064, "method": "tools/call", "tool": "click", "args": {"element_index": 51}, "ms": 425.2, "bytes": 5291, "images": 0, "is_error": false}
+{"t": 1793320503.4826765, "method": "tools/call", "tool": "click", "args": {"element_index": 287}, "ms": 488.2, "bytes": 383, "images": 0, "is_error": false}
+{"t": 1793320504.8893995, "method": "tools/call", "tool": "click", "args": {"element_index": 57}, "ms": 376.5, "bytes": 1058, "images": 0, "is_error": false}
+{"t": 1793320508.531649, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 342, "value": "Dentista"}, {"element_index": 348, "value": "14:30"}, {"element_index": 351, "value": "15:30"}]}, "ms": 1531.5, "bytes": 642, "images": 0, "is_error": false}
+{"t": 1793320508.917964, "method": "tools/call", "tool": "click", "args": {"element_index": 345}, "ms": 384.6, "bytes": 3278, "images": 0, "is_error": false}
+{"t": 1793320511.448312, "method": "tools/call", "tool": "click", "args": {"element_index": 552}, "ms": 392.6, "bytes": 8963, "images": 0, "is_error": false}
+{"t": 1793320512.8824358, "method": "tools/call", "tool": "click", "args": {"element_index": 605}, "ms": 371.5, "bytes": 418, "images": 0, "is_error": false}
+{"t": 1793320513.2411733, "method": "tools/call", "tool": "click", "args": {"element_index": 353}, "ms": 357.2, "bytes": 5396, "images": 0, "is_error": false}

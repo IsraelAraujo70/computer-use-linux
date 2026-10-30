@@ -1,0 +1,78 @@
+{"t": 1793323111.5752354, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793323111.5805912, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793323117.562707, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 711.9, "bytes": 191565, "images": 1, "is_error": false}
+{"t": 1793323119.3672717, "method": "tools/call", "tool": "set_value", "args": {"element_index": 116, "value": "ana.souza@example.com"}, "ms": 25.0, "bytes": 675, "images": 0, "is_error": false}
+{"t": 1793323119.3923209, "method": "tools/call", "tool": "set_value", "args": {"element_index": 93, "value": "Relat\u00f3rio de outubro"}, "ms": 23.7, "bytes": 673, "images": 0, "is_error": false}
+{"t": 1793323119.417329, "method": "tools/call", "tool": "set_value", "args": {"element_index": 95, "value": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 23.5, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793323123.0372996, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 77.8, "bytes": 1289, "images": 0, "is_error": false}
+{"t": 1793323123.2461731, "method": "tools/call", "tool": "click", "args": {"element_index": 116}, "ms": 207.3, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793323123.6592572, "method": "tools/call", "tool": "type_text", "args": {"text": "ana.souza@example.com"}, "ms": 411.5, "bytes": 881, "images": 0, "is_error": false}
+{"t": 1793323123.8626916, "method": "tools/call", "tool": "click", "args": {"element_index": 93}, "ms": 201.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323124.272841, "method": "tools/call", "tool": "type_text", "args": {"text": "Relat\u00f3rio de outubro"}, "ms": 408.6, "bytes": 882, "images": 0, "is_error": false}
+{"t": 1793323124.4735477, "method": "tools/call", "tool": "click", "args": {"element_index": 95}, "ms": 199.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323125.0012035, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol\u00e1, Ana!\nSegue o relat\u00f3rio de outubro."}, "ms": 526.0, "bytes": 925, "images": 0, "is_error": false}
+{"t": 1793323127.0710213, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 821.5, "bytes": 194218, "images": 1, "is_error": false}
+{"t": 1793323131.7981126, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 207.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323131.9900687, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 190.3, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323132.2971551, "method": "tools/call", "tool": "type_text", "args": {"text": "Relat"}, "ms": 305.7, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793323132.5027926, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+SHIFT+U"}, "ms": 204.0, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793323132.7929072, "method": "tools/call", "tool": "type_text", "args": {"text": "f3"}, "ms": 288.3, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793323132.9672918, "method": "tools/call", "tool": "press_key", "args": {"key": "ENTER"}, "ms": 173.1, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793323133.3241158, "method": "tools/call", "tool": "type_text", "args": {"text": "rio de outubro"}, "ms": 355.4, "bytes": 868, "images": 0, "is_error": false}
+{"t": 1793323135.70696, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 208.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323135.90821, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 199.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323136.2102537, "method": "tools/call", "tool": "type_text", "args": {"text": "Ol"}, "ms": 299.7, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793323136.4217079, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+SHIFT+U"}, "ms": 209.6, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793323136.7022421, "method": "tools/call", "tool": "type_text", "args": {"text": "e1"}, "ms": 279.1, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793323136.8819935, "method": "tools/call", "tool": "press_key", "args": {"key": "ENTER"}, "ms": 178.2, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793323137.2784615, "method": "tools/call", "tool": "type_text", "args": {"text": ", Ana!\nSegue o relat"}, "ms": 395.1, "bytes": 883, "images": 0, "is_error": false}
+{"t": 1793323137.4826984, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+SHIFT+U"}, "ms": 202.8, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793323137.7607899, "method": "tools/call", "tool": "type_text", "args": {"text": "f3"}, "ms": 276.6, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793323137.9419167, "method": "tools/call", "tool": "press_key", "args": {"key": "ENTER"}, "ms": 179.1, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793323138.3070486, "method": "tools/call", "tool": "type_text", "args": {"text": "rio de outubro."}, "ms": 363.8, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793323139.997251, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 396.2, "bytes": 18674, "images": 0, "is_error": false}
+{"t": 1793323142.8634984, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 206.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323143.0546012, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 189.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323143.3586385, "method": "tools/call", "tool": "type_text", "args": {"text": "Relat"}, "ms": 302.4, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793323143.3614402, "method": "tools/call", "tool": "press_key", "args": {"key": "dead_acute"}, "ms": 1.1, "bytes": 864, "images": 0, "is_error": false}
+{"t": 1793323143.5425153, "method": "tools/call", "tool": "press_key", "args": {"key": "o"}, "ms": 180.2, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793323143.9034064, "method": "tools/call", "tool": "type_text", "args": {"text": "rio de outubro"}, "ms": 359.4, "bytes": 868, "images": 0, "is_error": false}
+{"t": 1793323144.562973, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 658.2, "bytes": 18672, "images": 0, "is_error": false}
+{"t": 1793323148.566947, "method": "tools/call", "tool": "click", "args": {"x": 772, "y": 282, "click_count": 2}, "ms": 304.3, "bytes": 800, "images": 0, "is_error": false}
+{"t": 1793323148.766102, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+C"}, "ms": 197.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323148.971781, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 204.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323149.2969708, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 323.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323149.5066235, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+V"}, "ms": 207.8, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323149.6945393, "method": "tools/call", "tool": "press_key", "args": {"key": "HOME"}, "ms": 186.2, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793323149.8859222, "method": "tools/call", "tool": "press_key", "args": {"key": "DELETE"}, "ms": 190.0, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323150.181208, "method": "tools/call", "tool": "type_text", "args": {"text": "R"}, "ms": 293.5, "bytes": 842, "images": 0, "is_error": false}
+{"t": 1793323150.3702893, "method": "tools/call", "tool": "press_key", "args": {"key": "END"}, "ms": 187.2, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793323150.7219248, "method": "tools/call", "tool": "type_text", "args": {"text": " de outubro"}, "ms": 350.1, "bytes": 862, "images": 0, "is_error": false}
+{"t": 1793323151.2076416, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 484.0, "bytes": 18668, "images": 0, "is_error": false}
+{"t": 1793323154.3589585, "method": "tools/call", "tool": "click", "args": {"x": 718, "y": 282, "click_count": 2}, "ms": 312.5, "bytes": 800, "images": 0, "is_error": false}
+{"t": 1793323154.553117, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+C"}, "ms": 192.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323154.7578447, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 203.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323154.9610581, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 201.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323155.1573467, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+V"}, "ms": 194.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323155.3460453, "method": "tools/call", "tool": "press_key", "args": {"key": "HOME"}, "ms": 187.2, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793323155.5264454, "method": "tools/call", "tool": "press_key", "args": {"key": "DELETE"}, "ms": 178.8, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323155.8080072, "method": "tools/call", "tool": "type_text", "args": {"text": "R"}, "ms": 280.0, "bytes": 842, "images": 0, "is_error": false}
+{"t": 1793323155.9883308, "method": "tools/call", "tool": "press_key", "args": {"key": "END"}, "ms": 178.3, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793323156.3338058, "method": "tools/call", "tool": "type_text", "args": {"text": " de outubro"}, "ms": 344.2, "bytes": 862, "images": 0, "is_error": false}
+{"t": 1793323156.7490373, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 413.5, "bytes": 18674, "images": 0, "is_error": false}
+{"t": 1793323160.9975798, "method": "tools/call", "tool": "click", "args": {"x": 744, "y": 322, "click_count": 2}, "ms": 310.0, "bytes": 800, "images": 0, "is_error": false}
+{"t": 1793323161.19126, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+C"}, "ms": 191.9, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323161.396829, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 203.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323161.5944448, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 195.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323161.8840892, "method": "tools/call", "tool": "type_text", "args": {"text": "O"}, "ms": 287.8, "bytes": 842, "images": 0, "is_error": false}
+{"t": 1793323162.0828805, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+V"}, "ms": 197.0, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323162.4503207, "method": "tools/call", "tool": "type_text", "args": {"text": ", Ana!\nSegue o "}, "ms": 365.9, "bytes": 873, "images": 0, "is_error": false}
+{"t": 1793323162.7528334, "method": "tools/call", "tool": "click", "args": {"x": 718, "y": 282, "click_count": 2}, "ms": 300.9, "bytes": 800, "images": 0, "is_error": false}
+{"t": 1793323162.941597, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+C"}, "ms": 185.6, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323163.1440718, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 200.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323163.3357058, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+END"}, "ms": 190.1, "bytes": 708, "images": 0, "is_error": false}
+{"t": 1793323163.5313923, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+V"}, "ms": 194.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323163.8751252, "method": "tools/call", "tool": "type_text", "args": {"text": " de outubro."}, "ms": 342.3, "bytes": 864, "images": 0, "is_error": false}
+{"t": 1793323164.5023687, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 625.8, "bytes": 18452, "images": 0, "is_error": false}
+{"t": 1793323165.925712, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 24.0, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793323166.3824432, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 455.3, "bytes": 15631, "images": 0, "is_error": false}

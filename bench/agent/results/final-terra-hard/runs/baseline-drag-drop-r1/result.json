@@ -1,0 +1,34 @@
+{
+ "run_id": "baseline-drag-drop-r1",
+ "variant": "baseline",
+ "task": "drag-drop",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": false,
+ "detail": "no card moved",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 26.69,
+ "agent_tool_calls": 4,
+ "agent_tool_errors": 0,
+ "mcp_calls": 4,
+ "mcp_ms_total": 1707.1,
+ "mcp_bytes_total": 377282,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "drag",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 265544,
+  "cached": 226944,
+  "output": 418
+ },
+ "final": "Não consegui mover o cartão: a ferramenta de arrastar está indisponível. Os cartões permanecem nas posições originais.",
+ "state": {}
+}

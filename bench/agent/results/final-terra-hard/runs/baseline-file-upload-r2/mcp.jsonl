@@ -1,0 +1,16 @@
+{"t": 1793324240.9619446, "method": "initialize", "tool": null, "args": null, "ms": 24.5, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793324240.9676347, "method": "tools/list", "tool": null, "args": null, "ms": 5.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793324258.6511548, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 685.6, "bytes": 166457, "images": 1, "is_error": false}
+{"t": 1793324265.1132553, "method": "tools/call", "tool": "click", "args": {"element_index": 96}, "ms": 24.1, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793324270.7071714, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 691.9, "bytes": 162459, "images": 1, "is_error": false}
+{"t": 1793324274.2935877, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 75.7, "bytes": 1277, "images": 0, "is_error": false}
+{"t": 1793324277.4445817, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 613.7, "bytes": 162459, "images": 1, "is_error": false}
+{"t": 1793324280.444777, "method": "tools/call", "tool": "click", "args": {"x": 750, "y": 420}, "ms": 211.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793324282.5998776, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 579.1, "bytes": 148749, "images": 1, "is_error": false}
+{"t": 1793324284.655516, "method": "tools/call", "tool": "click", "args": {"x": 750, "y": 420}, "ms": 203.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793324287.4866128, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 610.0, "bytes": 148750, "images": 1, "is_error": false}
+{"t": 1793324292.3315997, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 538.5, "bytes": 148750, "images": 1, "is_error": false}
+{"t": 1793324295.3824234, "method": "tools/call", "tool": "click", "args": {"x": 720, "y": 412}, "ms": 201.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793324298.8167799, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 536.0, "bytes": 148750, "images": 1, "is_error": false}
+{"t": 1793324300.7216074, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 78.6, "bytes": 1278, "images": 0, "is_error": false}
+{"t": 1793324304.6157644, "method": "tools/call", "tool": "set_value", "args": {"element_index": 74, "value": "/tmp/agent-cu-bench/files/comprovante-outubro.pdf"}, "ms": 24.1, "bytes": 730, "images": 0, "is_error": false}

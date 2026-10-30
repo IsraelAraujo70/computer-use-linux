@@ -1,0 +1,12 @@
+{"t": 1793321787.1141014, "method": "initialize", "tool": null, "args": null, "ms": 22.3, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793321787.1166658, "method": "tools/list", "tool": null, "args": null, "ms": 2.1, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793321792.9511542, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 212.6, "bytes": 5589, "images": 0, "is_error": false}
+{"t": 1793321794.427298, "method": "tools/call", "tool": "click", "args": {"element_index": 51}, "ms": 394.8, "bytes": 5291, "images": 0, "is_error": false}
+{"t": 1793321796.5966337, "method": "tools/call", "tool": "click", "args": {"element_index": 287}, "ms": 468.4, "bytes": 383, "images": 0, "is_error": false}
+{"t": 1793321799.560626, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 115.3, "bytes": 5208, "images": 0, "is_error": false}
+{"t": 1793321800.905316, "method": "tools/call", "tool": "click", "args": {"element_index": 57}, "ms": 368.9, "bytes": 1058, "images": 0, "is_error": false}
+{"t": 1793321803.7639868, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 342, "value": "Dentista"}, {"element_index": 348, "value": "14:30"}, {"element_index": 351, "value": "15:30"}]}, "ms": 1533.4, "bytes": 642, "images": 0, "is_error": false}
+{"t": 1793321806.2043726, "method": "tools/call", "tool": "click", "args": {"element_index": 345}, "ms": 391.2, "bytes": 3278, "images": 0, "is_error": false}
+{"t": 1793321808.5134423, "method": "tools/call", "tool": "click", "args": {"element_index": 552}, "ms": 397.8, "bytes": 8963, "images": 0, "is_error": false}
+{"t": 1793321811.5391648, "method": "tools/call", "tool": "click", "args": {"element_index": 605}, "ms": 374.8, "bytes": 419, "images": 0, "is_error": false}
+{"t": 1793321811.8922122, "method": "tools/call", "tool": "click", "args": {"element_index": 353}, "ms": 351.5, "bytes": 5396, "images": 0, "is_error": false}

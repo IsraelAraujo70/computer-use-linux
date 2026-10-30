@@ -1,0 +1,48 @@
+{
+ "run_id": "final-calendar-event-r1",
+ "variant": "final",
+ "task": "calendar-event",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 21.88,
+ "agent_tool_calls": 9,
+ "agent_tool_errors": 0,
+ "mcp_calls": 9,
+ "mcp_ms_total": 4493.8,
+ "mcp_bytes_total": 31018,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "fill_form",
+  "click",
+  "click",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 312169,
+  "cached": 289024,
+  "output": 343
+ },
+ "final": "Evento “Dentista” salvo para 18 de novembro de 2026, às 14h30.",
+ "state": {
+  "events": [
+   {
+    "title": "Dentista",
+    "date": "2026-11-18",
+    "start": "14:30",
+    "end": "15:30"
+   }
+  ]
+ }
+}

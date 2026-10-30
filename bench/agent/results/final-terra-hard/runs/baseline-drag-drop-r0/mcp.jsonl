@@ -1,0 +1,6 @@
+{"t": 1793322696.385227, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793322696.3890684, "method": "tools/list", "tool": null, "args": null, "ms": 3.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793322704.228922, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 692.3, "bytes": 197069, "images": 1, "is_error": false}
+{"t": 1793322707.0688198, "method": "tools/call", "tool": "drag", "args": {"start_x": 300, "start_y": 355, "end_x": 1500, "end_y": 520}, "ms": 84.8, "bytes": 465, "images": 0, "is_error": false}
+{"t": 1793322708.3037922, "method": "tools/call", "tool": "click", "args": {"x": 200, "y": 355}, "ms": 201.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793322710.18677, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 627.2, "bytes": 182545, "images": 1, "is_error": false}

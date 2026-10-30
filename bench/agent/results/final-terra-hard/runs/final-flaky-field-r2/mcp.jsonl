@@ -1,0 +1,7 @@
+{"t": 1793323980.207184, "method": "initialize", "tool": null, "args": null, "ms": 24.3, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793323980.209583, "method": "tools/list", "tool": null, "args": null, "ms": 2.0, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793323985.6018274, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 197.4, "bytes": 1389, "images": 0, "is_error": false}
+{"t": 1793323988.0955288, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 54, "value": "MARIA S OLIVEIRA"}, {"element_index": 57, "value": "4111 1111 1111 1111"}, {"element_index": 60, "value": "12/28"}, {"element_index": 63, "value": "123"}]}, "ms": 1360.5, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793323990.09711, "method": "tools/call", "tool": "click", "args": {"element_index": 64}, "ms": 344.8, "bytes": 484, "images": 0, "is_error": false}
+{"t": 1793323991.7714937, "method": "tools/call", "tool": "set_value", "args": {"element_index": 57, "value": "4111111111111111"}, "ms": 661.3, "bytes": 507, "images": 0, "is_error": false}
+{"t": 1793323993.1233144, "method": "tools/call", "tool": "click", "args": {"element_index": 64}, "ms": 516.7, "bytes": 476, "images": 0, "is_error": false}

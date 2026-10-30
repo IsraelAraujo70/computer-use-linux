@@ -1,0 +1,13 @@
+{"t": 1793323684.8128438, "method": "initialize", "tool": null, "args": null, "ms": 24.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793323684.818064, "method": "tools/list", "tool": null, "args": null, "ms": 4.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793323692.205168, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 636.3, "bytes": 152393, "images": 1, "is_error": false}
+{"t": 1793323698.4671938, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(11) 91234-5678"}, "ms": 23.7, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793323699.8996608, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 74.4, "bytes": 1265, "images": 0, "is_error": false}
+{"t": 1793323700.1065712, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 205.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323701.6885192, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A", "window_id": 8388610}, "ms": 276.3, "bytes": 791, "images": 0, "is_error": false}
+{"t": 1793323702.127862, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678", "window_id": 8388610}, "ms": 437.5, "bytes": 1171, "images": 0, "is_error": false}
+{"t": 1793323707.716445, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 774.2, "bytes": 134929, "images": 1, "is_error": false}
+{"t": 1793323709.3662853, "method": "tools/call", "tool": "click", "args": {"element_index": 77}, "ms": 24.9, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793323711.4004526, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 781.8, "bytes": 142478, "images": 1, "is_error": false}
+{"t": 1793323712.8624647, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 24.6, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793323715.7540915, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 410.1, "bytes": 14384, "images": 0, "is_error": false}

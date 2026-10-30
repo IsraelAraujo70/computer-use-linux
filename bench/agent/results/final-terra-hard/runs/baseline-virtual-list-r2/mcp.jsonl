@@ -1,0 +1,9 @@
+{"t": 1793324033.2083764, "method": "initialize", "tool": null, "args": null, "ms": 24.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793324033.2151744, "method": "tools/list", "tool": null, "args": null, "ms": 6.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793324040.6466105, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome", "include_screenshot": false}, "ms": 990.4, "bytes": 44054, "images": 0, "is_error": false}
+{"t": 1793324049.9035285, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 15, "element_index": 56}, "ms": 1005.5, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793324054.4052646, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome", "include_screenshot": false}, "ms": 761.8, "bytes": 54819, "images": 0, "is_error": false}
+{"t": 1793324058.259123, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 10, "element_index": 56}, "ms": 699.8, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793324062.1532695, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome", "include_screenshot": false}, "ms": 847.0, "bytes": 54765, "images": 0, "is_error": false}
+{"t": 1793324065.94874, "method": "tools/call", "tool": "click", "args": {"element_index": 223}, "ms": 24.2, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793324070.4998755, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Chrome", "include_screenshot": false}, "ms": 582.9, "bytes": 55037, "images": 0, "is_error": false}

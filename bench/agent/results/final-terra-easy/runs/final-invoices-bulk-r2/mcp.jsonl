@@ -1,0 +1,7 @@
+{"t": 1793322269.4561327, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793322269.4590902, "method": "tools/list", "tool": null, "args": null, "ms": 2.5, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793322275.5298405, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 300.6, "bytes": 8147, "images": 0, "is_error": false}
+{"t": 1793322277.392999, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "table cell", "limit": 200}, "ms": 194.5, "bytes": 20251, "images": 0, "is_error": false}
+{"t": 1793322279.4016473, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 95, "value": "true"}, {"element_index": 251, "value": "true"}, {"role": "check box", "name": "Selecionar fatura NF-1028", "value": "true"}]}, "ms": 800.7, "bytes": 756, "images": 0, "is_error": false}
+{"t": 1793322281.8804336, "method": "tools/call", "tool": "click", "args": {"element_index": 54}, "ms": 706.5, "bytes": 798, "images": 0, "is_error": false}
+{"t": 1793322284.7984855, "method": "tools/call", "tool": "click", "args": {"element_index": 475}, "ms": 1940.1, "bytes": 8364, "images": 0, "is_error": false}

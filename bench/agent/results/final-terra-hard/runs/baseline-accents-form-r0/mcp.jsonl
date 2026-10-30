@@ -1,0 +1,27 @@
+{"t": 1793322326.7387934, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793322326.7459114, "method": "tools/list", "tool": null, "args": null, "ms": 6.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793322339.508173, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 624.3, "bytes": 152767, "images": 1, "is_error": false}
+{"t": 1793322342.2575357, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 23.6, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793322342.2817369, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "S\u00e3o Paulo"}, "ms": 22.9, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793322342.3061523, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 23.3, "bytes": 763, "images": 0, "is_error": false}
+{"t": 1793322347.254197, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 81.6, "bytes": 1281, "images": 0, "is_error": false}
+{"t": 1793322349.50062, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 386}, "ms": 209.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793322350.0018241, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388610, "text": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 499.6, "bytes": 1191, "images": 0, "is_error": false}
+{"t": 1793322350.2060041, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 462}, "ms": 202.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793322350.6159232, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388610, "text": "S\u00e3o Paulo"}, "ms": 408.4, "bytes": 1162, "images": 0, "is_error": false}
+{"t": 1793322350.8172946, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 550}, "ms": 199.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793322351.5092804, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388610, "text": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 690.4, "bytes": 1274, "images": 0, "is_error": false}
+{"t": 1793322353.719358, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 770.2, "bytes": 150232, "images": 1, "is_error": false}
+{"t": 1793322357.5387447, "method": "tools/call", "tool": "set_value", "args": {"element_index": 72, "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 24.3, "bytes": 682, "images": 0, "is_error": false}
+{"t": 1793322357.5636775, "method": "tools/call", "tool": "set_value", "args": {"element_index": 74, "value": "S\u00e3o Paulo"}, "ms": 23.6, "bytes": 652, "images": 0, "is_error": false}
+{"t": 1793322357.5884953, "method": "tools/call", "tool": "set_value", "args": {"element_index": 76, "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 23.4, "bytes": 764, "images": 0, "is_error": false}
+{"t": 1793322362.7015607, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 386}, "ms": 211.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793322362.9009924, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+a"}, "ms": 197.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793322363.185387, "method": "tools/call", "tool": "type_text", "args": {"text": "Jo"}, "ms": 282.7, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793322363.3937128, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+u"}, "ms": 206.9, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793322363.6920846, "method": "tools/call", "tool": "type_text", "args": {"text": "00e3"}, "ms": 296.7, "bytes": 848, "images": 0, "is_error": false}
+{"t": 1793322363.8755422, "method": "tools/call", "tool": "press_key", "args": {"key": "Return"}, "ms": 181.8, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793322364.1544037, "method": "tools/call", "tool": "type_text", "args": {"text": "o"}, "ms": 277.0, "bytes": 842, "images": 0, "is_error": false}
+{"t": 1793322366.5576532, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 393.4, "bytes": 14536, "images": 0, "is_error": false}
+{"t": 1793322368.6772418, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+a"}, "ms": 201.5, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793322368.679707, "method": "tools/call", "tool": "press_key", "args": {"key": "U00e3"}, "ms": 1.0, "bytes": 854, "images": 0, "is_error": false}

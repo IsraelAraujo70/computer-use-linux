@@ -1,0 +1,23 @@
+{"t": 1793320448.5926433, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793320448.5979645, "method": "tools/list", "tool": null, "args": null, "ms": 4.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793320457.145072, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 751.2, "bytes": 216277, "images": 1, "is_error": false}
+{"t": 1793320459.4201086, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 24.9, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793320460.211891, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 787.6, "bytes": 202537, "images": 1, "is_error": false}
+{"t": 1793320462.27991, "method": "tools/call", "tool": "click", "args": {"x": 1050, "y": 565}, "ms": 203.4, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793320463.029853, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 748.5, "bytes": 188753, "images": 1, "is_error": false}
+{"t": 1793320464.7128754, "method": "tools/call", "tool": "click", "args": {"element_index": 73}, "ms": 25.2, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793320465.4000003, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 685.1, "bytes": 218444, "images": 1, "is_error": false}
+{"t": 1793320467.9617546, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista"}, "ms": 335.3, "bytes": 855, "images": 0, "is_error": false}
+{"t": 1793320467.987743, "method": "tools/call", "tool": "click", "args": {"element_index": 137}, "ms": 24.5, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793320468.6917653, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 701.1, "bytes": 235783, "images": 1, "is_error": false}
+{"t": 1793320470.76414, "method": "tools/call", "tool": "click", "args": {"element_index": 206}, "ms": 24.9, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793320471.4673705, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 701.3, "bytes": 235056, "images": 1, "is_error": false}
+{"t": 1793320473.8312206, "method": "tools/call", "tool": "click", "args": {"element_index": 237}, "ms": 24.7, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793320474.037267, "method": "tools/call", "tool": "click", "args": {"name": "Hora de in\u00edcio", "role": "combo box"}, "ms": 204.5, "bytes": 854, "images": 0, "is_error": false}
+{"t": 1793320474.8715835, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 832.7, "bytes": 240078, "images": 1, "is_error": false}
+{"t": 1793320477.9460962, "method": "tools/call", "tool": "click", "args": {"element_index": 273}, "ms": 207.9, "bytes": 1032, "images": 0, "is_error": false}
+{"t": 1793320478.745724, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 798.1, "bytes": 240042, "images": 1, "is_error": false}
+{"t": 1793320482.7996502, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 273, "action": "select"}, "ms": 25.7, "bytes": 596, "images": 0, "is_error": false}
+{"t": 1793320483.4794724, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 677.9, "bytes": 213639, "images": 1, "is_error": false}
+{"t": 1793320485.417159, "method": "tools/call", "tool": "click", "args": {"name": "Salvar", "role": "button"}, "ms": 24.6, "bytes": 910, "images": 0, "is_error": false}
+{"t": 1793320486.106633, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 687.9, "bytes": 190369, "images": 1, "is_error": false}

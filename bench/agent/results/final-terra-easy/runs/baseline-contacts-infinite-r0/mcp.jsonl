@@ -1,0 +1,13 @@
+{"t": 1793320661.6552927, "method": "initialize", "tool": null, "args": null, "ms": 25.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793320661.6616733, "method": "tools/list", "tool": null, "args": null, "ms": 5.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793320674.9935768, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1118.6, "bytes": 342571, "images": 1, "is_error": false}
+{"t": 1793320683.5488133, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 30, "x": 1200, "y": 700}, "ms": 1919.9, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793320686.6514807, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1204.9, "bytes": 412313, "images": 1, "is_error": false}
+{"t": 1793320693.3800678, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 50, "x": 1200, "y": 700}, "ms": 3134.4, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793320694.7240088, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false, "max_nodes": 2000}, "ms": 1342.0, "bytes": 187665, "images": 0, "is_error": false}
+{"t": 1793320697.4493454, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 8, "x": 1200, "y": 700}, "ms": 577.0, "bytes": 699, "images": 0, "is_error": false}
+{"t": 1793320698.8035808, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false, "max_nodes": 2000}, "ms": 1352.1, "bytes": 186761, "images": 0, "is_error": false}
+{"t": 1793320701.1310596, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 6, "x": 1200, "y": 700}, "ms": 454.8, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793320702.6250553, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false, "max_nodes": 2000}, "ms": 1491.9, "bytes": 187396, "images": 0, "is_error": false}
+{"t": 1793320704.7725573, "method": "tools/call", "tool": "click", "args": {"element_index": 989}, "ms": 215.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793320706.0344837, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false, "max_nodes": 2000}, "ms": 1260.4, "bytes": 183692, "images": 0, "is_error": false}

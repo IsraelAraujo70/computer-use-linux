@@ -1,0 +1,53 @@
+{
+ "run_id": "baseline-recover-error-r0",
+ "variant": "baseline",
+ "task": "recover-error",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 35.6,
+ "agent_tool_calls": 17,
+ "agent_tool_errors": 0,
+ "mcp_calls": 17,
+ "mcp_ms_total": 11217.9,
+ "mcp_bytes_total": 235504,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "list_windows",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "wait_for",
+  "get_app_state",
+  "click",
+  "wait_for",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "wait_for"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 555177,
+  "cached": 504960,
+  "output": 755
+ },
+ "final": "O aplicativo confirmou o salvamento, mas o telefone antigo voltou após recarregar a página; a alteração não persistiu.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

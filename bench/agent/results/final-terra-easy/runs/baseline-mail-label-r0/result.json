@@ -1,0 +1,60 @@
+{
+ "run_id": "baseline-mail-label-r0",
+ "variant": "baseline",
+ "task": "mail-label",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 32.1,
+ "agent_tool_calls": 20,
+ "agent_tool_errors": 0,
+ "mcp_calls": 20,
+ "mcp_ms_total": 7025.3,
+ "mcp_bytes_total": 890478,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "type_text",
+  "press_key",
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "scroll",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 565547,
+  "cached": 477312,
+  "output": 792
+ },
+ "final": "Applied the Financeiro label to both Banco Aurora emails without archiving anything.",
+ "state": {
+  "labels": {
+   "l4": [
+    "Financeiro"
+   ],
+   "l23": [
+    "Financeiro"
+   ]
+  },
+  "archived": []
+ }
+}

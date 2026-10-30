@@ -1,0 +1,47 @@
+{
+ "run_id": "final-recover-error-r1",
+ "variant": "final",
+ "task": "recover-error",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 25.78,
+ "agent_tool_calls": 11,
+ "agent_tool_errors": 0,
+ "mcp_calls": 11,
+ "mcp_ms_total": 7240.6,
+ "mcp_bytes_total": 7488,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "press_key",
+  "set_value",
+  "click",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 257100,
+  "cached": 243584,
+  "output": 507
+ },
+ "final": "O aplicativo confirmou o salvamento, mas o telefone antigo reapareceu ao recarregar; não consegui confirmar que a alteração persistiu.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

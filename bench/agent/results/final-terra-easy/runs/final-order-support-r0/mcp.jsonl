@@ -1,0 +1,7 @@
+{"t": 1793320770.2680597, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793320770.2706325, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793320777.9636652, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 242.7, "bytes": 5784, "images": 0, "is_error": false}
+{"t": 1793320779.5726867, "method": "tools/call", "tool": "click", "args": {"element_index": 186}, "ms": 413.3, "bytes": 1189, "images": 0, "is_error": false}
+{"t": 1793320781.1917343, "method": "tools/call", "tool": "click", "args": {"element_index": 274}, "ms": 421.7, "bytes": 1481, "images": 0, "is_error": false}
+{"t": 1793320784.914217, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 306, "value": "4821"}, {"element_index": 309, "value": "BR482193XQ"}, {"element_index": 314, "value": "true"}, {"element_index": 319, "value": "Pedido n\u00e3o chegou"}]}, "ms": 1145.3, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793320786.5766733, "method": "tools/call", "tool": "click", "args": {"element_index": 320}, "ms": 477.5, "bytes": 439, "images": 0, "is_error": false}

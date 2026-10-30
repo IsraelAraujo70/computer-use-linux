@@ -1,0 +1,16 @@
+{"t": 1793322001.8521338, "method": "initialize", "tool": null, "args": null, "ms": 29.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793322001.8622668, "method": "tools/list", "tool": null, "args": null, "ms": 9.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793322012.3026996, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 816.3, "bytes": 342571, "images": 1, "is_error": false}
+{"t": 1793322016.500068, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 78.4, "bytes": 1269, "images": 0, "is_error": false}
+{"t": 1793322022.2459292, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 30, "x": 1200, "y": 800, "window_id": 8388610}, "ms": 2126.8, "bytes": 711, "images": 0, "is_error": false}
+{"t": 1793322026.3969018, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1363.7, "bytes": 345037, "images": 1, "is_error": false}
+{"t": 1793322031.795072, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 40, "x": 1200, "y": 800, "window_id": 8388610}, "ms": 2735.7, "bytes": 711, "images": 0, "is_error": false}
+{"t": 1793322034.9374905, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1506.9, "bytes": 340970, "images": 1, "is_error": false}
+{"t": 1793322038.0835795, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 4, "x": 1200, "y": 800, "window_id": 8388610}, "ms": 543.0, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793322043.5037894, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "max_nodes": 2000}, "ms": 1802.0, "bytes": 349322, "images": 1, "is_error": false}
+{"t": 1793322047.035492, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 1200, "y": 800, "window_id": 8388610}, "ms": 421.5, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793322051.0503445, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "max_nodes": 2000}, "ms": 1886.4, "bytes": 343220, "images": 1, "is_error": false}
+{"t": 1793322053.9255106, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1200, "y": 800, "window_id": 8388610}, "ms": 358.2, "bytes": 710, "images": 0, "is_error": false}
+{"t": 1793322058.2818651, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "max_nodes": 2000}, "ms": 1897.3, "bytes": 350021, "images": 1, "is_error": false}
+{"t": 1793322061.1597025, "method": "tools/call", "tool": "click", "args": {"x": 1843, "y": 531, "window_id": 8388610}, "ms": 423.4, "bytes": 814, "images": 0, "is_error": false}
+{"t": 1793322065.2968907, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "max_nodes": 2000}, "ms": 1888.6, "bytes": 336481, "images": 1, "is_error": false}

@@ -1,0 +1,14 @@
+{"t": 1793324311.556193, "method": "initialize", "tool": null, "args": null, "ms": 23.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793324311.5615876, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793324320.3753333, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 654.3, "bytes": 175073, "images": 1, "is_error": false}
+{"t": 1793324322.5646374, "method": "tools/call", "tool": "click", "args": {"element_index": 99}, "ms": 210.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793324324.7095575, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 730.8, "bytes": 235576, "images": 1, "is_error": false}
+{"t": 1793324328.7400537, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 206.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793324332.8712573, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Linha digit\u00e1vel", "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 1.9, "bytes": 953, "images": 0, "is_error": false}
+{"t": 1793324334.9568336, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 325.8, "bytes": 14114, "images": 0, "is_error": false}
+{"t": 1793324336.6805944, "method": "tools/call", "tool": "set_value", "args": {"element_index": 82, "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 24.4, "bytes": 739, "images": 0, "is_error": false}
+{"t": 1793324338.5955896, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 209.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793324339.2292168, "method": "tools/call", "tool": "type_text", "args": {"text": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 632.1, "bytes": 948, "images": 0, "is_error": false}
+{"t": 1793324343.438767, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 564.5, "bytes": 14251, "images": 0, "is_error": false}
+{"t": 1793324345.0592537, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 24.9, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793324346.995682, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 290.2, "bytes": 14513, "images": 0, "is_error": false}

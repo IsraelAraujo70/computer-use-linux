@@ -1,0 +1,27 @@
+{"t": 1793322476.0093489, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793322476.016051, "method": "tools/list", "tool": null, "args": null, "ms": 6.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793322485.7852576, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 660.5, "bytes": 174044, "images": 1, "is_error": false}
+{"t": 1793322488.3872766, "method": "tools/call", "tool": "set_value", "args": {"element_index": 102, "value": "MARIA S OLIVEIRA"}, "ms": 25.0, "bytes": 665, "images": 0, "is_error": false}
+{"t": 1793322488.413749, "method": "tools/call", "tool": "set_value", "args": {"element_index": 104, "value": "4111 1111 1111 1111"}, "ms": 24.3, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793322488.4388826, "method": "tools/call", "tool": "set_value", "args": {"element_index": 106, "value": "12/28"}, "ms": 23.6, "bytes": 643, "images": 0, "is_error": false}
+{"t": 1793322488.4651115, "method": "tools/call", "tool": "set_value", "args": {"element_index": 108, "value": "123"}, "ms": 24.2, "bytes": 639, "images": 0, "is_error": false}
+{"t": 1793322490.9120533, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 420}, "ms": 208.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793322491.312788, "method": "tools/call", "tool": "type_text", "args": {"text": "MARIA S OLIVEIRA"}, "ms": 398.9, "bytes": 871, "images": 0, "is_error": false}
+{"t": 1793322491.516296, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 500}, "ms": 201.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793322491.9173694, "method": "tools/call", "tool": "type_text", "args": {"text": "4111 1111 1111 1111"}, "ms": 399.1, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793322492.1190407, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 590}, "ms": 200.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793322492.4289527, "method": "tools/call", "tool": "type_text", "args": {"text": "12/28"}, "ms": 308.4, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793322492.639959, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 590}, "ms": 209.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793322492.9479692, "method": "tools/call", "tool": "type_text", "args": {"text": "123"}, "ms": 306.2, "bytes": 846, "images": 0, "is_error": false}
+{"t": 1793322494.9824717, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 357.1, "bytes": 16167, "images": 0, "is_error": false}
+{"t": 1793322500.9673283, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 420}, "ms": 210.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793322501.1627257, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 193.6, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793322501.536931, "method": "tools/call", "tool": "type_text", "args": {"text": "MARIA S OLIVEIRA"}, "ms": 372.6, "bytes": 872, "images": 0, "is_error": false}
+{"t": 1793322501.7216418, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab"}, "ms": 183.2, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793322502.0962658, "method": "tools/call", "tool": "type_text", "args": {"text": "4111111111111111"}, "ms": 373.2, "bytes": 872, "images": 0, "is_error": false}
+{"t": 1793322504.562552, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 553.4, "bytes": 16129, "images": 0, "is_error": false}
+{"t": 1793322507.0129938, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 586.1, "bytes": 173621, "images": 1, "is_error": false}
+{"t": 1793322510.5330856, "method": "tools/call", "tool": "type_text", "args": {"text": "4111111111111111"}, "ms": 373.6, "bytes": 872, "images": 0, "is_error": false}
+{"t": 1793322511.154364, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 619.9, "bytes": 170743, "images": 1, "is_error": false}
+{"t": 1793322513.7484627, "method": "tools/call", "tool": "click", "args": {"x": 530, "y": 645}, "ms": 201.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793322514.407404, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 657.4, "bytes": 200394, "images": 1, "is_error": false}

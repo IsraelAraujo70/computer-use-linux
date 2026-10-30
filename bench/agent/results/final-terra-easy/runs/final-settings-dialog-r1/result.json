@@ -1,0 +1,44 @@
+{
+ "run_id": "final-settings-dialog-r1",
+ "variant": "final",
+ "task": "settings-dialog",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 16.51,
+ "agent_tool_calls": 6,
+ "agent_tool_errors": 0,
+ "mcp_calls": 6,
+ "mcp_ms_total": 2173.3,
+ "mcp_bytes_total": 5670,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 220461,
+  "cached": 206720,
+  "output": 262
+ },
+ "final": "Defini a frequência como semanal, ativei as notificações no navegador e salvei.",
+ "state": {
+  "saved": {
+   "language": "pt-BR",
+   "display_name": "Israel",
+   "email_digest": true,
+   "frequency": "weekly",
+   "browser_notifications": true
+  }
+ }
+}

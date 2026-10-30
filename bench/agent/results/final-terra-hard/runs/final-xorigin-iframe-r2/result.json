@@ -1,0 +1,41 @@
+{
+ "run_id": "final-xorigin-iframe-r2",
+ "variant": "final",
+ "task": "xorigin-iframe",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 19.77,
+ "agent_tool_calls": 4,
+ "agent_tool_errors": 0,
+ "mcp_calls": 4,
+ "mcp_ms_total": 1848.8,
+ "mcp_bytes_total": 3690,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 148924,
+  "cached": 138368,
+  "output": 219
+ },
+ "final": "Transferência Pix de R$ 150,00 para maria@example.com realizada, com a descrição “Aluguel”.",
+ "state": {
+  "transfer": {
+   "key": "maria@example.com",
+   "amount": "150,00",
+   "description": "Aluguel",
+   "confirmed": true
+  }
+ }
+}

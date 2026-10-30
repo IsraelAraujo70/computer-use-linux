@@ -1,0 +1,18 @@
+{"t": 1793323349.979298, "method": "initialize", "tool": null, "args": null, "ms": 25.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793323349.9833884, "method": "tools/list", "tool": null, "args": null, "ms": 3.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793323354.492838, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 610.1, "bytes": 151995, "images": 1, "is_error": false}
+{"t": 1793323356.9011407, "method": "tools/call", "tool": "set_value", "args": {"element_index": 103, "value": "Carlos Mendes"}, "ms": 23.9, "bytes": 659, "images": 0, "is_error": false}
+{"t": 1793323356.9260702, "method": "tools/call", "tool": "set_value", "args": {"element_index": 105, "value": "carlos@example.com"}, "ms": 23.0, "bytes": 669, "images": 0, "is_error": false}
+{"t": 1793323356.950315, "method": "tools/call", "tool": "set_value", "args": {"element_index": 107, "value": "Quero cancelar minha assinatura."}, "ms": 22.9, "bytes": 697, "images": 0, "is_error": false}
+{"t": 1793323358.8171322, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 75.1, "bytes": 1265, "images": 0, "is_error": false}
+{"t": 1793323359.024956, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 206.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323359.3886118, "method": "tools/call", "tool": "type_text", "args": {"text": "Carlos Mendes"}, "ms": 362.2, "bytes": 865, "images": 0, "is_error": false}
+{"t": 1793323359.597948, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 495}, "ms": 207.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323359.9905987, "method": "tools/call", "tool": "type_text", "args": {"text": "carlos@example.com"}, "ms": 390.8, "bytes": 876, "images": 0, "is_error": false}
+{"t": 1793323360.1930726, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 580}, "ms": 201.1, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323360.6691873, "method": "tools/call", "tool": "type_text", "args": {"text": "Quero cancelar minha assinatura."}, "ms": 474.2, "bytes": 904, "images": 0, "is_error": false}
+{"t": 1793323362.4977353, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 524.7, "bytes": 175957, "images": 1, "is_error": false}
+{"t": 1793323363.7020934, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 24.2, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793323364.219672, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 516.1, "bytes": 152076, "images": 1, "is_error": false}
+{"t": 1793323366.7009268, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 26.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793323367.2675056, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 561.7, "bytes": 158442, "images": 1, "is_error": false}

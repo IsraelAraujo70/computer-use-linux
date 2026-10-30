@@ -1,0 +1,5 @@
+{"t": 1793323505.7433982, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793323505.7455018, "method": "tools/list", "tool": null, "args": null, "ms": 1.7, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793323512.73239, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 183.0, "bytes": 901, "images": 0, "is_error": false}
+{"t": 1793323514.653815, "method": "tools/call", "tool": "drop_files", "args": {"element_index": 56, "paths": ["/tmp/agent-cu-bench/files/comprovante-outubro.pdf"]}, "ms": 464.9, "bytes": 550, "images": 0, "is_error": false}
+{"t": 1793323517.120949, "method": "tools/call", "tool": "click", "args": {"element_index": 57}, "ms": 516.7, "bytes": 400, "images": 0, "is_error": false}

@@ -1,0 +1,26 @@
+{"t": 1793323781.3462656, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793323781.3532023, "method": "tools/list", "tool": null, "args": null, "ms": 6.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793323788.9101048, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 574.5, "bytes": 152767, "images": 1, "is_error": false}
+{"t": 1793323790.6168354, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 24.2, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793323790.6424084, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "S\u00e3o Paulo"}, "ms": 23.9, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793323790.6670556, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 23.2, "bytes": 763, "images": 0, "is_error": false}
+{"t": 1793323793.5481951, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 75.5, "bytes": 1281, "images": 0, "is_error": false}
+{"t": 1793323793.756201, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 388}, "ms": 206.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323794.178087, "method": "tools/call", "tool": "type_text", "args": {"text": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 420.4, "bytes": 889, "images": 0, "is_error": false}
+{"t": 1793323796.5526707, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 462}, "ms": 206.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793323796.8883638, "method": "tools/call", "tool": "type_text", "args": {"text": "S\u00e3o Paulo"}, "ms": 333.9, "bytes": 860, "images": 0, "is_error": false}
+{"t": 1793323797.0888052, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 550}, "ms": 198.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323797.7004135, "method": "tools/call", "tool": "type_text", "args": {"text": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 609.9, "bytes": 972, "images": 0, "is_error": false}
+{"t": 1793323798.0410295, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 339.3, "bytes": 13574, "images": 0, "is_error": false}
+{"t": 1793323800.620426, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Nome completo", "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 25.7, "bytes": 718, "images": 0, "is_error": false}
+{"t": 1793323800.6472986, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Cidade", "value": "S\u00e3o Paulo"}, "ms": 24.8, "bytes": 674, "images": 0, "is_error": false}
+{"t": 1793323800.6730049, "method": "tools/call", "tool": "set_value", "args": {"role": "entry", "name": "Observa\u00e7\u00f5es", "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 24.2, "bytes": 800, "images": 0, "is_error": false}
+{"t": 1793323804.1462371, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 388}, "ms": 208.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793323804.349461, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+A"}, "ms": 201.6, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323804.6443527, "method": "tools/call", "tool": "type_text", "args": {"text": "Jo"}, "ms": 293.3, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793323804.8480804, "method": "tools/call", "tool": "press_key", "args": {"key": "CTRL+SHIFT+U"}, "ms": 202.2, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793323805.1342466, "method": "tools/call", "tool": "type_text", "args": {"text": "e3"}, "ms": 284.8, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793323805.3128235, "method": "tools/call", "tool": "press_key", "args": {"key": "Return"}, "ms": 177.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793323805.9099104, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 595.5, "bytes": 13786, "images": 0, "is_error": false}
+{"t": 1793323808.787505, "method": "tools/call", "tool": "press_key", "args": {"key": "U00E3"}, "ms": 1.3, "bytes": 854, "images": 0, "is_error": false}
+{"t": 1793323809.1286027, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 339.5, "bytes": 13786, "images": 0, "is_error": false}

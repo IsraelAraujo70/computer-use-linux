@@ -1,0 +1,7 @@
+{"t": 1793320340.8788767, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793320340.8813338, "method": "tools/list", "tool": null, "args": null, "ms": 2.1, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793320347.8545983, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 233.8, "bytes": 6424, "images": 0, "is_error": false}
+{"t": 1793320350.604679, "method": "tools/call", "tool": "click", "args": {"element_index": 107}, "ms": 344.6, "bytes": 1200, "images": 0, "is_error": false}
+{"t": 1793320352.8078516, "method": "tools/call", "tool": "click", "args": {"element_index": 300}, "ms": 337.6, "bytes": 683, "images": 0, "is_error": false}
+{"t": 1793320354.59488, "method": "tools/call", "tool": "set_value", "args": {"element_index": 305, "value": "Recebido, obrigado."}, "ms": 478.3, "bytes": 436, "images": 0, "is_error": false}
+{"t": 1793320356.736288, "method": "tools/call", "tool": "click", "args": {"element_index": 306}, "ms": 422.8, "bytes": 6526, "images": 0, "is_error": false}

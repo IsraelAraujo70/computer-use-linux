@@ -1,0 +1,25 @@
+{"t": 1793320712.722322, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793320712.7278764, "method": "tools/list", "tool": null, "args": null, "ms": 5.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793320720.8599534, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 744.5, "bytes": 190376, "images": 1, "is_error": false}
+{"t": 1793320723.0643516, "method": "tools/call", "tool": "set_value", "args": {"element_index": 117, "value": "30130-010"}, "ms": 24.3, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793320723.091295, "method": "tools/call", "tool": "set_value", "args": {"element_index": 119, "value": "Avenida Afonso Pena"}, "ms": 24.7, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793320723.117931, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "1500"}, "ms": 24.6, "bytes": 641, "images": 0, "is_error": false}
+{"t": 1793320723.1454415, "method": "tools/call", "tool": "set_value", "args": {"element_index": 123, "value": "Belo Horizonte"}, "ms": 25.2, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793320723.3613348, "method": "tools/call", "tool": "click", "args": {"element_index": 154}, "ms": 213.9, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793320725.7860844, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.6, "bytes": 1279, "images": 0, "is_error": false}
+{"t": 1793320727.518053, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 204.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793320727.9392848, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010", "window_id": 8388610}, "ms": 419.4, "bytes": 1160, "images": 0, "is_error": false}
+{"t": 1793320728.1401389, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 535}, "ms": 199.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793320728.6144292, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena", "window_id": 8388610}, "ms": 472.7, "bytes": 1180, "images": 0, "is_error": false}
+{"t": 1793320728.8160126, "method": "tools/call", "tool": "click", "args": {"x": 420, "y": 624}, "ms": 199.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793320729.2033336, "method": "tools/call", "tool": "type_text", "args": {"text": "1500", "window_id": 8388610}, "ms": 385.5, "bytes": 1150, "images": 0, "is_error": false}
+{"t": 1793320729.4123614, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 624}, "ms": 207.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793320729.8658867, "method": "tools/call", "tool": "type_text", "args": {"text": "Belo Horizonte", "window_id": 8388610}, "ms": 451.8, "bytes": 1170, "images": 0, "is_error": false}
+{"t": 1793320732.0296662, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 855.5, "bytes": 181147, "images": 1, "is_error": false}
+{"t": 1793320734.3440254, "method": "tools/call", "tool": "click", "args": {"x": 500, "y": 460}, "ms": 206.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793320734.764615, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010", "window_id": 8388610}, "ms": 418.9, "bytes": 1160, "images": 0, "is_error": false}
+{"t": 1793320734.967784, "method": "tools/call", "tool": "click", "args": {"x": 1040, "y": 624}, "ms": 201.6, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793320737.143722, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 819.0, "bytes": 232992, "images": 1, "is_error": false}
+{"t": 1793320739.5547924, "method": "tools/call", "tool": "click", "args": {"x": 1020, "y": 488}, "ms": 203.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793320739.755253, "method": "tools/call", "tool": "click", "args": {"x": 445, "y": 685}, "ms": 198.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793320741.8563132, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 846.6, "bytes": 188547, "images": 1, "is_error": false}

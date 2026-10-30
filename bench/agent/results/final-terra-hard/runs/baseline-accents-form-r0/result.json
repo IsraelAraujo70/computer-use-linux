@@ -1,0 +1,61 @@
+{
+ "run_id": "baseline-accents-form-r0",
+ "variant": "baseline",
+ "task": "accents-form",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": false,
+ "detail": "name='Jo00e3' (want 'João Conceição Araújo'); city='So Paulo' (want 'São Paulo'); notes='Preo: 1.234,56   timo! ber faade  ao nfase' (want 'Preço: 1.234,56 € — ótimo! Über façade 😀 ação ênfase')",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 47.64,
+ "agent_tool_calls": 25,
+ "agent_tool_errors": 0,
+ "mcp_calls": 25,
+ "mcp_ms_total": 6077.2,
+ "mcp_bytes_total": 336074,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "list_windows",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "click",
+  "press_key",
+  "type_text",
+  "press_key",
+  "type_text",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "press_key",
+  "press_key"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 527268,
+  "cached": 479872,
+  "output": 1139
+ },
+ "final": "Não consegui preservar os caracteres; o formulário foi salvo com valores incorretos.",
+ "state": {
+  "saved": {
+   "name": "Jo00e3",
+   "city": "So Paulo",
+   "notes": "Preo: 1.234,56   timo! ber faade  ao nfase"
+  }
+ }
+}

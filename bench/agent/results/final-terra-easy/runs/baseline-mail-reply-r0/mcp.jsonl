@@ -1,0 +1,15 @@
+{"t": 1793320297.171449, "method": "initialize", "tool": null, "args": null, "ms": 26.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793320297.1784801, "method": "tools/list", "tool": null, "args": null, "ms": 6.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793320303.8290572, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 806.6, "bytes": 521724, "images": 1, "is_error": false}
+{"t": 1793320305.8621035, "method": "tools/call", "tool": "click", "args": {"element_index": 118}, "ms": 25.2, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793320309.2289755, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 679.0, "bytes": 222481, "images": 1, "is_error": false}
+{"t": 1793320311.0641327, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 665.4, "bytes": 222907, "images": 1, "is_error": false}
+{"t": 1793320312.6319742, "method": "tools/call", "tool": "click", "args": {"element_index": 92}, "ms": 24.5, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793320313.3127847, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 679.0, "bytes": 234875, "images": 1, "is_error": false}
+{"t": 1793320318.169679, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "Recebido, obrigado."}, "ms": 24.2, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793320318.8172643, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 646.4, "bytes": 231329, "images": 1, "is_error": false}
+{"t": 1793320323.554076, "method": "tools/call", "tool": "type_text", "args": {"text": "Recebido, obrigado."}, "ms": 403.6, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793320324.1290321, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 573.4, "bytes": 221645, "images": 1, "is_error": false}
+{"t": 1793320326.4710503, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 538.7, "bytes": 221317, "images": 1, "is_error": false}
+{"t": 1793320327.9500623, "method": "tools/call", "tool": "click", "args": {"element_index": 100}, "ms": 24.5, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793320328.674279, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 721.6, "bytes": 508541, "images": 1, "is_error": false}

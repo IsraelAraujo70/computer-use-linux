@@ -1,0 +1,39 @@
+{
+ "run_id": "final-virtual-list-r2",
+ "variant": "final",
+ "task": "virtual-list",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 28.24,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 8373.8,
+ "mcp_bytes_total": 16167,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "scroll",
+  "click",
+  "get_app_state",
+  "click"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 185668,
+  "cached": 170368,
+  "output": 269
+ },
+ "final": "Arquivei o pedido #1377.",
+ "state": {
+  "archived": [
+   "1377"
+  ]
+ }
+}

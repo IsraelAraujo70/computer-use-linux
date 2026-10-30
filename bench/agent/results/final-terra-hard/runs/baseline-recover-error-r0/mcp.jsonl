@@ -1,0 +1,19 @@
+{"t": 1793322912.3307912, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793322912.3351972, "method": "tools/list", "tool": null, "args": null, "ms": 4.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793322918.5813932, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 621.3, "bytes": 152393, "images": 1, "is_error": false}
+{"t": 1793322920.9263203, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(11) 91234-5678"}, "ms": 24.2, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793322922.2609942, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 207.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793322923.250226, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.6, "bytes": 1265, "images": 0, "is_error": false}
+{"t": 1793322923.4512064, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 199.4, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793322923.8362608, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678"}, "ms": 383.4, "bytes": 869, "images": 0, "is_error": false}
+{"t": 1793322925.8351176, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 399.3, "bytes": 14119, "images": 0, "is_error": false}
+{"t": 1793322927.0824566, "method": "tools/call", "tool": "click", "args": {"element_index": 77}, "ms": 24.6, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793322927.5356858, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 451.0, "bytes": 14098, "images": 0, "is_error": false}
+{"t": 1793322929.1916525, "method": "tools/call", "tool": "wait_for", "args": {"window_id": 8388610, "condition": "appears", "name": "Salvar altera\u00e7\u00f5es", "role": "button", "timeout_ms": 20000}, "ms": 394.4, "bytes": 480, "images": 0, "is_error": false}
+{"t": 1793322929.6162286, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 423.1, "bytes": 14488, "images": 0, "is_error": false}
+{"t": 1793322931.54169, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 24.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793322932.767918, "method": "tools/call", "tool": "wait_for", "args": {"window_id": 8388610, "condition": "appears", "name": "Salvar altera\u00e7\u00f5es", "role": "button", "timeout_ms": 20000}, "ms": 1224.5, "bytes": 484, "images": 0, "is_error": false}
+{"t": 1793322933.2102847, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 441.1, "bytes": 14384, "images": 0, "is_error": false}
+{"t": 1793322935.3478134, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 24.1, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793322936.0493934, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 700.0, "bytes": 17760, "images": 0, "is_error": false}
+{"t": 1793322943.4024475, "method": "tools/call", "tool": "wait_for", "args": {"window_id": 8388610, "text": "91234-5678", "timeout_ms": 5000}, "ms": 5595.9, "bytes": 338, "images": 0, "is_error": false}

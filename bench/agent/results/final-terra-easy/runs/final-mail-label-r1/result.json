@@ -1,0 +1,52 @@
+{
+ "run_id": "final-mail-label-r1",
+ "variant": "final",
+ "task": "mail-label",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 28.49,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 4264.8,
+ "mcp_bytes_total": 30099,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "press_key",
+  "get_app_state",
+  "find_elements",
+  "find_elements",
+  "click",
+  "click",
+  "click",
+  "click",
+  "click",
+  "find_elements"
+ ],
+ "tools_list_bytes": 22490,
+ "tokens": {
+  "input": 379820,
+  "cached": 357248,
+  "output": 469
+ },
+ "final": "Apliquei o marcador Financeiro aos dois e-mails do Banco Aurora, sem arquivar nenhum.",
+ "state": {
+  "labels": {
+   "l4": [
+    "Financeiro"
+   ],
+   "l23": [
+    "Financeiro"
+   ]
+  },
+  "archived": []
+ }
+}
