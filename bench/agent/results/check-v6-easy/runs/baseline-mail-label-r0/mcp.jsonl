@@ -1,0 +1,23 @@
+{"t": 1793325904.381912, "method": "initialize", "tool": null, "args": null, "ms": 23.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793325904.387638, "method": "tools/list", "tool": null, "args": null, "ms": 5.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793325917.0904617, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 884.2, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793325920.584677, "method": "tools/call", "tool": "set_value", "args": {"element_index": 80, "value": "Banco Aurora"}, "ms": 23.8, "bytes": 655, "images": 0, "is_error": false}
+{"t": 1793325920.6640482, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 77.9, "bytes": 1291, "images": 0, "is_error": false}
+{"t": 1793325924.2115412, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 224.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793325924.6869724, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora", "window_id": 8388610}, "ms": 473.3, "bytes": 1165, "images": 0, "is_error": false}
+{"t": 1793325924.964462, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter", "window_id": 8388610}, "ms": 275.8, "bytes": 789, "images": 0, "is_error": false}
+{"t": 1793325928.3120337, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 981.4, "bytes": 524035, "images": 1, "is_error": false}
+{"t": 1793325931.6642354, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 212.7, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793325931.8749132, "method": "tools/call", "tool": "click", "args": {"name": "Selecionar: Comprovante de transfer\u00eancia", "role": "check box"}, "ms": 208.6, "bytes": 1130, "images": 0, "is_error": false}
+{"t": 1793325932.0835004, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 206.6, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793325935.3238475, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 939.5, "bytes": 522590, "images": 1, "is_error": false}
+{"t": 1793325938.0637004, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 212.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793325938.0893784, "method": "tools/call", "tool": "click", "args": {"element_index": 126}, "ms": 23.9, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793325941.5901756, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "window_id": 8388610}, "ms": 357.3, "bytes": 712, "images": 0, "is_error": false}
+{"t": 1793325942.657088, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1065.0, "bytes": 541758, "images": 1, "is_error": false}
+{"t": 1793325948.30487, "method": "tools/call", "tool": "click", "args": {"name": "Selecionar: Comprovante de transfer\u00eancia", "role": "check box"}, "ms": 211.3, "bytes": 906, "images": 0, "is_error": false}
+{"t": 1793325948.5078006, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 201.5, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793325949.0983372, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 588.9, "bytes": 51862, "images": 0, "is_error": false}
+{"t": 1793325950.9509494, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 203.6, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793325950.9786434, "method": "tools/call", "tool": "click", "args": {"element_index": 128}, "ms": 26.3, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793325951.6344912, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610, "include_screenshot": false}, "ms": 652.2, "bytes": 51224, "images": 0, "is_error": false}

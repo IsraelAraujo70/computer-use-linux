@@ -1,0 +1,27 @@
+{"t": 1793326643.1580405, "method": "initialize", "tool": null, "args": null, "ms": 23.5, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793326643.1626928, "method": "tools/list", "tool": null, "args": null, "ms": 4.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793326651.437513, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 866.7, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793326654.0475934, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 972.1, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793326657.1273606, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 214.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793326657.529086, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 399.9, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793326658.3230395, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 785.0, "bytes": 539607, "images": 1, "is_error": false}
+{"t": 1793326663.1002066, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 199.0, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793326664.01939, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 917.3, "bytes": 536373, "images": 1, "is_error": false}
+{"t": 1793326666.4322128, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 201.9, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793326666.6404576, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 206.7, "bytes": 1032, "images": 0, "is_error": false}
+{"t": 1793326666.8511624, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 208.8, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793326667.7311296, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 878.3, "bytes": 534952, "images": 1, "is_error": false}
+{"t": 1793326671.1077268, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 929.1, "bytes": 534952, "images": 1, "is_error": false}
+{"t": 1793326674.5089033, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 211.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793326674.5348606, "method": "tools/call", "tool": "click", "args": {"element_index": 126}, "ms": 24.0, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793326674.7385232, "method": "tools/call", "tool": "click", "args": {"name": "Selecionar: Comprovante de transfer\u00eancia", "role": "check box"}, "ms": 202.0, "bytes": 1130, "images": 0, "is_error": false}
+{"t": 1793326675.6483822, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 908.0, "bytes": 540640, "images": 1, "is_error": false}
+{"t": 1793326678.4918468, "method": "tools/call", "tool": "click", "args": {"element_index": 144}, "ms": 214.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793326681.5222135, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "element_index": 51}, "ms": 151.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793326682.4919102, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 968.0, "bytes": 540186, "images": 1, "is_error": false}
+{"t": 1793326685.3701622, "method": "tools/call", "tool": "click", "args": {"element_index": 259}, "ms": 212.1, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793326685.5786736, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 206.6, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793326686.4290905, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 848.5, "bytes": 537364, "images": 1, "is_error": false}
+{"t": 1793326689.0817895, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 210.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793326689.108201, "method": "tools/call", "tool": "click", "args": {"element_index": 128}, "ms": 24.7, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793326689.8955534, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 785.5, "bytes": 546858, "images": 1, "is_error": false}

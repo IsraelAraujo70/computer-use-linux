@@ -1,0 +1,17 @@
+{
+ "run_id": "v6-terminal-r0",
+ "variant": "v6",
+ "binary": "/tmp/agent-cu-bench/bin/v6/computer-use-linux",
+ "task": "terminal",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "timeout": 360,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "claude_home": "/tmp/agent-cu-bench/claude-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_mode": "bots"
+}

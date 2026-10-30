@@ -1,0 +1,68 @@
+{
+ "run_id": "baseline-calendar-event-r0",
+ "variant": "baseline",
+ "task": "calendar-event",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 49.84,
+ "agent_tool_calls": 29,
+ "agent_tool_errors": 0,
+ "mcp_calls": 29,
+ "mcp_ms_total": 11371.7,
+ "mcp_bytes_total": 2842609,
+ "screenshots": 13,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "set_value",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "set_value",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "perform_action",
+  "get_app_state",
+  "set_value",
+  "get_app_state",
+  "list_windows",
+  "click",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 1000728,
+  "cached": 935808,
+  "output": 1188
+ },
+ "final": "Criei e salvei “Dentista” para 18 de novembro de 2026, às 14h30.",
+ "state": {
+  "events": [
+   {
+    "title": "Dentista",
+    "date": "2026-11-18",
+    "start": "14:30",
+    "end": "15:30"
+   }
+  ]
+ }
+}

@@ -1,0 +1,31 @@
+{"t": 1793325964.3745246, "method": "initialize", "tool": null, "args": null, "ms": 23.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793325964.3812616, "method": "tools/list", "tool": null, "args": null, "ms": 6.4, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793325971.054432, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 817.9, "bytes": 216277, "images": 1, "is_error": false}
+{"t": 1793325972.4852145, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 24.6, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793325973.2706685, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 780.2, "bytes": 202537, "images": 1, "is_error": false}
+{"t": 1793325974.9766593, "method": "tools/call", "tool": "click", "args": {"x": 1050, "y": 570}, "ms": 203.6, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793325975.7414699, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 763.0, "bytes": 188753, "images": 1, "is_error": false}
+{"t": 1793325977.91437, "method": "tools/call", "tool": "click", "args": {"element_index": 73}, "ms": 25.5, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793325978.6243973, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 708.0, "bytes": 218444, "images": 1, "is_error": false}
+{"t": 1793325981.8276782, "method": "tools/call", "tool": "set_value", "args": {"element_index": 135, "value": "Dentista"}, "ms": 25.1, "bytes": 649, "images": 0, "is_error": false}
+{"t": 1793325981.8543231, "method": "tools/call", "tool": "click", "args": {"element_index": 137}, "ms": 24.9, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793325982.5865314, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 729.9, "bytes": 237095, "images": 1, "is_error": false}
+{"t": 1793325985.2768764, "method": "tools/call", "tool": "click", "args": {"element_index": 206}, "ms": 25.0, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793325986.1295807, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 850.7, "bytes": 236032, "images": 1, "is_error": false}
+{"t": 1793325988.3593423, "method": "tools/call", "tool": "click", "args": {"element_index": 237}, "ms": 26.0, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793325988.3856397, "method": "tools/call", "tool": "set_value", "args": {"element_index": 200, "value": "14:30"}, "ms": 24.0, "bytes": 644, "images": 0, "is_error": false}
+{"t": 1793325989.073923, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 687.0, "bytes": 214699, "images": 1, "is_error": false}
+{"t": 1793325990.7930079, "method": "tools/call", "tool": "click", "args": {"element_index": 200}, "ms": 204.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793325991.5797963, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 785.3, "bytes": 241058, "images": 1, "is_error": false}
+{"t": 1793325995.2745705, "method": "tools/call", "tool": "click", "args": {"element_index": 273}, "ms": 212.9, "bytes": 1032, "images": 0, "is_error": false}
+{"t": 1793325996.1074703, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 831.3, "bytes": 241006, "images": 1, "is_error": false}
+{"t": 1793326000.7073202, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 273, "action": "select"}, "ms": 24.8, "bytes": 596, "images": 0, "is_error": false}
+{"t": 1793326001.407414, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 699.0, "bytes": 214615, "images": 1, "is_error": false}
+{"t": 1793326003.1039355, "method": "tools/call", "tool": "set_value", "args": {"element_index": 135, "value": "Dentista"}, "ms": 24.0, "bytes": 650, "images": 0, "is_error": false}
+{"t": 1793326003.9015512, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 796.4, "bytes": 214603, "images": 1, "is_error": false}
+{"t": 1793326005.8451667, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 80.0, "bytes": 1298, "images": 0, "is_error": false}
+{"t": 1793326006.0529006, "method": "tools/call", "tool": "click", "args": {"element_index": 135}, "ms": 206.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793326006.3878589, "method": "tools/call", "tool": "type_text", "args": {"text": "Dentista"}, "ms": 333.2, "bytes": 856, "images": 0, "is_error": false}
+{"t": 1793326007.0588956, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 669.6, "bytes": 213651, "images": 1, "is_error": false}
+{"t": 1793326009.4081376, "method": "tools/call", "tool": "click", "args": {"element_index": 139}, "ms": 23.9, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793326010.1763074, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 765.9, "bytes": 190369, "images": 1, "is_error": false}

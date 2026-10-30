@@ -1,0 +1,21 @@
+{"t": 1793326097.176703, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793326097.1837785, "method": "tools/list", "tool": null, "args": null, "ms": 6.6, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793326104.9641376, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 634.4, "bytes": 161504, "images": 1, "is_error": false}
+{"t": 1793326106.9162512, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Joana Ribeiro"}, "ms": 24.4, "bytes": 657, "images": 0, "is_error": false}
+{"t": 1793326106.9415016, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "joana.ribeiro@example.com"}, "ms": 23.6, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793326106.9671812, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(31) 98765-4321"}, "ms": 23.7, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793326107.1762137, "method": "tools/call", "tool": "click", "args": {"element_index": 112}, "ms": 207.5, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793326108.7079754, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 89.7, "bytes": 1263, "images": 0, "is_error": false}
+{"t": 1793326109.1287215, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 418.7, "bytes": 18942, "images": 0, "is_error": false}
+{"t": 1793326114.2971914, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 109, "action": "select"}, "ms": 24.0, "bytes": 595, "images": 0, "is_error": false}
+{"t": 1793326114.5119684, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 213.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326115.0076492, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro", "window_id": 8388610}, "ms": 493.8, "bytes": 1168, "images": 0, "is_error": false}
+{"t": 1793326115.211158, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 500}, "ms": 201.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326115.7298565, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com", "window_id": 8388610}, "ms": 517.2, "bytes": 1192, "images": 0, "is_error": false}
+{"t": 1793326115.9311414, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 580}, "ms": 199.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326116.4015224, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321", "window_id": 8388610}, "ms": 469.0, "bytes": 1172, "images": 0, "is_error": false}
+{"t": 1793326116.6028345, "method": "tools/call", "tool": "click", "args": {"x": 766, "y": 730}, "ms": 199.8, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326116.802921, "method": "tools/call", "tool": "click", "args": {"x": 682, "y": 773}, "ms": 198.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326118.7737792, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 615.3, "bytes": 155785, "images": 1, "is_error": false}
+{"t": 1793326120.6395488, "method": "tools/call", "tool": "click", "args": {"element_index": 91}, "ms": 25.3, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793326121.3224273, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 680.1, "bytes": 160111, "images": 1, "is_error": false}

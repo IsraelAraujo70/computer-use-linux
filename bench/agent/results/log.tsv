@@ -7,3 +7,4 @@ date	variant	change	binary_commit	runs	success_rate	tasks_per_min	mean_wall_s	me
 2026-10-29	v3 (hard, provisional)	+mask-tolerant read-back, busy-aware settle, robust scroll until, wait_for defaults	71bf287	36	1.00	2.705	22	5.6	0.1	190	interleaved vs baseline (36 eps, 0.67, 1.094): +33pp, 2.47x
 2026-10-29	final=v5 (easy, FINAL conditions)	v3 + rich text, dialog errors, faster scroll until, review fixes	c41ede4	30	1.00	2.745	22	5.6	0.2	211	interleaved vs baseline (1.523): 1.80x -> easy bar NOT met under bots flags
 2026-10-29	final=v5 (hard, FINAL conditions)	same	c41ede4	36	1.00	2.934	20	4.9	0.0	176	interleaved vs baseline (0.67, 1.105): +33pp, 2.66x -> hard bar met
+2026-10-29	v6 (easy check, FINAL conditions)	+off-screen content within budget, document-only settle reads, infinite-list scroll until	380c79f	30	1.00	2.577	23	6.7	0.2	195	interleaved vs baseline (0.97, 1.241): 2.08x

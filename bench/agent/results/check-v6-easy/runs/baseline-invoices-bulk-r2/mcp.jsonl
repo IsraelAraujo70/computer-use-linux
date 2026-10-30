@@ -1,0 +1,18 @@
+{"t": 1793328397.0894928, "method": "initialize", "tool": null, "args": null, "ms": 24.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793328397.093745, "method": "tools/list", "tool": null, "args": null, "ms": 3.7, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793328407.4142203, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1125.8, "bytes": 369389, "images": 1, "is_error": false}
+{"t": 1793328410.5439441, "method": "tools/call", "tool": "click", "args": {"element_index": 314}, "ms": 207.5, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793328410.7574224, "method": "tools/call", "tool": "click", "args": {"element_index": 392}, "ms": 211.4, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793328410.9625964, "method": "tools/call", "tool": "click", "args": {"element_index": 464}, "ms": 203.5, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793328416.096707, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1}, "ms": 108.5, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793328416.9676929, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 869.1, "bytes": 59253, "images": 0, "is_error": false}
+{"t": 1793328419.686279, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "x": 1000, "y": 900}, "ms": 209.1, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793328420.857027, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1169.0, "bytes": 371069, "images": 1, "is_error": false}
+{"t": 1793328423.7161062, "method": "tools/call", "tool": "click", "args": {"element_index": 436}, "ms": 208.1, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793328423.9285579, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 2, "x": 1000, "y": 500}, "ms": 210.6, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793328424.897546, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 967.3, "bytes": 59302, "images": 0, "is_error": false}
+{"t": 1793328427.6086373, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1013.1, "bytes": 352878, "images": 1, "is_error": false}
+{"t": 1793328430.60125, "method": "tools/call", "tool": "click", "args": {"name": "Arquivar selecionadas", "role": "button"}, "ms": 24.9, "bytes": 940, "images": 0, "is_error": false}
+{"t": 1793328431.623301, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1019.5, "bytes": 340987, "images": 1, "is_error": false}
+{"t": 1793328433.9164155, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 26.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793328434.731439, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 812.7, "bytes": 55006, "images": 0, "is_error": false}

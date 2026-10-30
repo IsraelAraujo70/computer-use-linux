@@ -1,0 +1,12 @@
+{"t": 1793326598.6834795, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793326598.6899123, "method": "tools/list", "tool": null, "args": null, "ms": 6.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793326608.832897, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 868.6, "bytes": 521724, "images": 1, "is_error": false}
+{"t": 1793326611.0579019, "method": "tools/call", "tool": "click", "args": {"element_index": 118}, "ms": 25.1, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793326614.1238115, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 716.9, "bytes": 222907, "images": 1, "is_error": false}
+{"t": 1793326616.3913074, "method": "tools/call", "tool": "click", "args": {"element_index": 92}, "ms": 24.8, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793326617.1041274, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 710.6, "bytes": 231345, "images": 1, "is_error": false}
+{"t": 1793326620.5847206, "method": "tools/call", "tool": "type_text", "args": {"text": "Recebido, obrigado."}, "ms": 418.2, "bytes": 877, "images": 0, "is_error": false}
+{"t": 1793326621.351386, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 764.5, "bytes": 221644, "images": 1, "is_error": false}
+{"t": 1793326624.1577148, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 671.3, "bytes": 221344, "images": 1, "is_error": false}
+{"t": 1793326626.1415648, "method": "tools/call", "tool": "click", "args": {"element_index": 100}, "ms": 25.4, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793326627.021672, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 878.7, "bytes": 508541, "images": 1, "is_error": false}

@@ -1,0 +1,33 @@
+{
+ "run_id": "v6-terminal-r0",
+ "variant": "v6",
+ "task": "terminal",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 16.75,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 794.7,
+ "mcp_bytes_total": 137453,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "type_text",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22642,
+ "tokens": {
+  "input": 136695,
+  "cached": 93824,
+  "output": 262
+ },
+ "final": "Created `nota.txt` with the requested line.",
+ "state": {}
+}

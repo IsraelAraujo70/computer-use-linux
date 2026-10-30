@@ -1,0 +1,24 @@
+{"t": 1793327800.127233, "method": "initialize", "tool": null, "args": null, "ms": 22.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793327800.1308205, "method": "tools/list", "tool": null, "args": null, "ms": 3.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793327811.3417609, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 862.1, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793327814.097675, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 213.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793327814.466558, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 367.1, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793327814.9942899, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 526.0, "bytes": 54123, "images": 0, "is_error": false}
+{"t": 1793327819.6836684, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 180.4, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793327820.201617, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 516.5, "bytes": 54121, "images": 0, "is_error": false}
+{"t": 1793327824.5193708, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 209.5, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793327824.7295537, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 208.2, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793327824.936108, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 204.9, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793327825.5720823, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 634.2, "bytes": 55036, "images": 0, "is_error": false}
+{"t": 1793327828.9870193, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 210.1, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793327829.0133274, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 24.5, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793327829.8046765, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 790.4, "bytes": 54672, "images": 0, "is_error": false}
+{"t": 1793327831.8212388, "method": "tools/call", "tool": "click", "args": {"element_index": 144}, "ms": 204.3, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793327834.5722342, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 150.0, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793327835.1948392, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 620.7, "bytes": 54516, "images": 0, "is_error": false}
+{"t": 1793327837.501073, "method": "tools/call", "tool": "click", "args": {"element_index": 259}, "ms": 207.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793327837.714442, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 211.5, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793327838.2784233, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 562.2, "bytes": 55384, "images": 0, "is_error": false}
+{"t": 1793327841.8410947, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 206.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793327841.867012, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 24.3, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793327842.3795187, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 510.7, "bytes": 54746, "images": 0, "is_error": false}

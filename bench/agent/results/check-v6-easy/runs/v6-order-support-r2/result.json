@@ -1,0 +1,46 @@
+{
+ "run_id": "v6-order-support-r2",
+ "variant": "v6",
+ "task": "order-support",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 27.78,
+ "agent_tool_calls": 9,
+ "agent_tool_errors": 0,
+ "mcp_calls": 9,
+ "mcp_ms_total": 2898.7,
+ "mcp_bytes_total": 10964,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "set_value",
+  "set_value",
+  "click",
+  "set_value",
+  "click"
+ ],
+ "tools_list_bytes": 22642,
+ "tokens": {
+  "input": 179961,
+  "cached": 170752,
+  "output": 397
+ },
+ "final": "Abri o chamado de entrega para o pedido #4821 com o código de rastreio e a mensagem solicitados.",
+ "state": {
+  "ticket": {
+   "order": "4821",
+   "tracking": "BR482193XQ",
+   "category": "Entrega",
+   "message": "Pedido não chegou"
+  }
+ }
+}

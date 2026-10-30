@@ -1,0 +1,12 @@
+{"t": 1793325827.9962716, "method": "initialize", "tool": null, "args": null, "ms": 24.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793325828.0031056, "method": "tools/list", "tool": null, "args": null, "ms": 6.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793325836.1837788, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 880.9, "bytes": 521724, "images": 1, "is_error": false}
+{"t": 1793325838.2697022, "method": "tools/call", "tool": "click", "args": {"element_index": 118}, "ms": 25.4, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793325840.2642338, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 518.3, "bytes": 19871, "images": 0, "is_error": false}
+{"t": 1793325841.9732227, "method": "tools/call", "tool": "click", "args": {"element_index": 92}, "ms": 26.4, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793325843.942448, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 451.9, "bytes": 20783, "images": 0, "is_error": false}
+{"t": 1793325846.8286264, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "Recebido, obrigado."}, "ms": 25.2, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793325849.4140599, "method": "tools/call", "tool": "type_text", "args": {"text": "Recebido, obrigado."}, "ms": 415.1, "bytes": 877, "images": 0, "is_error": false}
+{"t": 1793325852.6690106, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 561.5, "bytes": 17312, "images": 0, "is_error": false}
+{"t": 1793325856.2996097, "method": "tools/call", "tool": "click", "args": {"element_index": 100}, "ms": 24.6, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793325858.841245, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 550.7, "bytes": 47745, "images": 0, "is_error": false}

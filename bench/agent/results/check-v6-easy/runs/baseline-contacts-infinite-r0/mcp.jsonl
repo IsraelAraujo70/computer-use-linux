@@ -1,0 +1,13 @@
+{"t": 1793326228.5445793, "method": "initialize", "tool": null, "args": null, "ms": 25.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793326228.5501094, "method": "tools/list", "tool": null, "args": null, "ms": 5.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793326237.863148, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 768.6, "bytes": 342571, "images": 1, "is_error": false}
+{"t": 1793326243.6191554, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 30, "element_index": 56}, "ms": 1987.7, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793326246.760468, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1468.8, "bytes": 416219, "images": 1, "is_error": false}
+{"t": 1793326251.3432388, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 45, "element_index": 56}, "ms": 2846.4, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793326254.40727, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1111.2, "bytes": 449952, "images": 1, "is_error": false}
+{"t": 1793326256.801933, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 8, "element_index": 56}, "ms": 578.6, "bytes": 697, "images": 0, "is_error": false}
+{"t": 1793326259.8165438, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1284.4, "bytes": 446998, "images": 1, "is_error": false}
+{"t": 1793326262.0298212, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 6, "element_index": 56}, "ms": 454.7, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793326265.532647, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1263.2, "bytes": 449273, "images": 1, "is_error": false}
+{"t": 1793326268.9555137, "method": "tools/call", "tool": "click", "args": {"x": 1843, "y": 522}, "ms": 205.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793326271.7187445, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1249.3, "bytes": 444339, "images": 1, "is_error": false}

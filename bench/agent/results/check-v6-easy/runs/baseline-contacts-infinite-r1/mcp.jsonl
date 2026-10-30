@@ -1,0 +1,16 @@
+{"t": 1793327037.0908105, "method": "initialize", "tool": null, "args": null, "ms": 23.1, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793327037.0951025, "method": "tools/list", "tool": null, "args": null, "ms": 4.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793327043.701995, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 711.9, "bytes": 342571, "images": 1, "is_error": false}
+{"t": 1793327049.4219627, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 20, "element_index": 56}, "ms": 1305.7, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793327052.4111328, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1067.1, "bytes": 403417, "images": 1, "is_error": false}
+{"t": 1793327060.1326287, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 60, "element_index": 56}, "ms": 3742.1, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793327061.249678, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1115.4, "bytes": 449564, "images": 1, "is_error": false}
+{"t": 1793327063.9638286, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 8, "element_index": 56}, "ms": 578.2, "bytes": 697, "images": 0, "is_error": false}
+{"t": 1793327065.4007735, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1435.0, "bytes": 446610, "images": 1, "is_error": false}
+{"t": 1793327068.6328394, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 5, "element_index": 56}, "ms": 392.1, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793327069.741391, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1107.4, "bytes": 442589, "images": 1, "is_error": false}
+{"t": 1793327071.5709865, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "element_index": 56}, "ms": 149.3, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793327072.6690161, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 1096.8, "bytes": 448885, "images": 1, "is_error": false}
+{"t": 1793327076.053717, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "max_nodes": 2000}, "ms": 1620.2, "bytes": 503284, "images": 1, "is_error": false}
+{"t": 1793327077.671613, "method": "tools/call", "tool": "click", "args": {"element_index": 989}, "ms": 204.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793327081.074659, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "max_nodes": 2000}, "ms": 1842.5, "bytes": 489704, "images": 1, "is_error": false}

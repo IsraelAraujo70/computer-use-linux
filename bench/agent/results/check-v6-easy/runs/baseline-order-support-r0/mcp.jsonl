@@ -1,0 +1,44 @@
+{"t": 1793326377.4324803, "method": "initialize", "tool": null, "args": null, "ms": 21.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793326377.4404364, "method": "tools/list", "tool": null, "args": null, "ms": 7.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793326386.51157, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 881.9, "bytes": 342122, "images": 1, "is_error": false}
+{"t": 1793326388.121114, "method": "tools/call", "tool": "click", "args": {"element_index": 246}, "ms": 209.5, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793326389.6931572, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 372.6, "bytes": 14446, "images": 0, "is_error": false}
+{"t": 1793326391.6558473, "method": "tools/call", "tool": "click", "args": {"element_index": 65}, "ms": 206.5, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793326393.5167756, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 353.3, "bytes": 14492, "images": 0, "is_error": false}
+{"t": 1793326397.7172883, "method": "tools/call", "tool": "set_value", "args": {"element_index": 74, "value": "4821"}, "ms": 24.3, "bytes": 639, "images": 0, "is_error": false}
+{"t": 1793326397.7423406, "method": "tools/call", "tool": "set_value", "args": {"element_index": 76, "value": "BR482193XQ"}, "ms": 23.5, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793326397.9489067, "method": "tools/call", "tool": "click", "args": {"element_index": 88}, "ms": 205.1, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793326397.9744594, "method": "tools/call", "tool": "set_value", "args": {"element_index": 79, "value": "Pedido n\u00e3o chegou"}, "ms": 23.8, "bytes": 668, "images": 0, "is_error": false}
+{"t": 1793326402.0255616, "method": "tools/call", "tool": "click", "args": {"element_index": 74}, "ms": 207.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326402.3295429, "method": "tools/call", "tool": "type_text", "args": {"text": "4821"}, "ms": 301.2, "bytes": 848, "images": 0, "is_error": false}
+{"t": 1793326402.5337083, "method": "tools/call", "tool": "click", "args": {"element_index": 76}, "ms": 202.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326402.886488, "method": "tools/call", "tool": "type_text", "args": {"text": "BR482193XQ"}, "ms": 351.0, "bytes": 860, "images": 0, "is_error": false}
+{"t": 1793326403.0884154, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 200.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793326403.4702725, "method": "tools/call", "tool": "type_text", "args": {"text": "Pedido n\u00e3o chegou"}, "ms": 380.0, "bytes": 876, "images": 0, "is_error": false}
+{"t": 1793326406.5468116, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 542.6, "bytes": 14590, "images": 0, "is_error": false}
+{"t": 1793326411.1122408, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 196.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326411.4444754, "method": "tools/call", "tool": "type_text", "args": {"text": "Pedido n"}, "ms": 330.5, "bytes": 856, "images": 0, "is_error": false}
+{"t": 1793326411.6451163, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+U"}, "ms": 199.1, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793326411.934695, "method": "tools/call", "tool": "type_text", "args": {"text": "00e3"}, "ms": 288.2, "bytes": 848, "images": 0, "is_error": false}
+{"t": 1793326412.1134384, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 177.3, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793326412.4302547, "method": "tools/call", "tool": "type_text", "args": {"text": "o chegou"}, "ms": 315.3, "bytes": 856, "images": 0, "is_error": false}
+{"t": 1793326414.0867956, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 330.1, "bytes": 14600, "images": 0, "is_error": false}
+{"t": 1793326424.4881744, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+L"}, "ms": 200.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326424.897104, "method": "tools/call", "tool": "type_text", "args": {"text": "data:text/plain,%C3%A3"}, "ms": 405.0, "bytes": 884, "images": 0, "is_error": false}
+{"t": 1793326425.0705028, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 171.7, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793326426.969174, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 544.8, "bytes": 11437, "images": 0, "is_error": false}
+{"t": 1793326429.2707465, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+L"}, "ms": 184.3, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326429.7734146, "method": "tools/call", "tool": "type_text", "args": {"text": "data:text/plain;charset=utf-8,%C3%A3"}, "ms": 501.1, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793326429.9462025, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 170.8, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793326430.1704993, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 219.6, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326430.357519, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+C"}, "ms": 185.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326430.5495853, "method": "tools/call", "tool": "press_key", "args": {"key": "Alt+Left"}, "ms": 190.6, "bytes": 708, "images": 0, "is_error": false}
+{"t": 1793326432.747472, "method": "tools/call", "tool": "press_key", "args": {"key": "Alt+Left"}, "ms": 192.9, "bytes": 708, "images": 0, "is_error": false}
+{"t": 1793326433.0683513, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 318.2, "bytes": 14942, "images": 0, "is_error": false}
+{"t": 1793326435.715644, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 203.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326436.0454636, "method": "tools/call", "tool": "type_text", "args": {"text": "Pedido n"}, "ms": 328.3, "bytes": 856, "images": 0, "is_error": false}
+{"t": 1793326436.2574756, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+V"}, "ms": 210.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793326436.5888543, "method": "tools/call", "tool": "type_text", "args": {"text": "o chegou"}, "ms": 329.9, "bytes": 856, "images": 0, "is_error": false}
+{"t": 1793326436.8997545, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 309.4, "bytes": 14936, "images": 0, "is_error": false}
+{"t": 1793326438.4236312, "method": "tools/call", "tool": "click", "args": {"name": "Enviar chamado", "role": "button"}, "ms": 24.3, "bytes": 926, "images": 0, "is_error": false}
+{"t": 1793326438.7410452, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 311.1, "bytes": 15182, "images": 0, "is_error": false}

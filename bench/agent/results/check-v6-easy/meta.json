@@ -1,0 +1,25 @@
+{
+ "variants": {
+  "baseline": "/home/israel/.local/share/computer-use-linux-fork/bin/computer-use-linux",
+  "v6": "/tmp/agent-cu-bench/bin/v6/computer-use-linux"
+ },
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "suite": "easy",
+ "chrome_mode": "bots",
+ "tasks": [
+  "mail-reply",
+  "mail-label",
+  "calendar-event",
+  "form-signup",
+  "settings-dialog",
+  "contacts-infinite",
+  "iframe-billing",
+  "order-support",
+  "invoices-bulk",
+  "terminal"
+ ],
+ "reps": 3,
+ "timeout": 360
+}

@@ -1,0 +1,6 @@
+{"t": 1793326046.7840376, "method": "initialize", "tool": null, "args": null, "ms": 24.4, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793326046.786498, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22642, "images": 0, "is_error": false}
+{"t": 1793326054.2911606, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 190.9, "bytes": 1423, "images": 0, "is_error": false}
+{"t": 1793326057.4703298, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 54, "value": "Joana Ribeiro"}, {"element_index": 57, "value": "joana.ribeiro@example.com"}, {"element_index": 60, "value": "(31) 98765-4321"}, {"element_index": 63, "value": "Minas Gerais"}, {"element_index": 69, "value": "true"}, {"element_index": 71, "value": "true"}]}, "ms": 1596.8, "bytes": 1111, "images": 0, "is_error": false}
+{"t": 1793326058.7871473, "method": "tools/call", "tool": "click", "args": {"element_index": 72}, "ms": 183.1, "bytes": 354, "images": 0, "is_error": false}
+{"t": 1793326059.9985557, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 110.1, "bytes": 1588, "images": 0, "is_error": false}
