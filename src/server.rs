@@ -633,13 +633,17 @@ impl ComputerUseLinux {
         let message = match (&output.accessibility_error, total_matches) {
             (Some(error), _) => format!("Accessibility snapshot failed: {error}"),
             (None, 0) => format!(
-                "No element matched among {} nodes.{}",
+                "No element matched; searched {} elements, including browser UI and off-screen ones (get_app_state lists only the page, so it counts fewer).{}{}",
                 output.accessibility_tree.len(),
                 if output.accessibility_tree_truncated {
                     " The tree was truncated; scope to a window or raise max_nodes."
                 } else {
                     ""
-                }
+                },
+                virtualized_list_hint(
+                    &crate::page_view::scrollable_lists(&output.accessibility_tree),
+                    &params.query,
+                )
             ),
             (None, n) if n > limit => format!("Showing {limit} of {n} matches; narrow the query."),
             (None, n) => format!("{n} match(es)."),
@@ -5893,6 +5897,39 @@ fn visible_matches<'a>(
         .collect()
 }
 
+/// What `find_elements` adds when nothing matched and `lists` (from
+/// `page_view::scrollable_lists`) reach past the viewport: the rows may not
+/// be rendered yet, so the call that scrolls until one is, with the query.
+/// Empty without such a list.
+fn virtualized_list_hint(lists: &[u32], query: &ElementQuery) -> String {
+    let Some(first) = lists.first() else {
+        return String::new();
+    };
+    let mut until = serde_json::Map::new();
+    for (key, value) in [
+        ("role", query.role.as_deref()),
+        ("name", query.name.as_deref()),
+        ("text", query.text.as_deref()),
+    ] {
+        if let Some(value) = value.map(str::trim).filter(|value| !value.is_empty()) {
+            until.insert(key.to_string(), serde_json::Value::from(value));
+        }
+    }
+    if let Some(states) = query.states.as_ref().filter(|states| !states.is_empty()) {
+        until.insert("states".to_string(), serde_json::Value::from(states.clone()));
+    }
+    let others = if lists.len() > 1 {
+        let ids: Vec<String> = lists[1..].iter().map(|id| format!("[{id}]")).collect();
+        format!(" (other lists: {})", ids.join(", "))
+    } else {
+        String::new()
+    };
+    format!(
+        " Nothing rendered matches; the list may be virtualized: use scroll(element_index={first}, until={}){others}.",
+        serde_json::Value::Object(until)
+    )
+}
+
 /// Actions that flip a check box, radio button or switch.
 const TOGGLE_ACTIONS: &[&str] = &[
     "toggle", "check", "uncheck", "click", "press", "activate", "select",
@@ -9224,6 +9261,19 @@ mod tests {
             Duration::from_millis(400)
         ));
         assert!(!still_busy_after(Some(&busy(false)), BUSY_QUIET));
+    }
+
+    #[test]
+    fn find_elements_points_an_empty_search_at_a_list_scrolling_can_fill() {
+        let query = ElementQuery {
+            name: Some("#2998".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            virtualized_list_hint(&[40, 77], &query),
+            " Nothing rendered matches; the list may be virtualized: use scroll(element_index=40, until={\"name\":\"#2998\"}) (other lists: [77])."
+        );
+        assert_eq!(virtualized_list_hint(&[], &query), "");
     }
 
     #[test]

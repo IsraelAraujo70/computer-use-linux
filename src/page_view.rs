@@ -442,6 +442,49 @@ pub fn shown_part(nodes: &[AccessibilityNode], id: Option<u32>) -> Option<Bounds
     }
 }
 
+/// Roles of containers whose rows a page may render only near the viewport.
+const LIST_ROLES: [&str; 7] = [
+    "list",
+    "list box",
+    "table",
+    "tree",
+    "tree table",
+    "grid",
+    "feed",
+];
+
+/// Ids of the lists, tables and trees that hold rows and reach past the
+/// area where they can be seen (`visible_area`): scrolling one can render
+/// rows the tree lacks now, as a virtualized list does. In tree order; a
+/// list inside another one listed is left out.
+pub fn scrollable_lists(nodes: &[AccessibilityNode]) -> Vec<u32> {
+    let tree = Tree::new(nodes);
+    let mut lists: Vec<usize> = Vec::new();
+    for at in 0..nodes.len() {
+        let node = &nodes[at];
+        if !LIST_ROLES.contains(&tree.role(at).as_str())
+            || tree.children(at).is_empty()
+            || lists.iter().any(|&list| tree.inside(at, list))
+        {
+            continue;
+        }
+        let Some(bounds) = &node.bounds else {
+            continue;
+        };
+        let Some(area) = visible_area(nodes, node.index) else {
+            continue;
+        };
+        let reaches_past = bounds.y < area.y
+            || bounds.x < area.x
+            || bounds.y + bounds.height > area.y + area.height
+            || bounds.x + bounds.width > area.x + area.width;
+        if reaches_past {
+            lists.push(at);
+        }
+    }
+    lists.into_iter().map(|at| nodes[at].index).collect()
+}
+
 /// The overlap of two rectangles, `None` when they do not overlap.
 pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
     let x = a.x.max(b.x);
@@ -1460,6 +1503,26 @@ mod tests {
             )
         }));
         browser(page)
+    }
+
+    #[test]
+    fn lists_reaching_past_the_viewport_are_the_ones_scrolling_can_fill() {
+        // 30 rows of 40 px from y=110 run past the 700 px viewport.
+        assert_eq!(scrollable_lists(&inbox(30, 110)), vec![11]);
+        // A virtual list: tall, with only a few rows rendered.
+        let mut virtual_list = inbox(3, 110);
+        if let Some(bounds) = virtual_list
+            .iter_mut()
+            .find(|node| node.index == 11)
+            .and_then(|list| list.bounds.as_mut())
+        {
+            bounds.height = 80_000;
+        }
+        assert_eq!(scrollable_lists(&virtual_list), vec![11]);
+        // Five rows fit; an empty list has nothing to scroll.
+        assert!(scrollable_lists(&inbox(5, 110)).is_empty());
+        let empty = browser(vec![at(node(11, Some(10), "list", "Vazia"), 0, 110, 1000, 2000)]);
+        assert!(scrollable_lists(&empty).is_empty());
     }
 
     #[test]
