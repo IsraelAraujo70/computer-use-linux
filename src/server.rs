@@ -4270,10 +4270,10 @@ impl ComputerUseLinux {
 
     /// Reads the observed page again after an action. With a browser scope
     /// (browser UI not shown) and a visible web document in `base`, the
-    /// latest read of that scope, only the document's subtree and the
-    /// window frame and address bar are read (`read_document`); otherwise,
-    /// or when that read does not look like the same page, the whole scope
-    /// (`rescan`).
+    /// latest read of that scope, only the document's subtree, the tab
+    /// strip, and the window frame and address bar are read
+    /// (`read_document`); otherwise, or when that read does not look like
+    /// the same page, the whole scope (`rescan`).
     async fn read_page(
         &self,
         base: &[AccessibilityNode],
@@ -4292,13 +4292,15 @@ impl ComputerUseLinux {
         self.rescan(hint_ref).await
     }
 
-    /// The document-only read of `read_page`: the visible document of
-    /// `base` with its subtree, and its frame and address bar on their own,
-    /// all at once, spliced into `base` (`page_view::splice_document`).
-    /// `None` when `base` has no visible document, a read fails or misses
-    /// `DOCUMENT_READ_LIMIT`, or the document is no longer the showing page
-    /// of its window (another role or id, not showing, or a window title
-    /// without the document's name): navigation and tab switches need the
+    /// The partial read of `read_page`: the visible document of `base` with
+    /// its subtree, the element holding the browser tabs with its subtree
+    /// (`read_tab_strip`), and the frame and address bar on their own, all
+    /// at once, spliced into `base` (`page_view::splice_document`). `None`
+    /// when `base` has no visible document, a read fails or misses
+    /// `DOCUMENT_READ_LIMIT`, the document is no longer the showing page of
+    /// its window (another role or id, not showing, or a window title
+    /// without the document's name), or no fresh part holds focus:
+    /// navigation, tab switches and focus in other browser UI need the
     /// whole scope.
     async fn read_document(
         &self,
@@ -4314,6 +4316,11 @@ impl ComputerUseLinux {
             .flatten()
             .filter_map(|id| Some((id, element(id)?.object_ref.clone())))
             .collect();
+        let tabs: Vec<&AccessibilityNode> = parts
+            .tabs
+            .iter()
+            .map(|&id| element(id))
+            .collect::<Option<_>>()?;
         let subtree = crate::atspi_tree::snapshot_subtree(
             &document.object_ref,
             document.depth,
@@ -4326,16 +4333,20 @@ impl ComputerUseLinux {
                 fresh.index = *id;
                 Some(fresh)
             }));
-        let (subtree, singles) = tokio::time::timeout(DOCUMENT_READ_LIMIT, async {
-            tokio::join!(subtree, singles)
+        let tab_strip = read_tab_strip(&tabs, scope.max_depth);
+        let (subtree, singles, tab_strip) = tokio::time::timeout(DOCUMENT_READ_LIMIT, async {
+            tokio::join!(subtree, singles, tab_strip)
         })
         .await
         .ok()?;
         let raw = subtree.ok()?;
         let refreshed: Vec<AccessibilityNode> = singles.into_iter().collect::<Option<_>>()?;
-        let read = raw.len() + refreshed.len();
+        let raw_strip = tab_strip?;
+        let read = raw.len() + refreshed.len() + raw_strip.len();
         let mut fresh = compact_accessibility_tree(raw);
         self.assign_ids(&mut fresh);
+        let mut strip = compact_accessibility_tree(raw_strip);
+        self.assign_ids(&mut strip);
         let root = fresh.first()?;
         let same_page = root.index == parts.document
             && root.role.eq_ignore_ascii_case("document web")
@@ -4354,7 +4365,15 @@ impl ComputerUseLinux {
         if !same_page || !titled {
             return None;
         }
-        let nodes = crate::page_view::splice_document(base, parts.document, fresh, &refreshed)?;
+        let nodes = crate::page_view::splice_document(
+            base,
+            &parts,
+            crate::page_view::FreshParts {
+                document: fresh,
+                tab_strip: strip,
+                singles: refreshed,
+            },
+        )?;
         Some(Rescan {
             nodes,
             root_pid,
@@ -4566,8 +4585,9 @@ impl ComputerUseLinux {
     /// scope agree and nothing looks busy (`page_view::busy_reason`), or the
     /// limit passed: `SETTLE_LIMIT`, or `BUSY_SETTLE_LIMIT` once the page
     /// looked busy, which the report then says. An action that changed
-    /// nothing therefore takes two reads. Each read is `read_page`: only the
-    /// web document in a browser. `targets` (object refs of the elements
+    /// nothing therefore takes two reads. Each read is `read_page`: in a
+    /// browser only the web document, tab strip, title and address bar, with
+    /// focus taken from them alone. `targets` (object refs of the elements
     /// acted on) lead a report cut for length. Logs the reads and time to
     /// stderr.
     async fn observe_changes(&self, targets: &[String]) -> String {
@@ -6241,6 +6261,39 @@ async fn poll_element(
         }
         sleep(Duration::from_millis(80)).await;
     }
+}
+
+/// Most elements a settle read takes from the browser's tab strip.
+const TAB_STRIP_MAX_NODES: usize = 200;
+
+/// The element holding the browser tabs `tabs` (their AT-SPI parent) and
+/// its subtree, raw. Empty without tabs; `None` when a read fails or the
+/// tabs do not share one parent.
+async fn read_tab_strip(
+    tabs: &[&AccessibilityNode],
+    max_depth: u32,
+) -> Option<Vec<AccessibilityNode>> {
+    let Some(first) = tabs.first() else {
+        return Some(Vec::new());
+    };
+    let parents = futures_util::future::join_all(
+        tabs.iter()
+            .map(|tab| crate::atspi_tree::parent_ref(&tab.object_ref)),
+    )
+    .await;
+    let mut parents = parents.into_iter();
+    let strip = parents.next()?.ok()?;
+    if !parents.all(|parent| parent.is_ok_and(|parent| parent == strip)) {
+        return None;
+    }
+    crate::atspi_tree::snapshot_subtree(
+        &strip,
+        first.depth.saturating_sub(1),
+        TAB_STRIP_MAX_NODES,
+        max_depth,
+    )
+    .await
+    .ok()
 }
 
 /// Most descendants of a rich-text editor read to expand its text.

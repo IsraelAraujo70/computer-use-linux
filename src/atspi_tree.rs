@@ -742,6 +742,20 @@ pub(crate) async fn read_element(object_ref_id: &str) -> Result<AccessibilityNod
     Ok(read_node(&proxy, &object_ref, 0, None, 0).await)
 }
 
+/// Object ref of an element's parent.
+pub(crate) async fn parent_ref(id: &str) -> Result<String> {
+    let conn = connect().await?;
+    let object_ref = object_ref_from_id(id)?;
+    let proxy = open_accessible(&conn, &object_ref)
+        .await
+        .with_context(|| format!("failed to open AT-SPI object {id}"))?;
+    let parent = proxy
+        .parent()
+        .await
+        .with_context(|| format!("AT-SPI object {id} no longer exists"))?;
+    Ok(object_ref_id(&parent))
+}
+
 /// Fresh read of an element and its descendants, breadth-first, at most
 /// `max_nodes` nodes and `max_depth` levels below it. `index` is each node's
 /// position in the result and `parent_index` its parent's, so `nodes[0]` is

@@ -353,13 +353,18 @@ fn view_candidates(tree: &Tree<'_>, roots: Vec<usize>, visible: Option<&Bounds>)
     candidates
 }
 /// What a settle read refreshes of a browser snapshot instead of the whole
-/// app: the visible web document, read again with its subtree, and the
-/// window frame and address bar, read again on their own for the title and
-/// URL. The rest of the browser UI is kept from the earlier read.
+/// app: the visible web document, read again with its subtree; the tab
+/// strip holding the browser tabs, read again whole, so a tab opened in the
+/// background shows; and the window frame and address bar, read again on
+/// their own for the title and URL. The rest of the browser UI is kept from
+/// the earlier read (`splice_document`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocumentParts {
     /// Id of the visible web document.
     pub document: u32,
+    /// Ids of the browser tabs, in snapshot order; the settle read rereads
+    /// the element holding them.
+    pub tabs: Vec<u32>,
     /// Id of its window frame, whose name is the window title.
     pub frame: Option<u32>,
     /// Id of the address bar entry.
@@ -373,6 +378,11 @@ pub fn document_parts(nodes: &[AccessibilityNode]) -> Option<DocumentParts> {
     let document = tree.visible_document()?;
     Some(DocumentParts {
         document: nodes[document].index,
+        tabs: tree
+            .browser_tabs(document)
+            .into_iter()
+            .map(|at| nodes[at].index)
+            .collect(),
         frame: tree
             .ancestor_with_role(document, &["frame", "window", "dialog"])
             .map(|at| nodes[at].index),
@@ -380,42 +390,106 @@ pub fn document_parts(nodes: &[AccessibilityNode]) -> Option<DocumentParts> {
     })
 }
 
-/// `base` with the subtree of its element `document` replaced by `fresh` (a
-/// new read of that subtree with stable ids, the document first; its roots
-/// hang under the old document's parent and take its place in the order),
-/// and each `refreshed` element (a new read of one element, `index` set to
-/// its id) in place of the base element with that id, keeping its place in
-/// the tree. `None` when `base` has no element `document`.
+/// A settle read of a snapshot's `DocumentParts`, with stable ids.
+#[derive(Debug, Clone, Default)]
+pub struct FreshParts {
+    /// The document's subtree, the document first.
+    pub document: Vec<AccessibilityNode>,
+    /// The element holding the browser tabs, with everything in it (its
+    /// first nodes may lack a parent when compaction dropped that element);
+    /// empty when the snapshot shows no tabs.
+    pub tab_strip: Vec<AccessibilityNode>,
+    /// The frame and address bar, each read on its own (`index` set to its
+    /// id).
+    pub singles: Vec<AccessibilityNode>,
+}
+
+/// `base` with the settle read `fresh` of its `parts` in place: the
+/// document's subtree replaced by the fresh one, the tabs (with what they
+/// hold, and every element the tab strip read holds) replaced by the fresh
+/// tab strip, each placed where the old one was, its parentless nodes under
+/// the old one's parent; and each single in place of the base element with
+/// its id, keeping its place in the tree. Focus comes from the fresh parts
+/// only: a kept element loses a `focused` state unless it is an ancestor of
+/// the fresh focus. `None` when `base` lacks an element of `parts`, the tab
+/// strip read reaches into another part, or no fresh part holds focus
+/// (focus may have moved to browser UI kept from the earlier read).
 pub fn splice_document(
     base: &[AccessibilityNode],
-    document: u32,
-    fresh: Vec<AccessibilityNode>,
-    refreshed: &[AccessibilityNode],
+    parts: &DocumentParts,
+    fresh: FreshParts,
 ) -> Option<Vec<AccessibilityNode>> {
     let tree = Tree::new(base);
-    let document = base.iter().position(|node| node.index == document)?;
-    let parent = base[document].parent_index;
-    let mut fresh = Some(fresh);
+    let position = |id: u32| base.iter().position(|node| node.index == id);
+    let document = position(parts.document)?;
+    let tabs: Vec<usize> = parts
+        .tabs
+        .iter()
+        .map(|&id| position(id))
+        .collect::<Option<_>>()?;
+    let strip_ids: HashSet<u32> = fresh.tab_strip.iter().map(|node| node.index).collect();
+    let other_parts = [Some(parts.document), parts.frame, parts.address_bar];
+    if other_parts
+        .into_iter()
+        .flatten()
+        .any(|id| strip_ids.contains(&id))
+    {
+        return None;
+    }
+    let in_strip = |at: usize| {
+        strip_ids.contains(&base[at].index) || tabs.iter().any(|&tab| tree.inside(at, tab))
+    };
+    let mut document_nodes = Some(fresh.document);
+    let mut strip_nodes = Some(fresh.tab_strip);
     let mut spliced = Vec::with_capacity(base.len());
+    let mut fresh_at = HashSet::new();
+    let mut graft = |spliced: &mut Vec<AccessibilityNode>,
+                     nodes: Vec<AccessibilityNode>,
+                     parent: Option<u32>| {
+        for mut node in nodes {
+            if node.parent_index.is_none() {
+                node.parent_index = parent;
+            }
+            fresh_at.insert(spliced.len());
+            spliced.push(node);
+        }
+    };
     for (at, node) in base.iter().enumerate() {
         if at == document {
-            spliced.extend(fresh.take().into_iter().flatten().map(|mut node| {
-                if node.parent_index.is_none() {
-                    node.parent_index = parent;
-                }
-                node
-            }));
+            let nodes = document_nodes.take().unwrap_or_default();
+            graft(&mut spliced, nodes, node.parent_index);
         } else if tree.inside(at, document) {
             continue;
-        } else if let Some(new) = refreshed.iter().find(|new| new.index == node.index) {
-            spliced.push(AccessibilityNode {
-                parent_index: node.parent_index,
-                depth: node.depth,
-                child_count: node.child_count,
-                ..new.clone()
-            });
+        } else if in_strip(at) {
+            if let Some(nodes) = strip_nodes.take() {
+                graft(&mut spliced, nodes, node.parent_index);
+            }
+        } else if let Some(new) = fresh.singles.iter().find(|new| new.index == node.index) {
+            graft(
+                &mut spliced,
+                vec![AccessibilityNode {
+                    parent_index: node.parent_index,
+                    depth: node.depth,
+                    child_count: node.child_count,
+                    ..new.clone()
+                }],
+                None,
+            );
         } else {
             spliced.push(node.clone());
+        }
+    }
+    let view = Tree::new(&spliced);
+    let focus = fresh_at
+        .iter()
+        .copied()
+        .filter(|&at| has_state(&spliced[at], "focused"))
+        .max_by_key(|&at| view.ancestors(at).count())?;
+    let holders: HashSet<usize> = view.ancestors(focus).collect();
+    for (at, node) in spliced.iter_mut().enumerate() {
+        if !fresh_at.contains(&at) && !holders.contains(&at) {
+            node.states
+                .retain(|state| !state.eq_ignore_ascii_case("focused"));
         }
     }
     Some(spliced)
@@ -539,7 +613,8 @@ pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
 /// What changed from the view the agent last saw to the current one: `+`
 /// new elements, `-` gone ones, `~` same id with different content or newly
 /// in the visible area (other moves do not count), then the focus, and the
-/// title and URL when they changed. An element the current view leaves out
+/// title and URL when they changed, and the browser tabs when one opened or
+/// closed. An element the current view leaves out
 /// for its budget is not gone. Over `MAX_CHANGE_LINES` lines only the
 /// `SHOWN_CHANGE_LINES` that matter most are printed (`ChangeRank`: the
 /// elements acted on, `targets`, first), in their usual order, and the rest
@@ -667,6 +742,16 @@ pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> St
         if let Some(url) = &after.url {
             out.push_str(&format!("url: {url}\n"));
         }
+    }
+    // Tab lines start with the tab's id.
+    let tab_ids = |view: &PageView| -> Vec<String> {
+        view.tabs
+            .iter()
+            .filter_map(|tab| tab.split(' ').next().map(str::to_string))
+            .collect()
+    };
+    if tab_ids(after) != tab_ids(before) {
+        out.push_str(&format!("tabs: {}\n", after.tabs.join("; ")));
     }
     out
 }
@@ -985,6 +1070,14 @@ impl<'a> Tree<'a> {
     /// Browser tabs: page tabs outside the document that do not belong to a
     /// bubble or dialog (Chromium's translate bubble has page tabs too).
     fn page_tabs(&self, document: usize) -> Vec<String> {
+        self.browser_tabs(document)
+            .into_iter()
+            .map(|at| render_line(&self.nodes[at]))
+            .collect()
+    }
+
+    /// Positions of the browser tabs (`page_tabs`).
+    fn browser_tabs(&self, document: usize) -> Vec<usize> {
         (0..self.nodes.len())
             .filter(|&at| self.role(at) == "page tab" && !self.inside(at, document))
             .filter(|&at| {
@@ -996,7 +1089,6 @@ impl<'a> Tree<'a> {
                         && clean(self.nodes[parent].name.as_deref()).is_some())
                 })
             })
-            .map(|at| render_line(&self.nodes[at]))
             .collect()
     }
 
@@ -1407,9 +1499,14 @@ mod tests {
         assert!(intersect(&apart, &away).is_none());
     }
 
+    fn focused(mut node: AccessibilityNode) -> AccessibilityNode {
+        node.states.push("focused".into());
+        node
+    }
+
     #[test]
     fn a_settle_read_splices_the_fresh_document_into_the_browser_snapshot() {
-        let base = browser(vec![
+        let mut base = browser(vec![
             at(
                 node(11, Some(10), "heading", "Caixa de entrada"),
                 10,
@@ -1420,11 +1517,13 @@ mod tests {
             at(node(12, Some(10), "button", "Enviar"), 10, 150, 90, 30),
             at(node(13, Some(12), "static", "Enviar"), 10, 150, 90, 30),
         ]);
+        base[8].states.push("focused".into());
         let parts = document_parts(&base).expect("a visible document");
         assert_eq!(
             parts,
             DocumentParts {
                 document: 10,
+                tabs: vec![5],
                 frame: Some(2),
                 address_bar: Some(3),
             }
@@ -1435,6 +1534,7 @@ mod tests {
         // address bar were read again on their own (no parent or depth).
         let mut document = at(node(10, None, "document web", "Correio"), 0, 100, 1000, 700);
         document.depth = 2;
+        let document = focused(document);
         let fresh = vec![
             document,
             at(
@@ -1457,11 +1557,19 @@ mod tests {
             node(3, None, "entry", "Address and search bar"),
             "example.com/sent",
         );
-        let spliced = splice_document(&base, 10, fresh, &[frame, address]).expect("spliced");
+        let mut tab = node(5, None, "page tab", "Correio");
+        tab.states.push("selected".into());
+        let fresh = FreshParts {
+            document: fresh,
+            tab_strip: vec![tab],
+            singles: vec![frame, address],
+        };
+        let spliced = splice_document(&base, &parts, fresh.clone()).expect("spliced");
 
         let ids: Vec<u32> = spliced.iter().map(|node| node.index).collect();
         assert_eq!(ids, [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 14]);
         assert_eq!(spliced[1].parent_index, Some(1));
+        assert_eq!(spliced[4].parent_index, Some(2));
         assert_eq!(spliced[8].parent_index, Some(2));
         let before = page_view(&base, ViewOptions::default());
         let after = page_view(&spliced, ViewOptions::default());
@@ -1471,10 +1579,125 @@ mod tests {
             "changes (2):\n\
              + [14] status bar \"Mensagem enviada\" @10,700 300x30\n\
              - [12] button \"Enviar\"\n\
+             focus: [10] document web \"Correio\"\n\
              title: \"Enviado - Chromium\"\n\
              url: example.com/sent\n"
         );
-        assert!(splice_document(&base, 99, Vec::new(), &[]).is_none());
+        let mut elsewhere = parts.clone();
+        elsewhere.document = 99;
+        assert!(splice_document(&base, &elsewhere, fresh).is_none());
+    }
+
+    #[test]
+    fn a_settle_read_shows_a_tab_opened_in_the_background() {
+        let base = browser(vec![focused(at(
+            node(12, Some(10), "link", "Ver boleto"),
+            10,
+            150,
+            90,
+            30,
+        ))]);
+        let parts = document_parts(&base).expect("a visible document");
+        let mut document = at(node(10, None, "document web", "Correio"), 0, 100, 1000, 700);
+        document.depth = 2;
+        let page = vec![
+            document,
+            focused(at(
+                node(12, Some(10), "link", "Ver boleto"),
+                10,
+                150,
+                90,
+                30,
+            )),
+        ];
+        // The tab strip read again: the link opened a tab behind this one.
+        // Its own element was compacted away, so the tabs have no parent.
+        let mut tab = node(5, None, "page tab", "Correio");
+        tab.states.push("selected".into());
+        let fresh = FreshParts {
+            document: page.clone(),
+            tab_strip: vec![tab, node(40, None, "page tab", "Boleto 2026-10")],
+            singles: vec![node(2, None, "frame", "Correio - Chromium")],
+        };
+        let spliced = splice_document(&base, &parts, fresh).expect("spliced");
+        let before = page_view(&base, ViewOptions::default());
+        let after = page_view(&spliced, ViewOptions::default());
+        assert_eq!(after.tabs.len(), 2, "{:?}", after.tabs);
+        assert!(after.tabs[1].contains("Boleto 2026-10"), "{:?}", after.tabs);
+        assert_eq!(
+            spliced
+                .iter()
+                .find(|node| node.index == 40)
+                .and_then(|node| node.parent_index),
+            Some(2)
+        );
+        assert_eq!(
+            change_report(&before, &after, &[]),
+            "changes: none\n\
+             focus: [12] link \"Ver boleto\"\n\
+             tabs: [5] page tab \"Correio\" {selected}; [40] page tab \"Boleto 2026-10\"\n"
+        );
+
+        // A closed tab leaves the strip.
+        let fresh = FreshParts {
+            document: page,
+            tab_strip: Vec::new(),
+            singles: Vec::new(),
+        };
+        let spliced = splice_document(&base, &parts, fresh).expect("spliced");
+        assert!(page_view(&spliced, ViewOptions::default()).tabs.is_empty());
+    }
+
+    #[test]
+    fn a_settle_read_takes_focus_from_the_fresh_parts_only() {
+        // The address bar held focus; a click in the page moved it to the
+        // link. The reload button kept a stale focused state.
+        let mut base = browser(vec![at(
+            node(12, Some(10), "link", "Ver boleto"),
+            10,
+            150,
+            90,
+            30,
+        )]);
+        base[3].states.push("focused".into());
+        let parts = document_parts(&base).expect("a visible document");
+        let mut document = at(node(10, None, "document web", "Correio"), 0, 100, 1000, 700);
+        document.depth = 2;
+        let page = vec![
+            document,
+            focused(at(
+                node(12, Some(10), "link", "Ver boleto"),
+                10,
+                150,
+                90,
+                30,
+            )),
+        ];
+        let mut tab = node(5, None, "page tab", "Correio");
+        tab.states.push("selected".into());
+        let fresh = FreshParts {
+            document: page.clone(),
+            tab_strip: vec![tab.clone()],
+            singles: Vec::new(),
+        };
+        let spliced = splice_document(&base, &parts, fresh).expect("spliced");
+        let still_focused: Vec<u32> = spliced
+            .iter()
+            .filter(|node| has_state(node, "focused"))
+            .map(|node| node.index)
+            .collect();
+        assert_eq!(still_focused, [12]);
+
+        // No fresh part holds focus: it may be in browser UI the read kept,
+        // so the read cannot stand in for the whole scope.
+        let mut unfocused = page;
+        unfocused[1].states.clear();
+        let fresh = FreshParts {
+            document: unfocused,
+            tab_strip: vec![tab],
+            singles: Vec::new(),
+        };
+        assert!(splice_document(&base, &parts, fresh).is_none());
     }
 
     #[test]
