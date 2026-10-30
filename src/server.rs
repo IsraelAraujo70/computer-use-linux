@@ -40,6 +40,8 @@ use tokio::{
 };
 
 const INPUT_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
+/// How long drag/drop_files wait to reread an element before refusing to act.
+const ELEMENT_REREAD_TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_SCROLL_PAGES: f64 = 100.0;
 const SHELL_ENABLE_ENV: &str = "COMPUTER_USE_LINUX_ENABLE_SHELL";
 const SHELL_DEFAULT_TIMEOUT_SECS: u64 = 30;
@@ -1699,14 +1701,23 @@ impl ComputerUseLinux {
         }
         // The window may have moved since the snapshot: act on the bounds
         // the element has now.
-        let mut fresh = crate::atspi_tree::read_element(&node.object_ref)
-            .await
-            .map_err(|error| {
-                format!(
-                    "{label} could not be reread ({}); call get_app_state and retry",
-                    first_line(&format!("{error:#}"))
-                )
-            })?;
+        // Bounded: a stalled accessibility bus must not hold the input lock.
+        let reread = tokio::time::timeout(
+            ELEMENT_REREAD_TIMEOUT,
+            crate::atspi_tree::read_element(&node.object_ref),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Err(anyhow::anyhow!(
+                "no answer within {ELEMENT_REREAD_TIMEOUT:?}"
+            ))
+        });
+        let mut fresh = reread.map_err(|error| {
+            format!(
+                "{label} could not be reread ({}); call get_app_state and retry",
+                first_line(&format!("{error:#}"))
+            )
+        })?;
         fresh.index = node.index;
         let center = fresh
             .bounds
