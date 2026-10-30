@@ -97,8 +97,11 @@ pub(crate) fn parse_toggle(value: &str) -> Option<bool> {
 
 /// Picks the option a value names: a case-insensitive exact name, else the
 /// only name starting with it, else the only name containing it. The error
-/// lists the candidates so the caller can pass an exact name.
-pub(crate) fn match_option(names: &[&str], wanted: &str) -> Result<usize, String> {
+/// lists the candidates so the caller can pass an exact name. With
+/// `free_text` (the element takes typed text: `accepts_free_text`), a value
+/// no option names is told to be typed instead, since such a field (a
+/// recipient list with chips, an autocomplete) commits what is typed.
+pub(crate) fn match_option(names: &[&str], wanted: &str, free_text: bool) -> Result<usize, String> {
     let wanted_key = comparable(wanted);
     if wanted_key.is_empty() {
         return Err("pass the option's name as value".to_string());
@@ -128,6 +131,16 @@ pub(crate) fn match_option(names: &[&str], wanted: &str) -> Result<usize, String
             }
         }
     }
+    if free_text {
+        let options = if names.is_empty() {
+            String::new()
+        } else {
+            format!(" (options: {})", quoted_list(names.iter().copied()))
+        };
+        return Err(format!(
+            "no option named \"{wanted}\"{options}; if this is a free-text or recipient field, type it with type_text and press Enter (or Tab) to commit"
+        ));
+    }
     Err(if names.is_empty() {
         format!("no option named \"{wanted}\" is available")
     } else {
@@ -136,6 +149,38 @@ pub(crate) fn match_option(names: &[&str], wanted: &str) -> Result<usize, String
             quoted_list(names.iter().copied())
         )
     })
+}
+
+/// Whether the choice element at `target` (a position in `nodes`) takes
+/// typed text: it is editable itself (an `<input role=combobox>`) or holds
+/// an editable descendant (a GTK combo box entry). `parent_index` values are
+/// looked up through each node's `index`, as in `option_candidates`.
+pub(crate) fn accepts_free_text(nodes: &[AccessibilityNode], target: usize) -> bool {
+    let Some(element) = nodes.get(target) else {
+        return false;
+    };
+    if is_editable(element) {
+        return true;
+    }
+    let position: std::collections::HashMap<u32, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(position, node)| (node.index, position))
+        .collect();
+    let inside_target = |mut at: usize| {
+        for _ in 0..nodes.len() {
+            match nodes[at]
+                .parent_index
+                .and_then(|parent| position.get(&parent).copied())
+            {
+                Some(parent) if parent == target => return true,
+                Some(parent) if parent != at => at = parent,
+                _ => return false,
+            }
+        }
+        false
+    };
+    (0..nodes.len()).any(|at| at != target && is_editable(&nodes[at]) && inside_target(at))
 }
 
 fn quoted_list<'a>(names: impl Iterator<Item = &'a str>) -> String {
@@ -616,22 +661,59 @@ mod tests {
     #[test]
     fn option_match_prefers_exact_then_unique_prefix_then_unique_substring() {
         let states = ["Mato Grosso", "Mato Grosso do Sul", "Minas Gerais"];
-        assert_eq!(match_option(&states, "mato grosso"), Ok(0));
-        assert_eq!(match_option(&states, "  MINAS   gerais "), Ok(2));
-        assert_eq!(match_option(&states, "Minas"), Ok(2));
+        assert_eq!(match_option(&states, "mato grosso", false), Ok(0));
+        assert_eq!(match_option(&states, "  MINAS   gerais ", false), Ok(2));
+        assert_eq!(match_option(&states, "Minas", false), Ok(2));
         let ufs = [
             "Selecione",
             "MA - Maranhão",
             "MG - Minas Gerais",
             "MS - Mato Grosso",
         ];
-        assert_eq!(match_option(&ufs, "MG"), Ok(2));
-        assert_eq!(match_option(&ufs, "minas gerais"), Ok(2));
-        let error = match_option(&ufs, "M").unwrap_err();
+        assert_eq!(match_option(&ufs, "MG", false), Ok(2));
+        assert_eq!(match_option(&ufs, "minas gerais", false), Ok(2));
+        let error = match_option(&ufs, "M", false).unwrap_err();
         assert!(error.contains("several options"), "{error}");
-        let error = match_option(&states, "Bahia").unwrap_err();
+        let error = match_option(&states, "Bahia", false).unwrap_err();
         assert!(error.contains("\"Minas Gerais\""), "{error}");
-        assert!(match_option(&states, " ").is_err());
+        assert!(match_option(&states, " ", false).is_err());
+    }
+
+    #[test]
+    fn a_value_no_option_names_in_a_free_text_combo_box_is_told_to_be_typed() {
+        // The recipient field of a mail composer: no options until typed.
+        let error = match_option(&[], "ana.souza@example.com", true).unwrap_err();
+        assert!(
+            error.starts_with("no option named \"ana.souza@example.com\";")
+                && error.contains("type it with type_text and press Enter (or Tab)"),
+            "{error}"
+        );
+        let error = match_option(&["Ana Lima"], "bruno@example.com", true).unwrap_err();
+        assert!(error.contains("(options: \"Ana Lima\")"), "{error}");
+        // Matching itself is unchanged: an option still wins, ambiguity is
+        // still ambiguity.
+        assert_eq!(match_option(&["Ana Lima"], "ana", true), Ok(0));
+        let error = match_option(&["Ana Lima", "Ana Souza"], "ana", true).unwrap_err();
+        assert!(error.contains("several options"), "{error}");
+    }
+
+    #[test]
+    fn combo_boxes_take_free_text_when_editable_or_holding_an_entry() {
+        let input = vec![tree_node(1, None, "combo box", "Para", &["editable"])];
+        assert!(accepts_free_text(&input, 0));
+        let gtk = vec![
+            tree_node(1, None, "combo box", "Fonte", &[]),
+            tree_node(2, Some(1), "panel", "", &[]),
+            tree_node(3, Some(2), "text", "", &["editable"]),
+        ];
+        assert!(accepts_free_text(&gtk, 0));
+        let select = vec![
+            tree_node(1, None, "combo box", "Estado", &[]),
+            tree_node(2, Some(1), "menu", "", &[]),
+            tree_node(3, Some(2), "menu item", "MG", &[]),
+            tree_node(4, None, "entry", "Busca", &["editable"]),
+        ];
+        assert!(!accepts_free_text(&select, 0));
     }
 
     #[test]

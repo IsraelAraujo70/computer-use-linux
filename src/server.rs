@@ -4800,14 +4800,18 @@ const OPTIONS_APPEAR_TIMEOUT: Duration = Duration::from_millis(1_500);
 impl ComputerUseLinux {
     /// Sets one field the way a user would and reads it back: AT-SPI
     /// EditableText/Value when exposed, else per kind (text entry, toggle,
-    /// option choice). `ok` only when the read-back value is the requested one.
+    /// option choice). A combo box always picks one of its options, so an
+    /// editable one never gets text it has no option for. `ok` only when the
+    /// read-back value is the requested one.
     async fn set_field(&self, node: &AccessibilityNode, value: &str) -> FieldOutcome {
         let label = crate::outline::element_label(node);
         if let Some(refusal) = crate::fields::line_break_refusal(node, &label, value, false) {
             return FieldOutcome::failed(refusal);
         }
-        if node.supports_editable_text
-            || (node.value.is_some() && value.trim().parse::<f64>().is_ok())
+        let kind = crate::fields::field_kind(node);
+        if kind != crate::fields::FieldKind::Choice
+            && (node.supports_editable_text
+                || (node.value.is_some() && value.trim().parse::<f64>().is_ok()))
         {
             if let Ok(invocation) = set_element_value(&node.object_ref, value).await {
                 let (fresh, text) = match read_field(&node.object_ref).await {
@@ -4833,7 +4837,7 @@ impl ComputerUseLinux {
                 return self.text_outcome(&label, ok, read_back, value);
             }
         }
-        match crate::fields::field_kind(node) {
+        match kind {
             crate::fields::FieldKind::Text => self.set_text_field(node, &label, value).await,
             crate::fields::FieldKind::Toggle => self.set_toggle_field(node, &label, value).await,
             crate::fields::FieldKind::Choice => {
@@ -5011,7 +5015,11 @@ impl ComputerUseLinux {
         let mut matched = {
             let option_names = names(&nodes, &options);
             let refs: Vec<&str> = option_names.iter().map(String::as_str).collect();
-            crate::fields::match_option(&refs, value)
+            crate::fields::match_option(
+                &refs,
+                value,
+                crate::fields::accepts_free_text(&nodes, target),
+            )
         };
         if matched.is_err() && !radio_group && !crate::fields::has_state(node, "expanded") {
             // Collapsed custom combo boxes keep their options out of the tree.
@@ -5034,7 +5042,11 @@ impl ComputerUseLinux {
                             crate::fields::option_candidates(&nodes, target, Some(&before), false);
                         let option_names = names(&nodes, &options);
                         let refs: Vec<&str> = option_names.iter().map(String::as_str).collect();
-                        matched = crate::fields::match_option(&refs, value);
+                        matched = crate::fields::match_option(
+                            &refs,
+                            value,
+                            crate::fields::accepts_free_text(&nodes, target),
+                        );
                         if matched.is_ok() {
                             break;
                         }
