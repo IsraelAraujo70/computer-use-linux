@@ -3,14 +3,23 @@
 //! A browser window shows its title, URL and tabs, then only the visible web
 //! document; other browser UI stays out of outlines and change reports but
 //! remains in the snapshot, so `find_elements` and element ids still reach it.
-//! Every view is drawn depth-first, children under their parent.
+//! Every view is drawn depth-first, children under their parent. Elements
+//! outside the visible area are drawn too, nearest first, while the outline
+//! stays within `OUTLINE_MAX_LINES` and `OUTLINE_MAX_BYTES`; their lines say
+//! `(below)`, `(above)` or `(off-screen)` instead of a position.
 
 use crate::atspi_tree::{AccessibilityNode, Bounds};
-use crate::outline::{clean, element_label, render_line, truncate};
-use std::collections::HashMap;
+use crate::outline::{clean, element_label, render_line, render_line_placed, truncate};
+use std::collections::{HashMap, HashSet};
 
 /// Change lines above this many give way to the whole current outline.
 pub const MAX_CHANGE_LINES: usize = 40;
+/// Most element lines a view draws once elements outside the visible area
+/// count. Visible elements are always drawn; outside ones fill what is left.
+pub const OUTLINE_MAX_LINES: usize = 250;
+/// Most bytes of element lines (indentation and newline included) a view
+/// draws once elements outside the visible area count.
+pub const OUTLINE_MAX_BYTES: usize = 16 * 1024;
 
 /// How a snapshot is turned into a view.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -26,10 +35,14 @@ pub struct ViewEntry {
     /// Id of the nearest ancestor shown in the same view.
     pub parent: Option<u32>,
     pub depth: usize,
-    /// `[id] role "name" @x,y wxh {states} ...`, unindented.
+    /// `[id] role "name" @x,y wxh {states} ...`, unindented; `(below)`,
+    /// `(above)` or `(off-screen)` replaces the position outside the
+    /// visible area.
     pub line: String,
     /// `[id] role "name"`, for elements reported gone.
     pub label: String,
+    /// Whether the element lies in the visible area (or has no bounds).
+    pub visible: bool,
     /// Everything but the position, untruncated: a change here is a `~`.
     key: String,
 }
@@ -45,26 +58,29 @@ pub struct PageView {
     pub tabs: Vec<String>,
     /// True when a web document scoped the view.
     pub browser: bool,
-    /// Visible elements, depth-first.
+    /// Drawn elements, depth-first: every visible one, then as many outside
+    /// the visible area as the outline budget allows.
     pub entries: Vec<ViewEntry>,
-    /// Elements left out because they lie outside the visible area.
-    pub omitted: usize,
+    /// Ids of elements outside the visible area left out for the budget.
+    /// They still exist, so a change report does not call them gone.
+    pub omitted: HashSet<u32>,
     /// The element holding keyboard focus, with its text when editable.
     pub focus: Option<String>,
 }
 
 impl PageView {
-    /// Elements with names, text or actions: how much of the app the tree
-    /// shows, which decides whether a screenshot adds anything.
+    /// Visible elements with names, text or actions: how much of the app
+    /// the tree shows, which decides whether a screenshot adds anything.
     pub fn content_elements(&self) -> usize {
         self.entries
             .iter()
+            .filter(|entry| entry.visible)
             .filter(|entry| entry.line.contains('"') || entry.line.contains("actions="))
             .count()
     }
 
     /// The outline: tabs and a `--- page ---` rule for browsers, then one
-    /// indented line per visible element, then the omitted count.
+    /// indented line per drawn element, then the omitted count.
     pub fn outline(&self) -> String {
         let mut out = String::new();
         for tab in &self.tabs {
@@ -82,10 +98,10 @@ impl PageView {
             out.push_str(&entry.line);
             out.push('\n');
         }
-        if self.omitted > 0 {
+        if !self.omitted.is_empty() {
             out.push_str(&format!(
                 "({} elements outside the visible window omitted; find_elements searches them)\n",
-                self.omitted
+                self.omitted.len()
             ));
         }
         out
@@ -96,7 +112,9 @@ impl PageView {
 /// ids. With a web document present (and browser UI not requested), the view
 /// is that document's subtree; otherwise the whole tree. Elements whose
 /// bounds lie wholly outside the visible area (the document viewport, else
-/// the window frame) are omitted and counted.
+/// the window frame) are drawn with a marker for where they are, nearest
+/// first, within the outline budget (`within_budget`); the rest are omitted
+/// and counted.
 pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView {
     let tree = Tree::new(nodes);
     let document = (!options.include_browser_ui)
@@ -113,51 +131,45 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
         Some(doc) => vec![doc],
         None => tree.roots.clone(),
     };
-    let mut entries = Vec::new();
-    let mut omitted = 0;
-    // (position, depth, nearest shown ancestor that carries text, nearest
-    // shown ancestor)
-    let mut stack: Vec<(usize, usize, Option<usize>, Option<u32>)> = roots
-        .into_iter()
-        .rev()
-        .map(|at| (at, 0, None, None))
+    let candidates = view_candidates(&tree, roots, visible.as_ref());
+    let costs: Vec<(Option<i64>, usize)> = candidates
+        .iter()
+        .map(|candidate| {
+            let distance = candidate.outside.map(|(_, distance)| distance);
+            (distance, candidate.line.len() + 2 * candidate.depth + 1)
+        })
         .collect();
-    let mut visited = vec![false; nodes.len()];
-    while let Some((at, depth, context, parent)) = stack.pop() {
-        if std::mem::replace(&mut visited[at], true) {
+    let drawn = within_budget(&costs, OUTLINE_MAX_LINES, OUTLINE_MAX_BYTES);
+    let ids: Vec<u32> = candidates
+        .iter()
+        .map(|candidate| nodes[candidate.at].index)
+        .collect();
+
+    let mut entries = Vec::new();
+    let mut omitted = HashSet::new();
+    // Per candidate: its depth when drawn, and its nearest drawn
+    // ancestor-or-self. Parents come before their children.
+    let mut drawn_depth = vec![0; candidates.len()];
+    let mut anchor: Vec<Option<usize>> = vec![None; candidates.len()];
+    for (at, candidate) in candidates.into_iter().enumerate() {
+        let parent = candidate.parent.and_then(|parent| anchor[parent]);
+        let node = &nodes[candidate.at];
+        if !drawn[at] {
+            anchor[at] = parent;
+            omitted.insert(node.index);
             continue;
         }
-        let node = &nodes[at];
-        if tree.text_only(at)
-            && context.is_some_and(|context| repeats_text_of(node, &nodes[context]))
-        {
-            // A text leaf whose words its ancestor's line already shows.
-            continue;
-        }
-        let shown = visible.as_ref().is_none_or(|area| !outside(node, area));
-        if shown {
-            entries.push(ViewEntry {
-                id: node.index,
-                parent,
-                depth,
-                line: render_line(node),
-                label: element_label(node),
-                key: content_key(node),
-            });
-        } else {
-            omitted += 1;
-        }
-        let child_depth = if shown { depth + 1 } else { depth };
-        let child_context =
-            if shown && (node_text(node).is_some() || clean(node.name.as_deref()).is_some()) {
-                Some(at)
-            } else {
-                context
-            };
-        let child_parent = if shown { Some(node.index) } else { parent };
-        for &child in tree.children(at).iter().rev() {
-            stack.push((child, child_depth, child_context, child_parent));
-        }
+        anchor[at] = Some(at);
+        drawn_depth[at] = parent.map_or(0, |parent| drawn_depth[parent] + 1);
+        entries.push(ViewEntry {
+            id: node.index,
+            parent: parent.map(|parent| ids[parent]),
+            depth: drawn_depth[at],
+            line: candidate.line,
+            label: element_label(node),
+            visible: candidate.outside.is_none(),
+            key: content_key(node),
+        });
     }
 
     PageView {
@@ -171,6 +183,154 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
     }
 }
 
+/// An element a view may draw, in depth-first order.
+struct Candidate {
+    /// Position in the snapshot.
+    at: usize,
+    /// Nearest ancestor that is a candidate too (its candidate position).
+    parent: Option<usize>,
+    /// Depth among candidates: the most indentation its line can get.
+    depth: usize,
+    /// Where it lies outside the visible area (`placement`), `None` inside.
+    outside: Option<(&'static str, i64)>,
+    line: String,
+}
+
+/// Which candidates a view draws, given each one's distance outside the
+/// visible area (`None` inside) and the bytes its line costs: every inside
+/// one, then outside ones nearest first (ties in document order) while the
+/// drawn lines stay within `max_lines` and `max_bytes`. The first outside
+/// one that does not fit ends the selection, so what is drawn is always the
+/// nearest part.
+fn within_budget(costs: &[(Option<i64>, usize)], max_lines: usize, max_bytes: usize) -> Vec<bool> {
+    let mut drawn: Vec<bool> = costs
+        .iter()
+        .map(|(distance, _)| distance.is_none())
+        .collect();
+    let room = max_lines.saturating_sub(drawn.iter().filter(|&&drawn| drawn).count());
+    let mut bytes: usize = costs
+        .iter()
+        .filter(|(distance, _)| distance.is_none())
+        .map(|(_, cost)| cost)
+        .sum();
+    let mut outside: Vec<(i64, usize)> = costs
+        .iter()
+        .enumerate()
+        .filter_map(|(at, (distance, _))| distance.map(|distance| (distance, at)))
+        .collect();
+    outside.sort_unstable();
+    for (_, at) in outside.into_iter().take(room) {
+        let cost = costs[at].1;
+        if bytes + cost > max_bytes {
+            break;
+        }
+        drawn[at] = true;
+        bytes += cost;
+    }
+    drawn
+}
+
+/// Where an element lies when its bounds are wholly outside the visible
+/// area: `below`, `above` or (beside it) `off-screen`, and how far from the
+/// area's edge in pixels. `None` when it is (partly) inside or has no bounds.
+fn placement(node: &AccessibilityNode, area: &Bounds) -> Option<(&'static str, i64)> {
+    if !outside(node, area) {
+        return None;
+    }
+    let bounds = node.bounds.as_ref()?;
+    let (top, bottom) = (
+        i64::from(bounds.y),
+        i64::from(bounds.y) + i64::from(bounds.height),
+    );
+    let (left, right) = (
+        i64::from(bounds.x),
+        i64::from(bounds.x) + i64::from(bounds.width),
+    );
+    let (area_top, area_bottom) = (
+        i64::from(area.y),
+        i64::from(area.y) + i64::from(area.height),
+    );
+    let (area_left, area_right) = (i64::from(area.x), i64::from(area.x) + i64::from(area.width));
+    let below = top >= area_bottom;
+    let above = bottom <= area_top;
+    let dy = if below {
+        top - area_bottom
+    } else if above {
+        area_top - bottom
+    } else {
+        0
+    };
+    let dx = (left - area_right).max(area_left - right).max(0);
+    let marker = if below {
+        "below"
+    } else if above {
+        "above"
+    } else {
+        "off-screen"
+    };
+    Some((marker, dx.max(dy)))
+}
+
+/// Every element a view can draw, depth-first from `roots`: all but plain
+/// text leaves whose words an ancestor's line already prints. A visible leaf
+/// folds only into a visible ancestor, as when outside elements were never
+/// drawn; an outside one into any ancestor.
+fn view_candidates(tree: &Tree<'_>, roots: Vec<usize>, visible: Option<&Bounds>) -> Vec<Candidate> {
+    let nodes = tree.nodes;
+    let mut candidates = Vec::new();
+    // (position, parent candidate, depth, nearest visible candidate ancestor
+    // carrying text, nearest candidate ancestor carrying text)
+    type Pending = (usize, Option<usize>, usize, Option<usize>, Option<usize>);
+    let mut stack: Vec<Pending> = roots
+        .into_iter()
+        .rev()
+        .map(|at| (at, None, 0, None, None))
+        .collect();
+    let mut visited = vec![false; nodes.len()];
+    while let Some((at, parent, depth, visible_context, any_context)) = stack.pop() {
+        if std::mem::replace(&mut visited[at], true) {
+            continue;
+        }
+        let node = &nodes[at];
+        let outside = visible.and_then(|area| placement(node, area));
+        let context = if outside.is_none() {
+            visible_context
+        } else {
+            any_context
+        };
+        if tree.text_only(at)
+            && context.is_some_and(|context| repeats_text_of(node, &nodes[context]))
+        {
+            // A text leaf whose words its ancestor's line already shows.
+            continue;
+        }
+        let index = candidates.len();
+        candidates.push(Candidate {
+            at,
+            parent,
+            depth,
+            outside,
+            line: render_line_placed(node, outside.map(|(marker, _)| marker)),
+        });
+        let carries_text = node_text(node).is_some() || clean(node.name.as_deref()).is_some();
+        let child_visible_context = if carries_text && outside.is_none() {
+            Some(at)
+        } else {
+            visible_context
+        };
+        let child_any_context = if carries_text { Some(at) } else { any_context };
+        for &child in tree.children(at).iter().rev() {
+            stack.push((
+                child,
+                Some(index),
+                depth + 1,
+                child_visible_context,
+                child_any_context,
+            ));
+        }
+    }
+    candidates
+}
 /// The screen area where element `id` can be seen: its web document's
 /// viewport when it is inside the visible document, else its window frame.
 /// `None` when the snapshot shows neither.
@@ -228,29 +388,36 @@ pub fn intersect(a: &Bounds, b: &Bounds) -> Option<Bounds> {
 }
 
 /// What changed from the view the agent last saw to the current one: `+`
-/// new elements, `-` gone ones, `~` same id with different content (moves
-/// alone do not count), then the focus, and the title and URL when they
-/// changed. Over `MAX_CHANGE_LINES` lines the whole current outline is
-/// printed instead.
+/// new elements, `-` gone ones, `~` same id with different content or newly
+/// in the visible area (other moves do not count), then the focus, and the
+/// title and URL when they changed. An element the current view leaves out
+/// for its budget is not gone. Over `MAX_CHANGE_LINES` lines the whole
+/// current outline is printed instead.
 pub fn change_report(before: &PageView, after: &PageView) -> String {
     let before_keys: HashMap<u32, &ViewEntry> = before
         .entries
         .iter()
         .map(|entry| (entry.id, entry))
         .collect();
-    let after_ids: std::collections::HashSet<u32> =
-        after.entries.iter().map(|entry| entry.id).collect();
+    let after_ids: HashSet<u32> = after
+        .entries
+        .iter()
+        .map(|entry| entry.id)
+        .chain(after.omitted.iter().copied())
+        .collect();
     let mut added = Vec::new();
     let mut changed = Vec::new();
     for entry in &after.entries {
         match before_keys.get(&entry.id) {
             None => added.push(format!("+ {}", entry.line)),
-            Some(old) if old.key != entry.key => changed.push(format!("~ {}", entry.line)),
+            Some(old) if old.key != entry.key || (entry.visible && !old.visible) => {
+                changed.push(format!("~ {}", entry.line))
+            }
             Some(_) => {}
         }
     }
     // A removed container stands for everything inside it.
-    let gone: std::collections::HashSet<u32> = before
+    let gone: HashSet<u32> = before
         .entries
         .iter()
         .filter(|entry| !after_ids.contains(&entry.id))
@@ -911,10 +1078,10 @@ mod tests {
              [10] document web \"Correio\" @0,100 1000x700\n  \
              [11] heading \"Caixa de entrada\" @10,110 300x30\n  \
              [12] list @10,150 900x600\n    \
-             [13] list item \"Contrato\" @10,150 900x40\n  \
+             [13] list item \"Contrato\" @10,150 900x40\n    \
+             [14] list item \"Bem abaixo\" (below)\n  \
              [15] document web \"Iframe\" @20,400 500x200\n    \
-             [16] entry \"CEP\" @30,420 200x30\n\
-             (1 elements outside the visible window omitted; find_elements searches them)\n"
+             [16] entry \"CEP\" @30,420 200x30\n"
         );
 
         let everything = page_view(
@@ -962,7 +1129,7 @@ mod tests {
         );
         let ids: Vec<u32> = view.entries.iter().map(|entry| entry.id).collect();
         assert_eq!(ids, [10, 11, 14, 15]);
-        assert_eq!(view.omitted, 0);
+        assert!(view.omitted.is_empty());
     }
 
     #[test]
@@ -1127,6 +1294,172 @@ mod tests {
         assert!(report.contains("--- page ---\n[10] document web"));
         assert!(report.contains("  [140] row \"r40\""));
         assert!(!report.contains("\n+ "));
+    }
+
+    /// A mail list of `rows` rows 40 px tall from y=110, in a 700 px tall
+    /// viewport starting at y=100: from `first_y` 110, rows 0-17 are
+    /// visible and the rest below.
+    fn inbox(rows: u32, first_y: i32) -> Vec<AccessibilityNode> {
+        let mut page = vec![at(
+            node(11, Some(10), "list", "Caixa de entrada"),
+            0,
+            first_y,
+            1000,
+            40 * rows as i32,
+        )];
+        page.extend((0..rows).map(|row| {
+            at(
+                node(
+                    100 + row,
+                    Some(11),
+                    "list item",
+                    &format!("Mensagem {row:03}"),
+                ),
+                0,
+                first_y + 40 * row as i32,
+                1000,
+                40,
+            )
+        }));
+        browser(page)
+    }
+
+    #[test]
+    fn rows_below_the_fold_are_drawn_with_a_marker_within_the_budget() {
+        let view = page_view(&inbox(30, 110), ViewOptions::default());
+        let outline = view.outline();
+        assert!(
+            outline.contains("    [117] list item \"Mensagem 017\" @0,790 1000x40\n"),
+            "{outline}"
+        );
+        assert!(
+            outline.contains("    [118] list item \"Mensagem 018\" (below)\n"),
+            "{outline}"
+        );
+        assert!(
+            outline.contains("    [129] list item \"Mensagem 029\" (below)\n"),
+            "{outline}"
+        );
+        assert!(!outline.contains("omitted"), "{outline}");
+        assert_eq!(view.entries.len(), 32);
+        // Off-screen rows do not count as content a screenshot could replace.
+        assert_eq!(view.content_elements(), 1 + 1 + 18);
+
+        // Scrolled down: the first rows are above, beside rows are off-screen.
+        let mut scrolled = inbox(30, -1090);
+        scrolled.push(at(
+            node(90, Some(10), "button", "Painel"),
+            1200,
+            300,
+            40,
+            40,
+        ));
+        let view = page_view(&scrolled, ViewOptions::default());
+        let line = |id: u32| {
+            view.entries
+                .iter()
+                .find(|entry| entry.id == id)
+                .map(|entry| entry.line.clone())
+        };
+        assert_eq!(
+            line(100).as_deref(),
+            Some("[100] list item \"Mensagem 000\" (above)")
+        );
+        assert_eq!(
+            line(129).as_deref(),
+            Some("[129] list item \"Mensagem 029\" @0,70 1000x40")
+        );
+        assert_eq!(
+            line(90).as_deref(),
+            Some("[90] button \"Painel\" (off-screen)")
+        );
+    }
+
+    #[test]
+    fn over_the_budget_the_nearest_outside_rows_are_drawn_and_the_rest_counted() {
+        let view = page_view(&inbox(400, 110), ViewOptions::default());
+        assert_eq!(view.entries.len(), OUTLINE_MAX_LINES);
+        assert_eq!(view.omitted.len(), 402 - OUTLINE_MAX_LINES);
+        // Nearest first: the drawn rows are the first ones below the fold.
+        let last = view.entries.last().map(|entry| entry.id);
+        assert_eq!(last, Some(100 + OUTLINE_MAX_LINES as u32 - 3));
+        assert!(view.omitted.contains(&(100 + OUTLINE_MAX_LINES as u32 - 2)));
+        let outline = view.outline();
+        assert!(outline.ends_with(&format!(
+            "({} elements outside the visible window omitted; find_elements searches them)\n",
+            402 - OUTLINE_MAX_LINES
+        )));
+        assert!(
+            outline.len() <= OUTLINE_MAX_BYTES + 200,
+            "{}",
+            outline.len()
+        );
+    }
+
+    #[test]
+    fn budget_takes_every_visible_line_then_the_nearest_outside_ones() {
+        // (distance outside, bytes): visible lines always fit, even over budget.
+        let costs = [
+            (None, 50),
+            (Some(300), 10),
+            (Some(0), 10),
+            (None, 50),
+            (Some(10), 10),
+            (Some(10), 10),
+        ];
+        assert_eq!(
+            within_budget(&costs, 4, 1000),
+            [true, false, true, true, true, false]
+        );
+        assert_eq!(
+            within_budget(&costs, 10, 130),
+            [true, false, true, true, true, true]
+        );
+        // The first outside line that does not fit ends the selection, so a
+        // nearer long line is not skipped for farther short ones.
+        let costs = [(None, 10), (Some(1), 500), (Some(2), 5)];
+        assert_eq!(within_budget(&costs, 10, 100), [true, false, false]);
+        assert_eq!(within_budget(&[(None, 900)], 0, 10), [true]);
+    }
+
+    #[test]
+    fn change_reports_count_appended_rows_and_rows_scrolled_into_view() {
+        let before = page_view(&inbox(20, 110), ViewOptions::default());
+        // Twenty rows appended below the fold are new.
+        let after = page_view(&inbox(40, 110), ViewOptions::default());
+        let report = change_report(&before, &after);
+        assert!(report.starts_with("changes (20):\n"), "{report}");
+        assert!(
+            report.contains("+ [139] list item \"Mensagem 039\" (below)\n"),
+            "{report}"
+        );
+        // Scrolled so rows 18-19 come into view: they changed; rows 0-2
+        // left the view but are still there and say nothing.
+        let mut scrolled = inbox(20, -10);
+        if let Some(list) = scrolled.iter_mut().find(|node| node.index == 11) {
+            list.bounds = Some(Bounds {
+                x: 0,
+                y: 110,
+                width: 1000,
+                height: 690,
+            });
+        }
+        let report = change_report(&before, &page_view(&scrolled, ViewOptions::default()));
+        assert_eq!(
+            report,
+            "changes (2):\n\
+             ~ [118] list item \"Mensagem 018\" @0,710 1000x40\n\
+             ~ [119] list item \"Mensagem 019\" @0,750 1000x40\n"
+        );
+        // A row left out for the budget is not gone.
+        let big = page_view(&inbox(400, 110), ViewOptions::default());
+        assert!(change_report(&big, &big).starts_with("changes: none"));
+        let mut fewer = big.clone();
+        fewer.entries.retain(|entry| entry.id != 300);
+        fewer.omitted.insert(300);
+        let mut drawn_before = big;
+        drawn_before.omitted.remove(&300);
+        assert_eq!(change_report(&drawn_before, &fewer), "changes: none\n");
     }
 
     fn disabled(mut node: AccessibilityNode) -> AccessibilityNode {

@@ -295,7 +295,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "get_app_state",
-        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per visible element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
+        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. Elements outside the visible area say (below), (above) or (off-screen) instead of @x,y; actions by id still reach them. Very long pages omit the farthest ones. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
