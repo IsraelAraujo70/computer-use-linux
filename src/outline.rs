@@ -104,17 +104,30 @@ pub fn content_diff(
 
 /// Renders one element without indentation.
 pub fn render_line(node: &AccessibilityNode) -> String {
+    render_line_placed(node, None)
+}
+
+/// Renders one element without indentation, with `(marker)` (`below`,
+/// `above`, `off-screen`) in place of its `@x,y wxh` position when given:
+/// the element lies outside the visible area, and actions by id still reach it.
+pub fn render_line_placed(node: &AccessibilityNode, marker: Option<&str>) -> String {
     let mut line = format!("[{}] {}", node.index, node.role);
     let name = clean(node.name.as_deref());
     if let Some(name) = &name {
         let _ = write!(line, " \"{}\"", truncate(name, MAX_NAME_CHARS));
     }
-    if let Some(bounds) = &node.bounds {
-        let _ = write!(
-            line,
-            " @{},{} {}x{}",
-            bounds.x, bounds.y, bounds.width, bounds.height
-        );
+    match (marker, &node.bounds) {
+        (Some(marker), _) => {
+            let _ = write!(line, " ({marker})");
+        }
+        (None, Some(bounds)) => {
+            let _ = write!(
+                line,
+                " @{},{} {}x{}",
+                bounds.x, bounds.y, bounds.width, bounds.height
+            );
+        }
+        (None, None) => {}
     }
     let mut flags: Vec<&str> = node
         .states

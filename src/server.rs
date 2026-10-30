@@ -66,6 +66,9 @@ struct Rescan {
     nodes: Vec<AccessibilityNode>,
     root_pid: Option<u32>,
     scope: SnapshotScope,
+    /// AT-SPI elements read for it; fewer than `nodes` when only the web
+    /// document was read again (`read_page`).
+    read: usize,
 }
 
 // Settle timing after an action. The tree counts as settled once two
@@ -85,6 +88,9 @@ const BUSY_SETTLE_LIMIT: Duration = Duration::from_secs(6);
 /// How long the tree must stay unchanged before a button that only became
 /// disabled stops counting as busy; some stay disabled for good.
 const BUSY_QUIET: Duration = Duration::from_millis(1_500);
+/// Longest a document-only read (`read_document`) may take before the
+/// settle loop reads the whole scope instead.
+const DOCUMENT_READ_LIMIT: Duration = Duration::from_secs(2);
 
 /// The app filter and limits of an observation, reused when an action has
 /// to read the same part of the tree again.
@@ -295,7 +301,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "get_app_state",
-        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per visible element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
+        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. Elements outside the visible area say (below), (above) or (off-screen) instead of @x,y; actions by id still reach them. Very long pages omit the farthest ones. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -4147,6 +4153,7 @@ impl ComputerUseLinux {
             snapshot_accessibility_tree(app_filter.as_deref(), pid, max_nodes, max_depth)
                 .await
                 .map_err(|error| format!("{error:#}"))?;
+        let read = snapshot.nodes.len();
         let mut nodes = compact_accessibility_tree(snapshot.nodes);
         self.assign_ids(&mut nodes);
         Ok(Rescan {
@@ -4159,6 +4166,102 @@ impl ComputerUseLinux {
                 max_depth,
                 options,
             },
+            read,
+        })
+    }
+
+    /// Reads the observed page again after an action. With a browser scope
+    /// (browser UI not shown) and a visible web document in `base`, the
+    /// latest read of that scope, only the document's subtree and the
+    /// window frame and address bar are read (`read_document`); otherwise,
+    /// or when that read does not look like the same page, the whole scope
+    /// (`rescan`).
+    async fn read_page(
+        &self,
+        base: &[AccessibilityNode],
+        hint_ref: Option<&str>,
+    ) -> Result<Rescan, String> {
+        let cached = self
+            .last_snapshot
+            .lock()
+            .ok()
+            .and_then(|cached| Some((cached.scope.clone()?, cached.pid)));
+        if let Some((scope, pid)) = cached.filter(|(scope, _)| !scope.options.include_browser_ui) {
+            if let Some(rescan) = self.read_document(base, scope, pid).await {
+                return Ok(rescan);
+            }
+        }
+        self.rescan(hint_ref).await
+    }
+
+    /// The document-only read of `read_page`: the visible document of
+    /// `base` with its subtree, and its frame and address bar on their own,
+    /// all at once, spliced into `base` (`page_view::splice_document`).
+    /// `None` when `base` has no visible document, a read fails or misses
+    /// `DOCUMENT_READ_LIMIT`, or the document is no longer the showing page
+    /// of its window (another role or id, not showing, or a window title
+    /// without the document's name): navigation and tab switches need the
+    /// whole scope.
+    async fn read_document(
+        &self,
+        base: &[AccessibilityNode],
+        scope: SnapshotScope,
+        root_pid: Option<u32>,
+    ) -> Option<Rescan> {
+        let parts = crate::page_view::document_parts(base)?;
+        let element = |id: u32| base.iter().find(|node| node.index == id);
+        let document = element(parts.document)?;
+        let single: Vec<(u32, String)> = [parts.frame, parts.address_bar]
+            .into_iter()
+            .flatten()
+            .filter_map(|id| Some((id, element(id)?.object_ref.clone())))
+            .collect();
+        let subtree = crate::atspi_tree::snapshot_subtree(
+            &document.object_ref,
+            document.depth,
+            scope.max_nodes,
+            scope.max_depth,
+        );
+        let singles =
+            futures_util::future::join_all(single.iter().map(|(id, object_ref)| async move {
+                let mut fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
+                fresh.index = *id;
+                Some(fresh)
+            }));
+        let (subtree, singles) = tokio::time::timeout(DOCUMENT_READ_LIMIT, async {
+            tokio::join!(subtree, singles)
+        })
+        .await
+        .ok()?;
+        let raw = subtree.ok()?;
+        let refreshed: Vec<AccessibilityNode> = singles.into_iter().collect::<Option<_>>()?;
+        let read = raw.len() + refreshed.len();
+        let mut fresh = compact_accessibility_tree(raw);
+        self.assign_ids(&mut fresh);
+        let root = fresh.first()?;
+        let same_page = root.index == parts.document
+            && root.role.eq_ignore_ascii_case("document web")
+            && node_is_showing(root);
+        let title = parts.frame.and_then(|frame| {
+            refreshed
+                .iter()
+                .find(|node| node.index == frame)
+                .and_then(|node| crate::outline::clean(node.name.as_deref()))
+        });
+        let page_name = crate::outline::clean(root.name.as_deref());
+        let titled = match (title, page_name) {
+            (Some(title), Some(name)) => title.contains(&name),
+            _ => true,
+        };
+        if !same_page || !titled {
+            return None;
+        }
+        let nodes = crate::page_view::splice_document(base, parts.document, fresh, &refreshed)?;
+        Some(Rescan {
+            nodes,
+            root_pid,
+            scope,
+            read,
         })
     }
 
@@ -4234,7 +4337,9 @@ impl ComputerUseLinux {
     /// the cached one. Settled means two consecutive reads of the observed
     /// scope agree and nothing looks busy (`page_view::busy_reason`), or the
     /// limit passed: `SETTLE_LIMIT`, or `BUSY_SETTLE_LIMIT` once the page
-    /// looked busy, which the report then says.
+    /// looked busy, which the report then says. An action that changed
+    /// nothing therefore takes two reads. Each read is `read_page`: only the
+    /// web document in a browser. Logs the reads and time to stderr.
     async fn observe_changes(&self) -> String {
         let acted = std::time::Instant::now();
         let before = self
@@ -4249,9 +4354,13 @@ impl ComputerUseLinux {
         let mut busy_seen: Option<String> = None;
         let mut still_busy = false;
         let mut quiet_since = std::time::Instant::now();
+        let (mut polls, mut nodes_read) = (0, 0);
         loop {
-            match self.rescan(None).await {
+            polls += 1;
+            let base = settled.as_ref().map_or(&before[..], |last| &last.nodes[..]);
+            match self.read_page(base, None).await {
                 Ok(rescan) => {
+                    nodes_read += rescan.read;
                     let contents = crate::outline::element_contents(&rescan.nodes);
                     let stable = previous.as_ref() == Some(&contents);
                     if !stable {
@@ -4280,6 +4389,10 @@ impl ComputerUseLinux {
             }
             sleep(SETTLE_POLL).await;
         }
+        eprintln!(
+            "settle: {polls} polls, {} ms, {nodes_read} nodes read",
+            acted.elapsed().as_millis()
+        );
         let Some(settled) = settled else {
             return format!(
                 "changes: unknown (the tree could not be read: {})\n",
@@ -5102,7 +5215,12 @@ impl ComputerUseLinux {
     async fn scroll_until(&self, plan: &ScrollUntil) -> std::result::Result<String, String> {
         let started = std::time::Instant::now();
         let hint = plan.hint_ref.as_deref();
-        let mut last = self.rescan(hint).await?;
+        let cached = self
+            .last_snapshot
+            .lock()
+            .map(|cached| cached.nodes.clone())
+            .unwrap_or_default();
+        let mut last = self.read_page(&cached, hint).await?;
         if !rendered_matches(&last.nodes, &plan.query).is_empty() {
             return self.reveal_until_match(plan, last, 0, started).await;
         }
@@ -5175,21 +5293,26 @@ impl ComputerUseLinux {
             .await?;
             steps += 1;
             *scrolls += 1;
-            let before = std::mem::replace(
-                last,
-                self.read_after_scroll_step(plan.hint_ref.as_deref(), &previous)
-                    .await?,
-            );
+            let read = self
+                .read_after_scroll_step(plan.hint_ref.as_deref(), &last.nodes, &previous)
+                .await?;
+            let loaded = std::time::Instant::now();
+            let (read, busy) = self
+                .wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
+                .await?;
+            let waited = loaded.elapsed().as_millis();
+            let before = std::mem::replace(last, read);
             let rows_before = row_keys(&before.nodes);
             let new_rows = row_keys(&last.nodes).difference(&rows_before).count();
             if let Some(px) = measured_click_px(&before.nodes, &last.nodes, clicks, horizontal) {
                 step.click_px = px;
                 step.measured = true;
             }
-            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each)", step.click_px);
+            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each; waited {waited} ms for rows)", step.click_px);
             let contents = crate::outline::element_contents(&last.nodes);
             let found = !rendered_matches(&last.nodes, &plan.query).is_empty();
-            let next = until_step(found, contents != previous, unchanged, steps);
+            // A list still loading has not reached its end.
+            let next = until_step(found, contents != previous || busy, unchanged, steps);
             previous = contents;
             match next {
                 UntilStep::Continue => unchanged = 0,
@@ -5203,22 +5326,51 @@ impl ComputerUseLinux {
         }
     }
 
-    /// Reads the tree after a scroll step: once after
-    /// `SCROLL_UNTIL_STEP_WAIT`, and a second time after `SETTLE_POLL` only
-    /// when it still equals `previous` (the read before the step), since a
-    /// virtual list may not have re-rendered yet.
+    /// Reads the page (`read_page`, `base` being the read before the step)
+    /// after a scroll step: once after `SCROLL_UNTIL_STEP_WAIT`, and a second
+    /// time after `SETTLE_POLL` only when it still equals `previous` (the
+    /// contents of `base`), since a virtual list may not have re-rendered yet.
     async fn read_after_scroll_step(
         &self,
         hint: Option<&str>,
+        base: &[AccessibilityNode],
         previous: &[crate::outline::ElementContent],
     ) -> Result<Rescan, String> {
         sleep(SCROLL_UNTIL_STEP_WAIT).await;
-        let first = self.rescan(hint).await?;
+        let first = self.read_page(base, hint).await?;
         if crate::outline::element_contents(&first.nodes) != previous {
             return Ok(first);
         }
         sleep(SETTLE_POLL).await;
-        self.rescan(hint).await
+        self.read_page(&first.nodes, hint).await
+    }
+
+    /// Waits after a scroll step for a list that is loading more rows: while
+    /// the page looks busy since `before` (the read before the step; a new
+    /// "Carregando…" placeholder, a `busy` state or a progress bar:
+    /// `page_view::busy_reason`) or the row count keeps changing
+    /// (`keep_waiting_for_rows`), it reads again every `SETTLE_POLL`, for at
+    /// most `SCROLL_UNTIL_LOAD_LIMIT`. Returns the last read and whether the
+    /// page still looked busy.
+    async fn wait_for_rows(
+        &self,
+        hint: Option<&str>,
+        before: &[AccessibilityNode],
+        mut latest: Rescan,
+    ) -> Result<(Rescan, bool), String> {
+        let started = std::time::Instant::now();
+        let mut rows = row_count(before);
+        loop {
+            let busy = crate::page_view::busy_reason(before, &latest.nodes)
+                .is_some_and(|busy| busy.strong);
+            let now = row_count(&latest.nodes);
+            if !keep_waiting_for_rows(busy, rows, now, started.elapsed()) {
+                return Ok((latest, busy));
+            }
+            rows = now;
+            sleep(SETTLE_POLL).await;
+            latest = self.read_page(&latest.nodes, hint).await?;
+        }
     }
 
     /// Brings a rendered match onto the visible page: AT-SPI
@@ -5271,7 +5423,9 @@ impl ComputerUseLinux {
                 break;
             }
             let previous = crate::outline::element_contents(&last.nodes);
-            last = self.read_after_scroll_step(hint, &previous).await?;
+            last = self
+                .read_after_scroll_step(hint, &last.nodes, &previous)
+                .await?;
         }
         let rendered: Vec<u32> = rendered_matches(&last.nodes, &plan.query)
             .iter()
@@ -5459,6 +5613,22 @@ const SCROLL_UNTIL_FIRST_STEP_SHARE: f64 = 0.6;
 /// Extra wait after a scroll that changed nothing, before trying once more:
 /// an infinite list may still be loading its next rows.
 const SCROLL_UNTIL_END_WAIT: Duration = Duration::from_millis(500);
+/// Longest wait after one `until` step for a loading list to show its new
+/// rows (`wait_for_rows`).
+const SCROLL_UNTIL_LOAD_LIMIT: Duration = Duration::from_millis(1_500);
+
+/// Whether `wait_for_rows` reads again: the page looks busy, or the row
+/// count went from `rows_before` (the previous read) to a different
+/// `rows_now`, so rows may still be arriving; never past
+/// `SCROLL_UNTIL_LOAD_LIMIT`.
+fn keep_waiting_for_rows(
+    busy: bool,
+    rows_before: usize,
+    rows_now: usize,
+    waited: Duration,
+) -> bool {
+    (busy || rows_now != rows_before) && waited < SCROLL_UNTIL_LOAD_LIMIT
+}
 
 /// One `scroll(until=…)` request, resolved.
 struct ScrollUntil {
@@ -5655,6 +5825,14 @@ const ROW_ROLES: [&str; 5] = [
     "tree item",
     "tree table row",
 ];
+
+/// How many list, table and tree rows a read has.
+fn row_count(nodes: &[AccessibilityNode]) -> usize {
+    nodes
+        .iter()
+        .filter(|node| ROW_ROLES.contains(&node.role.as_str()))
+        .count()
+}
 
 /// Each row's role and label, to count rows a scroll step brought in.
 fn row_keys(nodes: &[AccessibilityNode]) -> std::collections::HashSet<String> {
@@ -8817,6 +8995,38 @@ mod tests {
             until_step(false, true, 0, SCROLL_UNTIL_MAX_STEPS - 1),
             UntilStep::Continue
         );
+    }
+
+    #[test]
+    fn scroll_until_waits_while_a_list_loads_or_grows() {
+        let soon = Duration::from_millis(200);
+        // A "Carregando…" placeholder: wait, even with no new rows yet.
+        assert!(keep_waiting_for_rows(true, 20, 20, soon));
+        // Rows appended: read again until the count stops changing.
+        assert!(keep_waiting_for_rows(false, 20, 40, soon));
+        assert!(!keep_waiting_for_rows(false, 40, 40, soon));
+        // Never past the per-step limit.
+        assert!(!keep_waiting_for_rows(
+            true,
+            20,
+            40,
+            SCROLL_UNTIL_LOAD_LIMIT
+        ));
+        // A step whose list was still loading is not a step that did nothing,
+        // so the end takes two quiet steps in a row.
+        assert_eq!(until_step(false, true, 1, 5), UntilStep::Continue);
+
+        let rows = |count: usize| -> Vec<AccessibilityNode> {
+            (0..count)
+                .map(|row| {
+                    let mut node = node(row as u32, None);
+                    node.role = if row % 2 == 0 { "list item" } else { "row" }.to_string();
+                    node
+                })
+                .chain(std::iter::once(node(999, None)))
+                .collect()
+        };
+        assert_eq!(row_count(&rows(6)), 6);
     }
 
     #[test]

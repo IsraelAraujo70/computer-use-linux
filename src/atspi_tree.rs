@@ -331,7 +331,7 @@ async fn snapshot_tree_inner(
     let conn = connect().await?;
     // App discovery is bounded independently so a tiny requested tree still
     // finds a target registered after the first accessibility root.
-    let (mut remaining_registry_reads, mut remaining_filter_reads, mut remaining_traversal_reads) =
+    let (mut remaining_registry_reads, mut remaining_filter_reads, remaining_traversal_reads) =
         snapshot_child_read_budgets(max_nodes);
     let roots =
         registry_children(&conn, MAX_DISCOVERY_ROOTS, &mut remaining_registry_reads).await?;
@@ -345,15 +345,80 @@ async fn snapshot_tree_inner(
     .await;
     let scoped = selected_roots.scoped;
     let root_pid = selected_roots.pid;
+    let roots = selected_roots
+        .roots
+        .into_iter()
+        .map(|object_ref| (object_ref, 0_u32))
+        .collect();
+    let (nodes, truncated) = traverse(
+        &conn,
+        roots,
+        max_nodes,
+        max_depth,
+        remaining_traversal_reads,
+    )
+    .await;
+
+    Ok(AccessibilitySnapshot {
+        nodes,
+        scoped,
+        root_pid,
+        truncated,
+    })
+}
+
+/// Fresh read of an element and its descendants as a snapshot reads them:
+/// breadth-first in batches, `depth` being the element's depth in its app's
+/// tree, so `max_depth` and compaction treat the nodes as they would in a
+/// full snapshot. `index`/`parent_index` are positions in the result, the
+/// element first. Fails after `SNAPSHOT_TIMEOUT` or when the element cannot
+/// be read.
+pub(crate) async fn snapshot_subtree(
+    object_ref_id: &str,
+    depth: u32,
+    max_nodes: usize,
+    max_depth: u32,
+) -> Result<Vec<AccessibilityNode>> {
+    let (max_nodes, max_depth) = snapshot_limits(Some(max_nodes), Some(max_depth));
+    let read = async {
+        let conn = connect().await?;
+        let root = object_ref_from_id(object_ref_id)?;
+        let proxy = open_accessible(&conn, &root).await?;
+        // A vanished object answers every read with an error, which read_node
+        // would turn into an empty "unknown" node.
+        proxy
+            .get_state()
+            .await
+            .with_context(|| format!("AT-SPI object {object_ref_id} no longer exists"))?;
+        drop(proxy);
+        let (nodes, _) =
+            traverse(&conn, vec![(root, depth)], max_nodes, max_depth, max_nodes).await;
+        anyhow::Ok(nodes)
+    };
+    timeout(SNAPSHOT_TIMEOUT, read)
+        .await
+        .context("AT-SPI subtree read exceeded its 10-second deadline")?
+}
+
+/// Reads `roots` (object, depth) and their descendants breadth-first, at
+/// most `max_nodes` nodes, `max_depth` levels and `child_reads` child
+/// listings. Returns the nodes, indexed by position, and whether a limit
+/// left elements unread.
+async fn traverse(
+    conn: &AccessibilityConnection,
+    roots: Vec<(ObjectRefOwned, u32)>,
+    max_nodes: usize,
+    max_depth: u32,
+    child_reads: usize,
+) -> (Vec<AccessibilityNode>, bool) {
+    let mut remaining_traversal_reads = child_reads;
     let mut nodes = Vec::new();
     let mut truncated = false;
     let mut traversal = BoundedTraversal::new(max_nodes);
-
     traversal.enqueue(
-        selected_roots
-            .roots
+        roots
             .into_iter()
-            .map(|object_ref| (object_ref, 0_u32, None)),
+            .map(|(object_ref, depth)| (object_ref, depth, None)),
     );
 
     // Breadth-first in batches: every node of a batch is read concurrently,
@@ -367,14 +432,11 @@ async fn snapshot_tree_inner(
             break;
         }
         let read: Vec<_> = stream::iter(batch)
-            .map(|(object_ref, depth, parent_index)| {
-                let conn = &conn;
-                async move {
-                    let proxy = open_accessible(conn, &object_ref).await.ok()?;
-                    let node = read_node(&proxy, &object_ref, 0, parent_index, depth).await;
-                    drop(proxy);
-                    Some((object_ref, depth, node))
-                }
+            .map(|(object_ref, depth, parent_index)| async move {
+                let proxy = open_accessible(conn, &object_ref).await.ok()?;
+                let node = read_node(&proxy, &object_ref, 0, parent_index, depth).await;
+                drop(proxy);
+                Some((object_ref, depth, node))
             })
             .buffered(NODE_READ_BATCH)
             .collect()
@@ -405,19 +467,16 @@ async fn snapshot_tree_inner(
             })
             .collect();
         let children: Vec<_> = stream::iter(listings)
-            .map(|(object_ref, child_count, attempts)| {
-                let conn = &conn;
-                async move {
-                    let attempts = attempts?;
-                    let proxy = open_accessible(conn, &object_ref).await.ok()?;
-                    let mut budget = attempts;
-                    let listed = fetch_indexed_up_to(child_count, attempts, &mut budget, |index| {
-                        proxy.get_child_at_index(index)
-                    })
-                    .await;
-                    drop(proxy);
-                    Some(listed)
-                }
+            .map(|(object_ref, child_count, attempts)| async move {
+                let attempts = attempts?;
+                let proxy = open_accessible(conn, &object_ref).await.ok()?;
+                let mut budget = attempts;
+                let listed = fetch_indexed_up_to(child_count, attempts, &mut budget, |index| {
+                    proxy.get_child_at_index(index)
+                })
+                .await;
+                drop(proxy);
+                Some(listed)
             })
             .buffered(NODE_READ_BATCH)
             .collect()
@@ -448,13 +507,7 @@ async fn snapshot_tree_inner(
         }
     }
     truncated |= traversal.truncated();
-
-    Ok(AccessibilitySnapshot {
-        nodes,
-        scoped,
-        root_pid,
-        truncated,
-    })
+    (nodes, truncated)
 }
 
 /// Compact description of the AT-SPI element that currently holds keyboard
