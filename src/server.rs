@@ -301,7 +301,7 @@ impl ComputerUseLinux {
 
     #[tool(
         name = "get_app_state",
-        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. Elements outside the visible area say (below), (above) or (off-screen) instead of @x,y; actions by id still reach them. Very long pages omit the farthest ones. [n] is an element id, valid in every tool for the whole session. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
+        description = "Observe an app. Returns a header (window, window_id, url, element count) and one line per element: `[n] role \"name\" @x,y wxh {states} actions=... text=...`, nested by indent. Elements outside the visible area say (below), (above) or (off-screen) instead of @x,y; actions by id still reach them. Very long pages omit the farthest ones. [n] is an element id, valid in every tool while the element exists; re-rendered content gets new ids. Browsers show only the web page. A screenshot is attached only when the tree shows little. Scope with app_name_or_bundle_identifier (e.g. chrome) or a window target.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -2270,7 +2270,7 @@ impl ComputerUseLinux {
     // can't be env!("CARGO_PKG_VERSION"); the MCP safety check (CI) fails the
     // build if it drifts from the Cargo version.
     version = "0.7.17",
-    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid for the whole session. Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
+    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid while the element exists; content the page re-renders gets new ids (shown as - old / + new). Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
 )]
 impl ServerHandler for ComputerUseLinux {}
 
