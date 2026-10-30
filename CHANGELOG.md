@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Servers that share a display take turns with its pointer, focus and keyboard: `click`, `drag`, `scroll`, `type_text`, `press_key`, `activate_window`, `drop_files`, the focus step of window-targeted `screenshot`/`ocr`, and `set_value`/`fill_form` when they fall back to clicks or typing hold an `flock` on `$XDG_RUNTIME_DIR/computer-use-linux/input-<display>.lock`. A call that waits longer than `COMPUTER_USE_LINUX_INPUT_LOCK_TIMEOUT_MS` (default 10000) fails with a retry message and sends nothing. The lock goes away with a killed server, after any `xdotool` it started has finished sending input.
+
 ### Changed
 - Target only a virtual X11 display (Xvfb + i3). Input is xdotool only, screenshots are X11 `GetImage` only, and window targeting uses i3 IPC with X11/EWMH as the second backend.
 - `doctor` reports the X display, window manager IPC, AT-SPI bus, `xdotool` and `tesseract`; each blocker names its fix, and `readiness` gains `ready`, `can_send_input` and `can_ocr`.

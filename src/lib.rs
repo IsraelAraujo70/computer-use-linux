@@ -6,6 +6,7 @@ mod command_runner;
 mod diagnostics_impl;
 mod element_ids;
 mod fields;
+mod input_lock;
 mod ocr;
 mod outline;
 mod page_view;

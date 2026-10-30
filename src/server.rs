@@ -109,6 +109,8 @@ pub struct ComputerUseLinux {
     last_snapshot: Arc<Mutex<CachedAccessibilitySnapshot>>,
     /// Stable `[n]` ids for every element reported so far.
     element_ids: Arc<Mutex<crate::element_ids::ElementIds>>,
+    /// Serializes this server's input operations and guards the cached
+    /// snapshot while one runs; `lock_input` adds the display-wide lock.
     input_operation_lock: Arc<tokio::sync::Mutex<()>>,
     /// Root window size from the latest capture or X11 query; used for
     /// off-screen warnings and window-relative coordinate clipping.
@@ -271,6 +273,20 @@ impl ComputerUseLinux {
     ) -> Json<ActivateWindowOutput> {
         let target = params.into_target();
         let received = Some(serde_json::json!(target.clone()));
+        let _input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(error) => {
+                return Json(ActivateWindowOutput {
+                    ok: false,
+                    implemented: true,
+                    backend: "unavailable".to_string(),
+                    focus: None,
+                    permissions_hint: None,
+                    error: Some(error),
+                    received,
+                })
+            }
+        };
         match focus_window_target(&target).await {
             Ok(focus) => {
                 let ok = focus_satisfies_target(&focus, &target);
@@ -909,7 +925,18 @@ impl ComputerUseLinux {
 
     async fn click(&self, Parameters(mut params): Parameters<ClickParams>) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
-        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(message) => {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "click".to_string(),
+                    message,
+                    received,
+                });
+            }
+        };
         let mut target_pid = params.pid;
         // Raise the target window first (if specified) so the click lands on the
         // intended app rather than whatever is stacked on top at that pixel.
@@ -1312,7 +1339,18 @@ impl ComputerUseLinux {
                 });
             }
         };
-        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(message) => {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "scroll".to_string(),
+                    message,
+                    received,
+                });
+            }
+        };
         let mut target_pid = params.pid;
         // Raise/focus the target window first (parity with click) so wheel
         // events land on the intended app.
@@ -1622,7 +1660,10 @@ impl ComputerUseLinux {
                 received: received.clone(),
             })
         };
-        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(message) => return failed(message),
+        };
         let start = match self
             .drag_end(
                 params.from_element_index,
@@ -1801,7 +1842,10 @@ impl ComputerUseLinux {
             Ok(paths) => paths,
             Err(message) => return failed(message),
         };
-        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(message) => return failed(message),
+        };
         let selector = params.selector();
         let (label, point) = match params.x.zip(params.y) {
             Some(point) => (format!("{},{}", point.0, point.1), point),
@@ -1860,7 +1904,18 @@ impl ComputerUseLinux {
         Parameters(params): Parameters<PressKeyParams>,
     ) -> Json<ActionOutput> {
         let received = Some(serde_json::json!(params.clone()));
-        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(message) => {
+                return Json(ActionOutput {
+                    ok: false,
+                    implemented: true,
+                    action: "press_key".to_string(),
+                    message,
+                    received,
+                });
+            }
+        };
         let focus = match self.focus_target_for_input(&params.window_target()).await {
             Ok(focus) => focus,
             Err(message) => {
@@ -2172,7 +2227,6 @@ impl ComputerUseLinux {
             );
             return (Json(output), None);
         }
-        let input_guard = Arc::clone(&self.input_operation_lock).lock_owned().await;
         let failed = |message: String| {
             let output = ActionOutput {
                 ok: false,
@@ -2182,6 +2236,10 @@ impl ComputerUseLinux {
                 received: received.clone(),
             };
             (Json(output), None)
+        };
+        let input_guard = match self.lock_input().await {
+            Ok(guard) => guard,
+            Err(message) => return failed(message),
         };
         let window_target = params.window_target();
         let element = if params.element_index.is_some() || !params.selector().is_empty() {
@@ -3733,7 +3791,28 @@ struct ActionOutput {
     received: Option<serde_json::Value>,
 }
 
+/// Held for one pointer, focus or keyboard operation: this process's input
+/// mutex, then the display lock every computer-use-linux process shares.
+/// The display lock is dropped first.
+struct InputGuard {
+    _display: crate::input_lock::DisplayInputLock,
+    _process: tokio::sync::OwnedMutexGuard<()>,
+}
+
 impl ComputerUseLinux {
+    /// Waits for this server's other input, then for other servers' input on
+    /// the same display. Fails with a retry message when another agent keeps
+    /// the display past the lock timeout. Activate or re-check the target
+    /// window after this returns: focus may have moved during the wait.
+    async fn lock_input(&self) -> std::result::Result<InputGuard, String> {
+        let process = Arc::clone(&self.input_operation_lock).lock_owned().await;
+        let display = crate::input_lock::lock_display_input().await?;
+        Ok(InputGuard {
+            _display: display,
+            _process: process,
+        })
+    }
+
     async fn resolve_window_context(
         &self,
         params: &GetAppStateParams,
@@ -3758,6 +3837,9 @@ impl ComputerUseLinux {
 
     /// Focus the targeted window and return its verified, visible record.
     async fn resolve_screenshot_window(&self, target: &WindowTarget) -> Result<WindowInfo> {
+        // Focusing moves keyboard focus away from another agent's typing, so
+        // it waits for the input lock; the capture itself does not.
+        let input_guard = self.lock_input().await.map_err(anyhow::Error::msg)?;
         let focus = focus_window_target(target).await?;
         if !focus.exact_window_focused {
             anyhow::bail!(
@@ -3765,6 +3847,7 @@ impl ComputerUseLinux {
             );
         }
         sleep(Duration::from_millis(250)).await;
+        drop(input_guard);
         let window = focus
             .focused_window
             .filter(|window| window.window_id == focus.requested_window.window_id)
@@ -5136,6 +5219,12 @@ impl ComputerUseLinux {
                 return self.text_outcome(&label, ok, read_back, value);
             }
         }
+        // Every path below may raise a window, click or type. The caller holds
+        // only this process's input mutex, so the display lock is taken here.
+        let _display_guard = match crate::input_lock::lock_display_input().await {
+            Ok(guard) => guard,
+            Err(message) => return FieldOutcome::failed(message),
+        };
         match kind {
             crate::fields::FieldKind::Text => self.set_text_field(node, &label, value).await,
             crate::fields::FieldKind::Toggle => self.set_toggle_field(node, &label, value).await,
@@ -7804,14 +7893,12 @@ fn xdotool_scroll_timeout(repeat: u32, delay_ms: u64) -> Duration {
     ))
 }
 
-async fn run_cancellation_safe_input<T, F>(
-    input_guard: tokio::sync::OwnedMutexGuard<()>,
+async fn run_cancellation_safe_input<G, T, F>(
+    input_guard: G,
     operation: F,
-) -> (
-    Option<tokio::sync::OwnedMutexGuard<()>>,
-    std::result::Result<T, String>,
-)
+) -> (Option<G>, std::result::Result<T, String>)
 where
+    G: Send + 'static,
     T: Send + 'static,
     F: Future<Output = std::result::Result<T, String>> + Send + 'static,
 {
@@ -7843,6 +7930,9 @@ async fn run_xdotool_program(
     command.stderr(Stdio::piped());
     command.kill_on_drop(true);
     command.process_group(0);
+    // A killed server leaves this child running; it keeps the display lock
+    // until its input is sent.
+    crate::input_lock::hand_down_to(&mut command);
 
     let child = crate::command_runner::spawn_retrying_busy(&mut command)
         .await
@@ -10182,6 +10272,47 @@ mod tests {
         )
         .await
         .expect("input lock remained held after the operation finished");
+    }
+
+    #[tokio::test]
+    async fn cancelling_between_press_and_release_keeps_the_display_locked() {
+        let dir = std::env::temp_dir().join(format!("cul-cancel-lock-{}", std::process::id()));
+        let path = dir.join("input-test.lock");
+        let guard = InputGuard {
+            _display: crate::input_lock::try_lock(&path).unwrap().unwrap(),
+            _process: Arc::new(tokio::sync::Mutex::new(())).lock_owned().await,
+        };
+        let (pressed_tx, pressed_rx) = tokio::sync::oneshot::channel();
+        let (allow_release_tx, allow_release_rx) = tokio::sync::oneshot::channel();
+
+        let waiter = tokio::spawn(async move {
+            run_cancellation_safe_input(guard, async move {
+                let _ = pressed_tx.send(());
+                let _ = allow_release_rx.await;
+                Ok::<(), String>(())
+            })
+            .await
+        });
+
+        pressed_rx.await.expect("press command did not finish");
+        waiter.abort();
+        let _ = waiter.await;
+        assert!(
+            crate::input_lock::try_lock(&path).unwrap().is_none(),
+            "another process could take the display between press and release"
+        );
+
+        allow_release_tx
+            .send(())
+            .expect("release command stopped on caller cancellation");
+        timeout(Duration::from_secs(1), async {
+            while crate::input_lock::try_lock(&path).unwrap().is_none() {
+                sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("display lock remained held after the operation finished");
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
