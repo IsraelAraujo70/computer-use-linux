@@ -2131,10 +2131,7 @@ impl ComputerUseLinux {
             &params.selector(),
             ElementResolvePurpose::SetValue,
         );
-        echo.typed = unverified.map(|note| UnverifiedTyping {
-            text: params.text,
-            note,
-        });
+        echo.typed = unverified;
         self.finish_action(output, observe, echo).await
     }
 
@@ -2156,11 +2153,15 @@ impl ComputerUseLinux {
     }
 
     /// Types the text and reads its target back. Returns the result and,
-    /// when the read-back could not confirm the text arrived, the sentence
-    /// saying so (`" Dispatched; delivery not verified…"`), left out of the
-    /// message so the caller can first look for the text on the settled
-    /// page (`typed_text_evidence`).
-    async fn send_text(&self, params: TypeTextParams) -> (Json<ActionOutput>, Option<String>) {
+    /// when the read-back could not confirm the text arrived, the text, what
+    /// the element it was meant for held before, and the sentence saying so
+    /// (`" Dispatched; delivery not verified…"`), left out of the message so
+    /// the caller can first look for the text on the settled page
+    /// (`typed_text_evidence`).
+    async fn send_text(
+        &self,
+        params: TypeTextParams,
+    ) -> (Json<ActionOutput>, Option<UnverifiedTyping>) {
         let received = Some(serde_json::json!(params.clone()));
         // Reject before focus changes.
         if params.text.contains('\0') {
@@ -2266,13 +2267,22 @@ impl ComputerUseLinux {
             None => focused_window().await.ok().flatten(),
         };
         let paste_chord = paste_chord_for(window.as_ref());
-        // The target's text before typing, to tell whether the text arrived.
-        let before = match target.as_ref() {
-            Some(node) => read_field(&node.object_ref)
-                .await
-                .and_then(|(_, text)| text),
+        // The text before typing, to tell whether the text arrived: the
+        // target's, else that of the element focused in the snapshot the
+        // agent last saw.
+        let before_ref = match target.as_ref() {
+            Some(node) => Some(node.object_ref.clone()),
+            None => self.last_snapshot.lock().ok().and_then(|cached| {
+                crate::page_view::focused_element(&cached.nodes).map(|node| node.object_ref.clone())
+            }),
+        };
+        let before_text = match before_ref.as_deref() {
+            Some(object_ref) => read_field(object_ref).await.and_then(|(_, text)| text),
             None => None,
         };
+        let before = before_ref
+            .zip(before_text.clone())
+            .map(|(object_ref, text)| TextBefore { object_ref, text });
         let text = params.text.clone();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
             enter_text(&text, paste_chord).await.map(|()| Vec::new())
@@ -2283,7 +2293,7 @@ impl ComputerUseLinux {
         if !output.ok {
             return (Json(output), None);
         }
-        let mut unverified = None;
+        let mut note = None;
         output.message = if crate::fields::typeable_ascii(&params.text) {
             "Sent through xdotool (X11 XTEST).".to_string()
         } else {
@@ -2297,7 +2307,7 @@ impl ComputerUseLinux {
                 .and_then(|(_, text)| text);
             let shown = crate::fields::shown_text(read_back.as_deref());
             let holds = crate::outline::truncate(&shown, 200);
-            match typed_delivery(before.as_deref(), read_back.as_deref(), &params.text) {
+            match typed_delivery(before_text.as_deref(), read_back.as_deref(), &params.text) {
                 Delivery::Arrived => {
                     output
                         .message
@@ -2317,24 +2327,29 @@ impl ComputerUseLinux {
                     );
                 }
                 Delivery::Unverified if read_back.is_none() => {
-                    unverified = Some(format!(
+                    note = Some(format!(
                         " Dispatched; delivery not verified: {label} exposes no text to read back."
                     ));
                 }
                 Delivery::Unverified => {
-                    unverified = Some(format!(
+                    note = Some(format!(
                         " Dispatched; delivery not verified: Enter may have submitted {label}, which now holds \"{holds}\"."
                     ));
                 }
             }
         } else {
-            unverified =
+            note =
                 Some(" Dispatched; delivery not verified (no element was targeted).".to_string());
             if focus.is_some() {
                 let notes = self.input_landing_notes(focus.as_ref(), true).await;
                 output = with_notes(output, notes);
             }
         }
+        let unverified = note.map(|note| UnverifiedTyping {
+            text: params.text,
+            note,
+            before,
+        });
         (Json(output), unverified)
     }
 }
@@ -4409,7 +4424,11 @@ impl ComputerUseLinux {
         }
         let mut message = output.message;
         if let Some(typed) = &echo.typed {
-            match typed_text_evidence(&typed.text, target_text.as_deref(), &report) {
+            let before = typed.before.as_ref().and_then(|before| {
+                let id = self.element_ids.lock().ok()?.id_for(&before.object_ref);
+                Some((id, before.text.as_str()))
+            });
+            match typed_text_evidence(&typed.text, before, target_text.as_deref(), &report) {
                 Some(evidence) => message.push_str(&format!(" Delivered: {evidence}.")),
                 None => message.push_str(&typed.note),
             }
@@ -5021,6 +5040,16 @@ struct Echo {
 struct UnverifiedTyping {
     text: String,
     note: String,
+    /// What the element the text was meant for held before typing, when
+    /// it could be read: text it already held proves nothing.
+    before: Option<TextBefore>,
+}
+
+/// The text an element held before type_text typed into it.
+#[derive(Debug)]
+struct TextBefore {
+    object_ref: String,
+    text: String,
 }
 
 /// What `set_value` did to one field.
@@ -7380,40 +7409,79 @@ fn typed_delivery(before: Option<&str>, after: Option<&str>, text: &str) -> Deli
 }
 
 /// Where the settled page shows text type_text sent when its own read-back
-/// could not tell: the target's text now (`target_text`), else the value on
-/// the focus line or a `+`/`~` line of the change report `report`. Matched
-/// by the typed text's longest line, whitespace collapsed; against report
-/// lines by its first 40 characters (lines cut long text), and only from 3
-/// characters on, since shorter text matches too much. `None` without such
-/// evidence, or when only Enter was sent.
+/// could not tell, in a way only this input explains. `before` is the id and
+/// text of the element the text was meant for, read before typing (the
+/// target, else the element focused then); text it already held proves
+/// nothing. Every non-empty line of the typed text, whitespace collapsed,
+/// must occur more often than in `before`: in the target's text now
+/// (`target_text`), or in the value on the focus line of the change report
+/// `report` when that line is the same element. Else every line of 3
+/// characters or more (shorter text matches too much), when `before` lacked
+/// it, must show on a `+`/`~` line of `report`. Report lines cut long text,
+/// so they are matched by each line's first 40 characters. `None` without
+/// such evidence, or when only Enter was sent.
 fn typed_text_evidence(
     typed: &str,
+    before: Option<(u32, &str)>,
     target_text: Option<&str>,
     report: &str,
 ) -> Option<&'static str> {
-    let longest = typed
+    let lines: Vec<String> = typed
         .lines()
         .filter_map(|line| crate::outline::clean(Some(line)))
-        .max_by_key(|line| line.chars().count())?;
-    let holds =
-        |text: &str| crate::outline::clean(Some(text)).is_some_and(|text| text.contains(&longest));
-    if target_text.is_some_and(holds) {
-        return Some("the target now holds it");
+        .collect();
+    if lines.is_empty() {
+        return None;
     }
+    let prefix = |line: &str| line.chars().take(40).collect::<String>();
     // Outline lines print double quotes as single ones.
-    let needle: String = longest.replace('"', "'").chars().take(40).collect();
-    let focused = report
-        .lines()
-        .filter_map(|line| line.strip_prefix("focus: "))
-        .filter_map(|line| line.split_once(" value=\""))
-        .any(|(_, value)| value.contains(&needle));
-    if focused {
-        return Some("the focused element now holds it");
+    let shown = |line: &str| prefix(&line.replace('"', "'"));
+    let count = |text: &str, needle: &str| text.matches(needle).count();
+    let before = before.map(|(id, text)| {
+        let text = crate::outline::clean(Some(text)).unwrap_or_default();
+        (id, text)
+    });
+    if let Some((id, before)) = &before {
+        let target = crate::outline::clean(target_text).unwrap_or_default();
+        if lines
+            .iter()
+            .all(|line| count(&target, line) > count(before, line))
+        {
+            return Some("the target now holds it");
+        }
+        let element = format!("[{id}] ");
+        let focused = report
+            .lines()
+            .filter_map(|line| line.strip_prefix("focus: "))
+            .filter(|line| line.starts_with(&element))
+            .filter_map(|line| line.split_once(" value=\""))
+            .any(|(_, value)| {
+                lines
+                    .iter()
+                    .all(|line| count(value, &shown(line)) > count(before, &prefix(line)))
+            });
+        if focused {
+            return Some("the focused element now holds it");
+        }
     }
-    let changed = needle.chars().count() >= 3
-        && report.lines().any(|line| {
-            (line.starts_with("+ ") || line.starts_with("~ ")) && line.contains(&needle)
-        });
+    let held_before = |line: &str| {
+        before
+            .as_ref()
+            .is_some_and(|(_, before)| before.contains(&prefix(line)))
+    };
+    let mut long = lines
+        .iter()
+        .filter(|line| line.chars().count() >= 3)
+        .peekable();
+    long.peek()?;
+    let changed = long.all(|line| {
+        let needle = shown(line);
+        !held_before(line)
+            && report.lines().any(|report_line| {
+                (report_line.starts_with("+ ") || report_line.starts_with("~ "))
+                    && report_line.contains(&needle)
+            })
+    });
     changed.then_some("the change report shows it")
 }
 
@@ -11029,17 +11097,38 @@ mod node_target_scope_tests {
                       ~ [12] combo box \"Para\" @10,40 600x24 {focused,editable}\n\
                       focus: [12] combo box \"Para\" value=\"\"\n";
         assert_eq!(
-            typed_text_evidence("ana.souza@example.com\n", Some(""), report),
+            typed_text_evidence("ana.souza@example.com\n", Some((12, "")), Some(""), report),
             Some("the change report shows it")
         );
         // No element targeted: the focused editor holds the text.
         let report = "changes: none\nfocus: [88] entry \"Corpo\" value=\"Olá Ana,\\nSegue o \'contrato\'\"\n";
         assert_eq!(
-            typed_text_evidence("Segue o \"contrato\"", None, report),
+            typed_text_evidence(
+                "Segue o \"contrato\"",
+                Some((88, "Olá Ana,\n")),
+                None,
+                report
+            ),
             Some("the focused element now holds it")
         );
+        // ...but not when focus is on another element than the one read
+        // before typing.
         assert_eq!(
-            typed_text_evidence("oi", Some("  oi  "), "changes: none\n"),
+            typed_text_evidence("Segue o \"contrato\"", Some((5, "")), None, report),
+            None
+        );
+        assert_eq!(
+            typed_text_evidence("oi", Some((3, "")), Some("  oi  "), "changes: none\n"),
+            Some("the target now holds it")
+        );
+        // Typed again after text already there: the count grew.
+        assert_eq!(
+            typed_text_evidence(
+                "existing draft",
+                Some((3, "existing draft")),
+                Some("existing draftexisting draft"),
+                "changes: none\n"
+            ),
             Some("the target now holds it")
         );
         // No sign of the text: still unverified. Short text never matches a
@@ -11047,18 +11136,74 @@ mod node_target_scope_tests {
         assert_eq!(
             typed_text_evidence(
                 "ana@x.com",
+                Some((5, "")),
                 Some(""),
                 "changes: none\nfocus: [5] entry \"Busca\" value=\"\"\n"
             ),
             None
         );
         assert_eq!(
-            typed_text_evidence("a", None, "changes (1):\n+ [7] heading \"Ana\"\n"),
+            typed_text_evidence("a", None, None, "changes (1):\n+ [7] heading \"Ana\"\n"),
             None
         );
         assert_eq!(
-            typed_text_evidence("\n", None, "changes (1):\n+ [7] x\n"),
+            typed_text_evidence("\n", None, None, "changes (1):\n+ [7] x\n"),
             None
+        );
+    }
+
+    #[test]
+    fn text_already_in_the_field_does_not_prove_delivery() {
+        // The editor held the text before: typing that went elsewhere
+        // leaves it as it was.
+        let report = "changes: none\nfocus: [9] entry \"Corpo\" value=\"existing draft\"\n";
+        assert_eq!(
+            typed_text_evidence(
+                "existing draft",
+                Some((9, "existing draft")),
+                Some("existing draft"),
+                report
+            ),
+            None
+        );
+        // Nor does a change line about that editor showing its old text.
+        let report =
+            "changes (1):\n~ [9] entry \"Corpo\" {focused,editable} value=\"existing draft\"\n";
+        assert_eq!(
+            typed_text_evidence(
+                "existing draft",
+                Some((9, "existing draft")),
+                Some("existing draft"),
+                report
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn every_typed_line_must_show_for_delivery() {
+        // Only the longest line arrived; "Abraço" is missing.
+        let typed = "Segue o contrato em anexo\nAbraço";
+        let report = "changes (1):\n~ [9] entry \"Corpo\" value=\"Segue o contrato em anexo\"\n\
+                      focus: [9] entry \"Corpo\" value=\"Segue o contrato em anexo\"\n";
+        assert_eq!(
+            typed_text_evidence(
+                typed,
+                Some((9, "")),
+                Some("Segue o contrato em anexo"),
+                report
+            ),
+            None
+        );
+        // Both lines arrived.
+        assert_eq!(
+            typed_text_evidence(
+                typed,
+                Some((9, "")),
+                Some("Segue o contrato em anexo\nAbraço"),
+                "changes: none\n"
+            ),
+            Some("the target now holds it")
         );
     }
 
