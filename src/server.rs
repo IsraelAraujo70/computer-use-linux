@@ -2131,10 +2131,7 @@ impl ComputerUseLinux {
             &params.selector(),
             ElementResolvePurpose::SetValue,
         );
-        echo.typed = unverified.map(|note| UnverifiedTyping {
-            text: params.text,
-            note,
-        });
+        echo.typed = unverified;
         self.finish_action(output, observe, echo).await
     }
 
@@ -2156,11 +2153,15 @@ impl ComputerUseLinux {
     }
 
     /// Types the text and reads its target back. Returns the result and,
-    /// when the read-back could not confirm the text arrived, the sentence
-    /// saying so (`" Dispatched; delivery not verified…"`), left out of the
-    /// message so the caller can first look for the text on the settled
-    /// page (`typed_text_evidence`).
-    async fn send_text(&self, params: TypeTextParams) -> (Json<ActionOutput>, Option<String>) {
+    /// when the read-back could not confirm the text arrived, the text, what
+    /// the element it was meant for held before, and the sentence saying so
+    /// (`" Dispatched; delivery not verified…"`), left out of the message so
+    /// the caller can first look for the text on the settled page
+    /// (`typed_text_evidence`).
+    async fn send_text(
+        &self,
+        params: TypeTextParams,
+    ) -> (Json<ActionOutput>, Option<UnverifiedTyping>) {
         let received = Some(serde_json::json!(params.clone()));
         // Reject before focus changes.
         if params.text.contains('\0') {
@@ -2266,13 +2267,22 @@ impl ComputerUseLinux {
             None => focused_window().await.ok().flatten(),
         };
         let paste_chord = paste_chord_for(window.as_ref());
-        // The target's text before typing, to tell whether the text arrived.
-        let before = match target.as_ref() {
-            Some(node) => read_field(&node.object_ref)
-                .await
-                .and_then(|(_, text)| text),
+        // The text before typing, to tell whether the text arrived: the
+        // target's, else that of the element focused in the snapshot the
+        // agent last saw.
+        let before_ref = match target.as_ref() {
+            Some(node) => Some(node.object_ref.clone()),
+            None => self.last_snapshot.lock().ok().and_then(|cached| {
+                crate::page_view::focused_element(&cached.nodes).map(|node| node.object_ref.clone())
+            }),
+        };
+        let before_text = match before_ref.as_deref() {
+            Some(object_ref) => read_field(object_ref).await.and_then(|(_, text)| text),
             None => None,
         };
+        let before = before_ref
+            .zip(before_text.clone())
+            .map(|(object_ref, text)| TextBefore { object_ref, text });
         let text = params.text.clone();
         let (input_guard, result) = run_cancellation_safe_input(input_guard, async move {
             enter_text(&text, paste_chord).await.map(|()| Vec::new())
@@ -2283,7 +2293,7 @@ impl ComputerUseLinux {
         if !output.ok {
             return (Json(output), None);
         }
-        let mut unverified = None;
+        let mut note = None;
         output.message = if crate::fields::typeable_ascii(&params.text) {
             "Sent through xdotool (X11 XTEST).".to_string()
         } else {
@@ -2297,7 +2307,7 @@ impl ComputerUseLinux {
                 .and_then(|(_, text)| text);
             let shown = crate::fields::shown_text(read_back.as_deref());
             let holds = crate::outline::truncate(&shown, 200);
-            match typed_delivery(before.as_deref(), read_back.as_deref(), &params.text) {
+            match typed_delivery(before_text.as_deref(), read_back.as_deref(), &params.text) {
                 Delivery::Arrived => {
                     output
                         .message
@@ -2317,24 +2327,29 @@ impl ComputerUseLinux {
                     );
                 }
                 Delivery::Unverified if read_back.is_none() => {
-                    unverified = Some(format!(
+                    note = Some(format!(
                         " Dispatched; delivery not verified: {label} exposes no text to read back."
                     ));
                 }
                 Delivery::Unverified => {
-                    unverified = Some(format!(
+                    note = Some(format!(
                         " Dispatched; delivery not verified: Enter may have submitted {label}, which now holds \"{holds}\"."
                     ));
                 }
             }
         } else {
-            unverified =
+            note =
                 Some(" Dispatched; delivery not verified (no element was targeted).".to_string());
             if focus.is_some() {
                 let notes = self.input_landing_notes(focus.as_ref(), true).await;
                 output = with_notes(output, notes);
             }
         }
+        let unverified = note.map(|note| UnverifiedTyping {
+            text: params.text,
+            note,
+            before,
+        });
         (Json(output), unverified)
     }
 }
@@ -4211,7 +4226,13 @@ impl ComputerUseLinux {
             ),
             None => {
                 let owner = match hint_ref {
-                    Some(object_ref) => object_ref_owner_pid(object_ref).await.ok().flatten(),
+                    Some(object_ref) => {
+                        tokio::time::timeout(FEEDBACK_READ_LIMIT, object_ref_owner_pid(object_ref))
+                            .await
+                            .ok()
+                            .and_then(Result::ok)
+                            .flatten()
+                    }
                     None => None,
                 };
                 let pid = match owner {
@@ -4249,10 +4270,10 @@ impl ComputerUseLinux {
 
     /// Reads the observed page again after an action. With a browser scope
     /// (browser UI not shown) and a visible web document in `base`, the
-    /// latest read of that scope, only the document's subtree and the
-    /// window frame and address bar are read (`read_document`); otherwise,
-    /// or when that read does not look like the same page, the whole scope
-    /// (`rescan`).
+    /// latest read of that scope, only the document's subtree, the tab
+    /// strip, and the window frame and address bar are read
+    /// (`read_document`); otherwise, or when that read does not look like
+    /// the same page, the whole scope (`rescan`).
     async fn read_page(
         &self,
         base: &[AccessibilityNode],
@@ -4271,13 +4292,15 @@ impl ComputerUseLinux {
         self.rescan(hint_ref).await
     }
 
-    /// The document-only read of `read_page`: the visible document of
-    /// `base` with its subtree, and its frame and address bar on their own,
-    /// all at once, spliced into `base` (`page_view::splice_document`).
-    /// `None` when `base` has no visible document, a read fails or misses
-    /// `DOCUMENT_READ_LIMIT`, or the document is no longer the showing page
-    /// of its window (another role or id, not showing, or a window title
-    /// without the document's name): navigation and tab switches need the
+    /// The partial read of `read_page`: the visible document of `base` with
+    /// its subtree, the element holding the browser tabs with its subtree
+    /// (`read_tab_strip`), and the frame and address bar on their own, all
+    /// at once, spliced into `base` (`page_view::splice_document`). `None`
+    /// when `base` has no visible document, a read fails or misses
+    /// `DOCUMENT_READ_LIMIT`, the document is no longer the showing page of
+    /// its window (another role or id, not showing, or a window title
+    /// without the document's name), or no fresh part holds focus:
+    /// navigation, tab switches and focus in other browser UI need the
     /// whole scope.
     async fn read_document(
         &self,
@@ -4293,6 +4316,11 @@ impl ComputerUseLinux {
             .flatten()
             .filter_map(|id| Some((id, element(id)?.object_ref.clone())))
             .collect();
+        let tabs: Vec<&AccessibilityNode> = parts
+            .tabs
+            .iter()
+            .map(|&id| element(id))
+            .collect::<Option<_>>()?;
         let subtree = crate::atspi_tree::snapshot_subtree(
             &document.object_ref,
             document.depth,
@@ -4305,16 +4333,20 @@ impl ComputerUseLinux {
                 fresh.index = *id;
                 Some(fresh)
             }));
-        let (subtree, singles) = tokio::time::timeout(DOCUMENT_READ_LIMIT, async {
-            tokio::join!(subtree, singles)
+        let tab_strip = read_tab_strip(&tabs, scope.max_depth);
+        let (subtree, singles, tab_strip) = tokio::time::timeout(DOCUMENT_READ_LIMIT, async {
+            tokio::join!(subtree, singles, tab_strip)
         })
         .await
         .ok()?;
         let raw = subtree.ok()?;
         let refreshed: Vec<AccessibilityNode> = singles.into_iter().collect::<Option<_>>()?;
-        let read = raw.len() + refreshed.len();
+        let raw_strip = tab_strip?;
+        let read = raw.len() + refreshed.len() + raw_strip.len();
         let mut fresh = compact_accessibility_tree(raw);
         self.assign_ids(&mut fresh);
+        let mut strip = compact_accessibility_tree(raw_strip);
+        self.assign_ids(&mut strip);
         let root = fresh.first()?;
         let same_page = root.index == parts.document
             && root.role.eq_ignore_ascii_case("document web")
@@ -4333,7 +4365,15 @@ impl ComputerUseLinux {
         if !same_page || !titled {
             return None;
         }
-        let nodes = crate::page_view::splice_document(base, parts.document, fresh, &refreshed)?;
+        let nodes = crate::page_view::splice_document(
+            base,
+            &parts,
+            crate::page_view::FreshParts {
+                document: fresh,
+                tab_strip: strip,
+                singles: refreshed,
+            },
+        )?;
         Some(Rescan {
             nodes,
             root_pid,
@@ -4403,7 +4443,11 @@ impl ComputerUseLinux {
         }
         let mut message = output.message;
         if let Some(typed) = &echo.typed {
-            match typed_text_evidence(&typed.text, target_text.as_deref(), &report) {
+            let before = typed.before.as_ref().and_then(|before| {
+                let id = self.element_ids.lock().ok()?.id_for(&before.object_ref);
+                Some((id, before.text.as_str()))
+            });
+            match typed_text_evidence(&typed.text, before, target_text.as_deref(), &report) {
                 Some(evidence) => message.push_str(&format!(" Delivered: {evidence}.")),
                 None => message.push_str(&typed.note),
             }
@@ -4494,11 +4538,14 @@ impl ComputerUseLinux {
     /// again now, even off-screen, with a rich-text editor's whole text
     /// (`read_field`), placed against the cached snapshot (`(below)` when
     /// outside the visible page: `page_view::placed_line`); or, when it
-    /// cannot be read, that `label` is gone. Also the text it holds now.
+    /// cannot be read, that `label` is gone, or when the app does not answer
+    /// within `FEEDBACK_READ_LIMIT`, that its state is unavailable. Also the
+    /// text it holds now.
     async fn target_line(&self, object_ref: &str, label: &str) -> (String, Option<String>) {
-        let fresh = read_field(object_ref)
-            .await
-            .filter(|(node, _)| !crate::fields::has_state(node, "defunct"));
+        let Ok(fresh) = answered_field_read(object_ref).await else {
+            return (unanswered_target_line(label), None);
+        };
+        let fresh = fresh.filter(|(node, _)| !crate::fields::has_state(node, "defunct"));
         let Some((mut node, text)) = fresh else {
             let gone = format!("{label} is gone (removed, or re-rendered under a new id)");
             return (gone, None);
@@ -4538,8 +4585,9 @@ impl ComputerUseLinux {
     /// scope agree and nothing looks busy (`page_view::busy_reason`), or the
     /// limit passed: `SETTLE_LIMIT`, or `BUSY_SETTLE_LIMIT` once the page
     /// looked busy, which the report then says. An action that changed
-    /// nothing therefore takes two reads. Each read is `read_page`: only the
-    /// web document in a browser. `targets` (object refs of the elements
+    /// nothing therefore takes two reads. Each read is `read_page`: in a
+    /// browser only the web document, tab strip, title and address bar, with
+    /// focus taken from them alone. `targets` (object refs of the elements
     /// acted on) lead a report cut for length. Logs the reads and time to
     /// stderr.
     async fn observe_changes(&self, targets: &[String]) -> String {
@@ -5012,6 +5060,16 @@ struct Echo {
 struct UnverifiedTyping {
     text: String,
     note: String,
+    /// What the element the text was meant for held before typing, when
+    /// it could be read: text it already held proves nothing.
+    before: Option<TextBefore>,
+}
+
+/// The text an element held before type_text typed into it.
+#[derive(Debug)]
+struct TextBefore {
+    object_ref: String,
+    text: String,
 }
 
 /// What `set_value` did to one field.
@@ -5654,9 +5712,12 @@ impl ComputerUseLinux {
                 .as_ref()
                 .zip(crate::page_view::visible_area(&last.nodes, target.index));
             if attempt == 0
-                && crate::atspi_tree::scroll_into_view(&target.object_ref)
-                    .await
-                    .is_ok()
+                && tokio::time::timeout(
+                    FEEDBACK_READ_LIMIT,
+                    crate::atspi_tree::scroll_into_view(&target.object_ref),
+                )
+                .await
+                .is_ok_and(|scrolled| scrolled.is_ok())
             {
                 eprintln!("scroll until: ScrollTo [{}]", target.index);
             } else if let Some(direction) =
@@ -6202,35 +6263,124 @@ async fn poll_element(
     }
 }
 
+/// Most elements a settle read takes from the browser's tab strip.
+const TAB_STRIP_MAX_NODES: usize = 200;
+
+/// The element holding the browser tabs `tabs` (their AT-SPI parent) and
+/// its subtree, raw. Empty without tabs; `None` when a read fails or the
+/// tabs do not share one parent.
+async fn read_tab_strip(
+    tabs: &[&AccessibilityNode],
+    max_depth: u32,
+) -> Option<Vec<AccessibilityNode>> {
+    let Some(first) = tabs.first() else {
+        return Some(Vec::new());
+    };
+    let parents = futures_util::future::join_all(
+        tabs.iter()
+            .map(|tab| crate::atspi_tree::parent_ref(&tab.object_ref)),
+    )
+    .await;
+    let mut parents = parents.into_iter();
+    let strip = parents.next()?.ok()?;
+    if !parents.all(|parent| parent.is_ok_and(|parent| parent == strip)) {
+        return None;
+    }
+    crate::atspi_tree::snapshot_subtree(
+        &strip,
+        first.depth.saturating_sub(1),
+        TAB_STRIP_MAX_NODES,
+        max_depth,
+    )
+    .await
+    .ok()
+}
+
 /// Most descendants of a rich-text editor read to expand its text.
 const FIELD_SUBTREE_MAX_NODES: usize = 400;
 /// Deepest descendant level of an editor read to expand its text.
 const FIELD_SUBTREE_MAX_DEPTH: u32 = 12;
 
+/// Longest a read-back around an action may take: a field read
+/// (`read_field`, its subtree expansion included), or one AT-SPI call the
+/// settle and scroll reads make outside a snapshot's own deadline. The
+/// AT-SPI connection sets no D-Bus method timeout, so an app that stops
+/// answering after input would otherwise hold the tool forever.
+const FEEDBACK_READ_LIMIT: Duration = Duration::from_millis(1_500);
+
+/// A read the app did not answer within its limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct NoAnswer;
+
+/// A field and the text it holds, as `read_field` returns them.
+type FieldRead = (AccessibilityNode, Option<String>);
+
 /// Rereads a field and the text it holds (`fields::field_text`). An editor
 /// whose text has U+FFFC for embedded paragraphs (a Chromium
 /// contenteditable) is read with its descendants and expanded
-/// (`fields::expanded_text`). `None` when the field cannot be read.
-async fn read_field(object_ref: &str) -> Option<(AccessibilityNode, Option<String>)> {
-    let fresh = crate::atspi_tree::read_element(object_ref).await.ok()?;
+/// (`fields::expanded_text`). `None` when the field cannot be read or does
+/// not answer within `FEEDBACK_READ_LIMIT` (`answered_field_read` tells the two
+/// apart).
+async fn read_field(object_ref: &str) -> Option<FieldRead> {
+    answered_field_read(object_ref).await.ok().flatten()
+}
+
+/// `read_field`, with `Err(NoAnswer)` when the element read gets no answer
+/// within `FEEDBACK_READ_LIMIT`, and `Ok(None)` when the element is gone.
+async fn answered_field_read(object_ref: &str) -> Result<Option<FieldRead>, NoAnswer> {
+    read_field_within(
+        object_ref,
+        FEEDBACK_READ_LIMIT,
+        |object_ref| async move { crate::atspi_tree::read_element(&object_ref).await },
+        |object_ref| async move {
+            crate::atspi_tree::read_subtree(
+                &object_ref,
+                FIELD_SUBTREE_MAX_NODES,
+                FIELD_SUBTREE_MAX_DEPTH,
+            )
+            .await
+        },
+    )
+    .await
+}
+
+/// `answered_field_read` over the given element and subtree reads, all
+/// within `limit`: an element read past it is `NoAnswer`; a subtree
+/// expansion past it leaves the text unexpanded.
+async fn read_field_within<Element, ElementRead, Subtree, SubtreeRead>(
+    object_ref: &str,
+    limit: Duration,
+    read_element: Element,
+    read_subtree: Subtree,
+) -> Result<Option<FieldRead>, NoAnswer>
+where
+    Element: FnOnce(String) -> ElementRead,
+    ElementRead: std::future::Future<Output = anyhow::Result<AccessibilityNode>>,
+    Subtree: FnOnce(String) -> SubtreeRead,
+    SubtreeRead: std::future::Future<Output = anyhow::Result<Vec<AccessibilityNode>>>,
+{
+    let deadline = tokio::time::Instant::now() + limit;
+    let fresh = match tokio::time::timeout_at(deadline, read_element(object_ref.to_string())).await
+    {
+        Err(_) => return Err(NoAnswer),
+        Ok(Err(_)) => return Ok(None),
+        Ok(Ok(fresh)) => fresh,
+    };
     let text = crate::fields::field_text(&fresh);
     if text
         .as_deref()
         .is_some_and(|text| text.contains(crate::fields::EMBEDDED_OBJECT))
     {
-        let expanded = crate::atspi_tree::read_subtree(
-            object_ref,
-            FIELD_SUBTREE_MAX_NODES,
-            FIELD_SUBTREE_MAX_DEPTH,
-        )
-        .await
-        .ok()
-        .and_then(|nodes| crate::fields::expanded_text(&nodes));
+        let expanded = tokio::time::timeout_at(deadline, read_subtree(object_ref.to_string()))
+            .await
+            .ok()
+            .and_then(|nodes| nodes.ok())
+            .and_then(|nodes| crate::fields::expanded_text(&nodes));
         if expanded.is_some() {
-            return Some((fresh, expanded));
+            return Ok(Some((fresh, expanded)));
         }
     }
-    Some((fresh, text))
+    Ok(Some((fresh, text)))
 }
 
 /// Rereads a field's text (`read_field`) until `done` holds or `limit`
@@ -7312,41 +7462,89 @@ fn typed_delivery(before: Option<&str>, after: Option<&str>, text: &str) -> Deli
 }
 
 /// Where the settled page shows text type_text sent when its own read-back
-/// could not tell: the target's text now (`target_text`), else the value on
-/// the focus line or a `+`/`~` line of the change report `report`. Matched
-/// by the typed text's longest line, whitespace collapsed; against report
-/// lines by its first 40 characters (lines cut long text), and only from 3
-/// characters on, since shorter text matches too much. `None` without such
-/// evidence, or when only Enter was sent.
+/// could not tell, in a way only this input explains. `before` is the id and
+/// text of the element the text was meant for, read before typing (the
+/// target, else the element focused then); text it already held proves
+/// nothing. Every non-empty line of the typed text, whitespace collapsed,
+/// must occur more often than in `before`: in the target's text now
+/// (`target_text`), or in the value on the focus line of the change report
+/// `report` when that line is the same element. Else every line of 3
+/// characters or more (shorter text matches too much), when `before` lacked
+/// it, must show on a `+`/`~` line of `report`. Report lines cut long text,
+/// so they are matched by each line's first 40 characters. `None` without
+/// such evidence, or when only Enter was sent.
 fn typed_text_evidence(
     typed: &str,
+    before: Option<(u32, &str)>,
     target_text: Option<&str>,
     report: &str,
 ) -> Option<&'static str> {
-    let longest = typed
+    let lines: Vec<String> = typed
         .lines()
         .filter_map(|line| crate::outline::clean(Some(line)))
-        .max_by_key(|line| line.chars().count())?;
-    let holds =
-        |text: &str| crate::outline::clean(Some(text)).is_some_and(|text| text.contains(&longest));
-    if target_text.is_some_and(holds) {
-        return Some("the target now holds it");
+        .collect();
+    if lines.is_empty() {
+        return None;
     }
+    let prefix = |line: &str| line.chars().take(40).collect::<String>();
     // Outline lines print double quotes as single ones.
-    let needle: String = longest.replace('"', "'").chars().take(40).collect();
-    let focused = report
-        .lines()
-        .filter_map(|line| line.strip_prefix("focus: "))
-        .filter_map(|line| line.split_once(" value=\""))
-        .any(|(_, value)| value.contains(&needle));
-    if focused {
-        return Some("the focused element now holds it");
+    let shown = |line: &str| prefix(&line.replace('"', "'"));
+    let count = |text: &str, needle: &str| text.matches(needle).count();
+    let before = before.map(|(id, text)| {
+        let text = crate::outline::clean(Some(text)).unwrap_or_default();
+        (id, text)
+    });
+    if let Some((id, before)) = &before {
+        let target = crate::outline::clean(target_text).unwrap_or_default();
+        if lines
+            .iter()
+            .all(|line| count(&target, line) > count(before, line))
+        {
+            return Some("the target now holds it");
+        }
+        let element = format!("[{id}] ");
+        let focused = report
+            .lines()
+            .filter_map(|line| line.strip_prefix("focus: "))
+            .filter(|line| line.starts_with(&element))
+            .filter_map(|line| line.split_once(" value=\""))
+            .any(|(_, value)| {
+                lines
+                    .iter()
+                    .all(|line| count(value, &shown(line)) > count(before, &prefix(line)))
+            });
+        if focused {
+            return Some("the focused element now holds it");
+        }
     }
-    let changed = needle.chars().count() >= 3
-        && report.lines().any(|line| {
-            (line.starts_with("+ ") || line.starts_with("~ ")) && line.contains(&needle)
-        });
+    let held_before = |line: &str| {
+        before
+            .as_ref()
+            .is_some_and(|(_, before)| before.contains(&prefix(line)))
+    };
+    let mut long = lines
+        .iter()
+        .filter(|line| line.chars().count() >= 3)
+        .peekable();
+    long.peek()?;
+    let changed = long.all(|line| {
+        let needle = shown(line);
+        !held_before(line)
+            && report.lines().any(|report_line| {
+                (report_line.starts_with("+ ") || report_line.starts_with("~ "))
+                    && report_line.contains(&needle)
+            })
+    });
     changed.then_some("the change report shows it")
+}
+
+/// The `target:` line of an element whose app did not answer the read-back
+/// within `FEEDBACK_READ_LIMIT`: the action may still have worked.
+fn unanswered_target_line(label: &str) -> String {
+    format!(
+        "{label} (state unavailable: no answer within {:.1} s)",
+        FEEDBACK_READ_LIMIT.as_secs_f64()
+    )
 }
 
 /// A type_text refusal for a window target and an element of another app.
@@ -10894,6 +11092,56 @@ mod node_target_scope_tests {
         );
     }
 
+    #[tokio::test]
+    async fn field_read_back_gives_up_when_the_app_stops_answering() {
+        let limit = Duration::from_millis(50);
+        let mut editor = cached_node(4, ":1.9/org/a11y/atspi/accessible/4");
+        editor.role = "entry".to_string();
+        editor.text = Some(crate::atspi_tree::AccessibilityText {
+            character_count: 3,
+            caret_offset: None,
+            content: Some(format!("a{}b", crate::fields::EMBEDDED_OBJECT)),
+            truncated: false,
+            selections: Vec::new(),
+        });
+        let started = std::time::Instant::now();
+        // The element read never answers: no answer, not "gone".
+        let silent = read_field_within(
+            "obj",
+            limit,
+            |_| std::future::pending::<anyhow::Result<AccessibilityNode>>(),
+            |_| std::future::pending::<anyhow::Result<Vec<AccessibilityNode>>>(),
+        )
+        .await;
+        assert_eq!(silent.map(|read| read.is_some()), Err(NoAnswer));
+        // The editor answers but its subtree expansion does not: the read
+        // still returns, with the unexpanded text.
+        let answered = editor.clone();
+        let partial = read_field_within(
+            "obj",
+            limit,
+            |_| async move { anyhow::Ok(answered) },
+            |_| std::future::pending::<anyhow::Result<Vec<AccessibilityNode>>>(),
+        )
+        .await;
+        let text = partial.ok().flatten().and_then(|(_, text)| text);
+        assert_eq!(text, Some(format!("a{}b", crate::fields::EMBEDDED_OBJECT)));
+        // A failed read is a gone element.
+        let gone = read_field_within(
+            "obj",
+            limit,
+            |_| async { Err::<AccessibilityNode, _>(anyhow::anyhow!("no longer exists")) },
+            |_| std::future::pending::<anyhow::Result<Vec<AccessibilityNode>>>(),
+        )
+        .await;
+        assert_eq!(gone.map(|read| read.is_some()), Ok(false));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert_eq!(
+            unanswered_target_line("[4] entry \"Corpo\""),
+            "[4] entry \"Corpo\" (state unavailable: no answer within 1.5 s)"
+        );
+    }
+
     #[test]
     fn typed_text_counts_as_delivered_when_the_settled_page_shows_it() {
         // A recipient field cleared by Enter: the chip is the evidence.
@@ -10902,17 +11150,38 @@ mod node_target_scope_tests {
                       ~ [12] combo box \"Para\" @10,40 600x24 {focused,editable}\n\
                       focus: [12] combo box \"Para\" value=\"\"\n";
         assert_eq!(
-            typed_text_evidence("ana.souza@example.com\n", Some(""), report),
+            typed_text_evidence("ana.souza@example.com\n", Some((12, "")), Some(""), report),
             Some("the change report shows it")
         );
         // No element targeted: the focused editor holds the text.
         let report = "changes: none\nfocus: [88] entry \"Corpo\" value=\"Olá Ana,\\nSegue o \'contrato\'\"\n";
         assert_eq!(
-            typed_text_evidence("Segue o \"contrato\"", None, report),
+            typed_text_evidence(
+                "Segue o \"contrato\"",
+                Some((88, "Olá Ana,\n")),
+                None,
+                report
+            ),
             Some("the focused element now holds it")
         );
+        // ...but not when focus is on another element than the one read
+        // before typing.
         assert_eq!(
-            typed_text_evidence("oi", Some("  oi  "), "changes: none\n"),
+            typed_text_evidence("Segue o \"contrato\"", Some((5, "")), None, report),
+            None
+        );
+        assert_eq!(
+            typed_text_evidence("oi", Some((3, "")), Some("  oi  "), "changes: none\n"),
+            Some("the target now holds it")
+        );
+        // Typed again after text already there: the count grew.
+        assert_eq!(
+            typed_text_evidence(
+                "existing draft",
+                Some((3, "existing draft")),
+                Some("existing draftexisting draft"),
+                "changes: none\n"
+            ),
             Some("the target now holds it")
         );
         // No sign of the text: still unverified. Short text never matches a
@@ -10920,18 +11189,74 @@ mod node_target_scope_tests {
         assert_eq!(
             typed_text_evidence(
                 "ana@x.com",
+                Some((5, "")),
                 Some(""),
                 "changes: none\nfocus: [5] entry \"Busca\" value=\"\"\n"
             ),
             None
         );
         assert_eq!(
-            typed_text_evidence("a", None, "changes (1):\n+ [7] heading \"Ana\"\n"),
+            typed_text_evidence("a", None, None, "changes (1):\n+ [7] heading \"Ana\"\n"),
             None
         );
         assert_eq!(
-            typed_text_evidence("\n", None, "changes (1):\n+ [7] x\n"),
+            typed_text_evidence("\n", None, None, "changes (1):\n+ [7] x\n"),
             None
+        );
+    }
+
+    #[test]
+    fn text_already_in_the_field_does_not_prove_delivery() {
+        // The editor held the text before: typing that went elsewhere
+        // leaves it as it was.
+        let report = "changes: none\nfocus: [9] entry \"Corpo\" value=\"existing draft\"\n";
+        assert_eq!(
+            typed_text_evidence(
+                "existing draft",
+                Some((9, "existing draft")),
+                Some("existing draft"),
+                report
+            ),
+            None
+        );
+        // Nor does a change line about that editor showing its old text.
+        let report =
+            "changes (1):\n~ [9] entry \"Corpo\" {focused,editable} value=\"existing draft\"\n";
+        assert_eq!(
+            typed_text_evidence(
+                "existing draft",
+                Some((9, "existing draft")),
+                Some("existing draft"),
+                report
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn every_typed_line_must_show_for_delivery() {
+        // Only the longest line arrived; "Abraço" is missing.
+        let typed = "Segue o contrato em anexo\nAbraço";
+        let report = "changes (1):\n~ [9] entry \"Corpo\" value=\"Segue o contrato em anexo\"\n\
+                      focus: [9] entry \"Corpo\" value=\"Segue o contrato em anexo\"\n";
+        assert_eq!(
+            typed_text_evidence(
+                typed,
+                Some((9, "")),
+                Some("Segue o contrato em anexo"),
+                report
+            ),
+            None
+        );
+        // Both lines arrived.
+        assert_eq!(
+            typed_text_evidence(
+                typed,
+                Some((9, "")),
+                Some("Segue o contrato em anexo\nAbraço"),
+                "changes: none\n"
+            ),
+            Some("the target now holds it")
         );
     }
 
