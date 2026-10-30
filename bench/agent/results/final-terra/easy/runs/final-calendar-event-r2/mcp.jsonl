@@ -1,0 +1,13 @@
+{"t": 1793331744.718773, "method": "initialize", "tool": null, "args": null, "ms": 25.9, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793331744.7219176, "method": "tools/list", "tool": null, "args": null, "ms": 2.6, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793331753.5011113, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 235.9, "bytes": 5589, "images": 0, "is_error": false}
+{"t": 1793331755.2235892, "method": "tools/call", "tool": "click", "args": {"element_index": 51}, "ms": 220.8, "bytes": 2230, "images": 0, "is_error": false}
+{"t": 1793331758.2021794, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "name": "18 de novembro"}, "ms": 119.5, "bytes": 467, "images": 0, "is_error": false}
+{"t": 1793331760.1110458, "method": "tools/call", "tool": "click", "args": {"element_index": 287}, "ms": 331.0, "bytes": 457, "images": 0, "is_error": false}
+{"t": 1793331762.370765, "method": "tools/call", "tool": "click", "args": {"element_index": 57}, "ms": 526.0, "bytes": 1121, "images": 0, "is_error": false}
+{"t": 1793331766.393589, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 342, "value": "Dentista"}, {"element_index": 348, "value": "14:30"}, {"element_index": 351, "value": "15:30"}]}, "ms": 1398.8, "bytes": 954, "images": 0, "is_error": false}
+{"t": 1793331768.4092994, "method": "tools/call", "tool": "click", "args": {"element_index": 345}, "ms": 257.6, "bytes": 3377, "images": 0, "is_error": false}
+{"t": 1793331770.6639428, "method": "tools/call", "tool": "click", "args": {"element_index": 552}, "ms": 258.0, "bytes": 2842, "images": 0, "is_error": false}
+{"t": 1793331772.3498445, "method": "tools/call", "tool": "click", "args": {"element_index": 605}, "ms": 238.8, "bytes": 517, "images": 0, "is_error": false}
+{"t": 1793331773.9796846, "method": "tools/call", "tool": "click", "args": {"element_index": 353}, "ms": 229.7, "bytes": 2116, "images": 0, "is_error": false}
+{"t": 1793331776.493251, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Dentista"}, "ms": 107.1, "bytes": 546, "images": 0, "is_error": false}

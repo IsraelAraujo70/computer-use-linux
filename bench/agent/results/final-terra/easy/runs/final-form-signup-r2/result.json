@@ -1,0 +1,42 @@
+{
+ "run_id": "final-form-signup-r2",
+ "variant": "final",
+ "task": "form-signup",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.11,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 2124.8,
+ "mcp_bytes_total": 3603,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 131696,
+  "cached": 107648,
+  "output": 239
+ },
+ "final": "Created Joana Ribeiro’s account with the Pro plan.",
+ "state": {
+  "submitted": {
+   "name": "Joana Ribeiro",
+   "email": "joana.ribeiro@example.com",
+   "phone": "(31) 98765-4321",
+   "state": "Minas Gerais",
+   "plan": "Pro",
+   "terms": true
+  }
+ }
+}

@@ -1,0 +1,8 @@
+{"t": 1793331086.7130506, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793331086.7148693, "method": "tools/list", "tool": null, "args": null, "ms": 1.4, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793331094.296379, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 206.4, "bytes": 1397, "images": 0, "is_error": false}
+{"t": 1793331096.3827314, "method": "tools/call", "tool": "click", "args": {"element_index": 49}, "ms": 280.1, "bytes": 683, "images": 0, "is_error": false}
+{"t": 1793331097.8449478, "method": "tools/call", "tool": "click", "args": {"element_index": 121}, "ms": 287.7, "bytes": 1542, "images": 0, "is_error": false}
+{"t": 1793331100.20183, "method": "tools/call", "tool": "click", "args": {"element_index": 128}, "ms": 183.7, "bytes": 1299, "images": 0, "is_error": false}
+{"t": 1793331102.4360163, "method": "tools/call", "tool": "fill_form", "args": {"fields": [{"element_index": 148, "value": "Semanal"}, {"element_index": 153, "value": "true"}]}, "ms": 463.9, "bytes": 792, "images": 0, "is_error": false}
+{"t": 1793331103.9256148, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 175.5, "bytes": 488, "images": 0, "is_error": false}

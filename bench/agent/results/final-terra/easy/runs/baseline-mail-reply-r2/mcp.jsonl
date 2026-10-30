@@ -1,0 +1,12 @@
+{"t": 1793331534.6054513, "method": "initialize", "tool": null, "args": null, "ms": 25.3, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331534.6099007, "method": "tools/list", "tool": null, "args": null, "ms": 4.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331542.999657, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 871.3, "bytes": 521724, "images": 1, "is_error": false}
+{"t": 1793331545.3162024, "method": "tools/call", "tool": "click", "args": {"element_index": 118}, "ms": 25.3, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793331547.710005, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 607.4, "bytes": 222519, "images": 1, "is_error": false}
+{"t": 1793331549.0095115, "method": "tools/call", "tool": "click", "args": {"element_index": 92}, "ms": 24.5, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793331551.0659702, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 609.7, "bytes": 234471, "images": 1, "is_error": false}
+{"t": 1793331553.6809099, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "Recebido, obrigado."}, "ms": 24.8, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793331557.6886003, "method": "tools/call", "tool": "type_text", "args": {"text": "Recebido, obrigado."}, "ms": 405.4, "bytes": 877, "images": 0, "is_error": false}
+{"t": 1793331559.9690316, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 619.1, "bytes": 220928, "images": 1, "is_error": false}
+{"t": 1793331561.5618465, "method": "tools/call", "tool": "click", "args": {"element_index": 100}, "ms": 25.0, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793331563.8338792, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 761.9, "bytes": 508153, "images": 1, "is_error": false}

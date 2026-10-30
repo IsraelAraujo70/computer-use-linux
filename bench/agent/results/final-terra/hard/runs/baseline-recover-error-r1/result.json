@@ -1,0 +1,51 @@
+{
+ "run_id": "baseline-recover-error-r1",
+ "variant": "baseline",
+ "task": "recover-error",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 51.93,
+ "agent_tool_calls": 15,
+ "agent_tool_errors": 0,
+ "mcp_calls": 15,
+ "mcp_ms_total": 19100.9,
+ "mcp_bytes_total": 226352,
+ "screenshots": 1,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "press_key",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "wait_for",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "wait_for"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 549761,
+  "cached": 503296,
+  "output": 757
+ },
+ "final": "Não consegui confirmar que o telefone foi salvo: após recarregar a página, o número anterior reapareceu.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

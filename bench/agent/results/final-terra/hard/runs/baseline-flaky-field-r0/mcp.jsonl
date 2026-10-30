@@ -1,0 +1,28 @@
+{"t": 1793332469.0481055, "method": "initialize", "tool": null, "args": null, "ms": 23.4, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793332469.0516527, "method": "tools/list", "tool": null, "args": null, "ms": 3.1, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793332482.0247355, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 668.4, "bytes": 174044, "images": 1, "is_error": false}
+{"t": 1793332485.4546793, "method": "tools/call", "tool": "set_value", "args": {"element_index": 102, "value": "MARIA S OLIVEIRA"}, "ms": 24.9, "bytes": 665, "images": 0, "is_error": false}
+{"t": 1793332485.4802454, "method": "tools/call", "tool": "set_value", "args": {"element_index": 104, "value": "4111 1111 1111 1111"}, "ms": 23.9, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793332485.5046854, "method": "tools/call", "tool": "set_value", "args": {"element_index": 106, "value": "12/28"}, "ms": 23.2, "bytes": 643, "images": 0, "is_error": false}
+{"t": 1793332485.5287607, "method": "tools/call", "tool": "set_value", "args": {"element_index": 108, "value": "123"}, "ms": 22.8, "bytes": 639, "images": 0, "is_error": false}
+{"t": 1793332489.708322, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 420}, "ms": 208.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793332490.0983734, "method": "tools/call", "tool": "type_text", "args": {"text": "MARIA S OLIVEIRA"}, "ms": 388.2, "bytes": 871, "images": 0, "is_error": false}
+{"t": 1793332490.3044212, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 500}, "ms": 204.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793332490.7072444, "method": "tools/call", "tool": "type_text", "args": {"text": "4111 1111 1111 1111"}, "ms": 401.1, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793332490.911091, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 590}, "ms": 202.2, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793332491.2191339, "method": "tools/call", "tool": "type_text", "args": {"text": "12/28"}, "ms": 306.4, "bytes": 850, "images": 0, "is_error": false}
+{"t": 1793332491.4282436, "method": "tools/call", "tool": "click", "args": {"x": 900, "y": 590}, "ms": 207.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793332491.7296133, "method": "tools/call", "tool": "type_text", "args": {"text": "123"}, "ms": 299.8, "bytes": 846, "images": 0, "is_error": false}
+{"t": 1793332494.3674157, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 616.6, "bytes": 177191, "images": 1, "is_error": false}
+{"t": 1793332500.9125178, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 420}, "ms": 208.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793332501.135624, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 221.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793332501.5444145, "method": "tools/call", "tool": "type_text", "args": {"text": "MARIA S OLIVEIRA"}, "ms": 407.2, "bytes": 872, "images": 0, "is_error": false}
+{"t": 1793332501.7482338, "method": "tools/call", "tool": "press_key", "args": {"key": "Tab"}, "ms": 202.5, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793332502.1709483, "method": "tools/call", "tool": "type_text", "args": {"text": "4111 1111 1111 1111"}, "ms": 420.1, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793332502.5986233, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 425.7, "bytes": 15049, "images": 0, "is_error": false}
+{"t": 1793332504.8421385, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 23.8, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793332505.48982, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 645.1, "bytes": 199522, "images": 1, "is_error": false}
+{"t": 1793332509.5844522, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 500}, "ms": 205.7, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793332509.9612687, "method": "tools/call", "tool": "type_text", "args": {"text": "4111111111111111"}, "ms": 375.3, "bytes": 872, "images": 0, "is_error": false}
+{"t": 1793332510.1617002, "method": "tools/call", "tool": "click", "args": {"x": 530, "y": 665}, "ms": 198.9, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793332510.8320987, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 668.6, "bytes": 200006, "images": 1, "is_error": false}

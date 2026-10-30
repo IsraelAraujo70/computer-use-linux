@@ -1,0 +1,46 @@
+{
+ "run_id": "baseline-multi-tab-r0",
+ "variant": "baseline",
+ "task": "multi-tab",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 36.15,
+ "agent_tool_calls": 12,
+ "agent_tool_errors": 0,
+ "mcp_calls": 12,
+ "mcp_ms_total": 3979.0,
+ "mcp_bytes_total": 461020,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "set_value",
+  "get_app_state",
+  "set_value",
+  "click",
+  "type_text",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 531777,
+  "cached": 484224,
+  "output": 589
+ },
+ "final": "Agendei o pagamento do boleto do Condomínio Solar.",
+ "state": {
+  "paid": {
+   "code": "34191.79001 01043.510047 91020.150008 1 96610000012345"
+  }
+ }
+}

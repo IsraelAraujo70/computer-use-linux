@@ -1,0 +1,39 @@
+{
+ "run_id": "final-multi-tab-r1",
+ "variant": "final",
+ "task": "multi-tab",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 17.06,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2025.7,
+ "mcp_bytes_total": 5243,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "click",
+  "set_value",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 191207,
+  "cached": 164992,
+  "output": 244
+ },
+ "final": "O pagamento do boleto foi agendado.",
+ "state": {
+  "paid": {
+   "code": "34191.79001 01043.510047 91020.150008 1 96610000012345"
+  }
+ }
+}

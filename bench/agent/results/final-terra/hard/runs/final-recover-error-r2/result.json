@@ -1,0 +1,46 @@
+{
+ "run_id": "final-recover-error-r2",
+ "variant": "final",
+ "task": "recover-error",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 27.93,
+ "agent_tool_calls": 10,
+ "agent_tool_errors": 0,
+ "mcp_calls": 10,
+ "mcp_ms_total": 5320.0,
+ "mcp_bytes_total": 7418,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "get_app_state",
+  "press_key",
+  "set_value",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 309908,
+  "cached": 282368,
+  "output": 516
+ },
+ "final": "Não consegui confirmar o salvamento: após atualizar a página, o telefone anterior voltou a aparecer.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

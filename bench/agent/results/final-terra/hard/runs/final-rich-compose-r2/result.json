@@ -1,0 +1,44 @@
+{
+ "run_id": "final-rich-compose-r2",
+ "variant": "final",
+ "task": "rich-compose",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 23.22,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 3766.4,
+ "mcp_bytes_total": 5019,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "type_text",
+  "press_key",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 222263,
+  "cached": 197120,
+  "output": 294
+ },
+ "final": "E-mail enviado para ana.souza@example.com.",
+ "state": {
+  "sent": {
+   "to": [
+    "ana.souza@example.com"
+   ],
+   "subject": "Relatório de outubro",
+   "body_text": "Olá, Ana!\nSegue o relatório de outubro.",
+   "body_html": "<div>Olá, Ana!</div><div>Segue o relatório de outubro.</div>"
+  }
+ }
+}

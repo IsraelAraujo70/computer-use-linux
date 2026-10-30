@@ -1,0 +1,15 @@
+{"t": 1793331139.1852095, "method": "initialize", "tool": null, "args": null, "ms": 23.4, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331139.1899343, "method": "tools/list", "tool": null, "args": null, "ms": 4.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331149.2174878, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 814.3, "bytes": 342571, "images": 1, "is_error": false}
+{"t": 1793331155.1476035, "method": "tools/call", "tool": "drag", "args": {"start_x": 1894, "start_y": 790, "end_x": 1894, "end_y": 1054}, "ms": 85.3, "bytes": 469, "images": 0, "is_error": false}
+{"t": 1793331159.4328501, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 82.0, "bytes": 1269, "images": 0, "is_error": false}
+{"t": 1793331162.2607315, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+f", "window_id": 8388610}, "ms": 248.8, "bytes": 801, "images": 0, "is_error": false}
+{"t": 1793331162.6618285, "method": "tools/call", "tool": "type_text", "args": {"text": "Val\u00e9ria Nunes", "window_id": 8388610}, "ms": 399.6, "bytes": 965, "images": 0, "is_error": false}
+{"t": 1793331165.4241598, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 506.6, "bytes": 304762, "images": 1, "is_error": false}
+{"t": 1793331173.340378, "method": "tools/call", "tool": "press_key", "args": {"key": "Escape", "window_id": 8388610}, "ms": 239.5, "bytes": 831, "images": 0, "is_error": false}
+{"t": 1793331175.258648, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 30, "x": 1000, "y": 800}, "ms": 1916.4, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793331178.599064, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1186.2, "bytes": 398585, "images": 1, "is_error": false}
+{"t": 1793331184.3645668, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 40, "x": 1000, "y": 800}, "ms": 2526.5, "bytes": 706, "images": 0, "is_error": false}
+{"t": 1793331188.3511462, "method": "tools/call", "tool": "get_app_state", "args": {"max_nodes": 2000}, "ms": 1691.7, "bytes": 491279, "images": 1, "is_error": false}
+{"t": 1793331193.1079338, "method": "tools/call", "tool": "click", "args": {"element_index": 964}, "ms": 207.5, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793331196.8259075, "method": "tools/call", "tool": "get_app_state", "args": {"max_nodes": 2000, "include_screenshot": false}, "ms": 1461.7, "bytes": 184231, "images": 0, "is_error": false}

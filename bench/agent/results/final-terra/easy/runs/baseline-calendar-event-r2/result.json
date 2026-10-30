@@ -1,0 +1,68 @@
+{
+ "run_id": "baseline-calendar-event-r2",
+ "variant": "baseline",
+ "task": "calendar-event",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 55.15,
+ "agent_tool_calls": 29,
+ "agent_tool_errors": 0,
+ "mcp_calls": 29,
+ "mcp_ms_total": 9543.6,
+ "mcp_bytes_total": 1710765,
+ "screenshots": 7,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "type_text",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "click",
+  "set_value",
+  "set_value",
+  "get_app_state",
+  "set_value",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "perform_action",
+  "get_app_state",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 1070263,
+  "cached": 961152,
+  "output": 1258
+ },
+ "final": "Created and saved “Dentista” for November 18, 2026 at 14:30.",
+ "state": {
+  "events": [
+   {
+    "title": "Dentista",
+    "date": "2026-11-18",
+    "start": "14:30",
+    "end": "15:30"
+   }
+  ]
+ }
+}

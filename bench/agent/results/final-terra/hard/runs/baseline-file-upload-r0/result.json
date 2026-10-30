@@ -1,0 +1,43 @@
+{
+ "run_id": "baseline-file-upload-r0",
+ "variant": "baseline",
+ "task": "file-upload",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": false,
+ "detail": "nothing uploaded",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 44.77,
+ "agent_tool_calls": 13,
+ "agent_tool_errors": 0,
+ "mcp_calls": 13,
+ "mcp_ms_total": 4422.5,
+ "mcp_bytes_total": 930620,
+ "screenshots": 6,
+ "tools_used": [
+  "get_app_state",
+  "click",
+  "list_windows",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "click",
+  "get_app_state",
+  "list_windows",
+  "click",
+  "get_app_state",
+  "press_key",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 651553,
+  "cached": 598784,
+  "output": 722
+ },
+ "final": "Não consegui enviar o comprovante: o seletor de arquivos não abriu.",
+ "state": {}
+}

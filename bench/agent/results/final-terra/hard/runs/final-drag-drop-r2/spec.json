@@ -1,0 +1,17 @@
+{
+ "run_id": "final-drag-drop-r2",
+ "variant": "final",
+ "binary": "/tmp/agent-cu-bench/bin/final/computer-use-linux",
+ "task": "drag-drop",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "timeout": 300,
+ "port": 8765,
+ "root": "/tmp/agent-cu-bench",
+ "codex_home": "/tmp/agent-cu-bench/codex-home",
+ "claude_home": "/tmp/agent-cu-bench/claude-home",
+ "workdir": "/tmp/agent-cu-bench/work",
+ "chrome_mode": "bots"
+}

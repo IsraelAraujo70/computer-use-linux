@@ -1,0 +1,9 @@
+{"t": 1793333979.1301827, "method": "initialize", "tool": null, "args": null, "ms": 25.9, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793333979.1328976, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793333987.7836034, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 192.9, "bytes": 1283, "images": 0, "is_error": false}
+{"t": 1793333990.3774705, "method": "tools/call", "tool": "fill_form", "args": {"window_id": 8388610, "fields": [{"element_id": 51, "value": "88010-000"}, {"element_id": 54, "value": "Rua Felipe Schmidt"}, {"element_id": 57, "value": "200"}, {"element_id": 60, "value": "Florian\u00f3polis"}]}, "ms": 253.8, "bytes": 798, "images": 0, "is_error": true}
+{"t": 1793333995.114479, "method": "tools/call", "tool": "fill_form", "args": {"window_id": 8388610, "fields": [{"element_index": 51, "value": "88010-000"}, {"element_index": 54, "value": "Rua Felipe Schmidt"}, {"element_index": 57, "value": "200"}, {"element_index": 60, "value": "Florian\u00f3polis"}]}, "ms": 2570.3, "bytes": 1288, "images": 0, "is_error": true}
+{"t": 1793333997.3107414, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388610, "text": "Florian\u00f3polis"}, "ms": 256.5, "bytes": 590, "images": 0, "is_error": false}
+{"t": 1793333998.9023767, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 93.3, "bytes": 1344, "images": 0, "is_error": false}
+{"t": 1793334000.6579506, "method": "tools/call", "tool": "click", "args": {"window_id": 8388610, "element_index": 104}, "ms": 417.0, "bytes": 495, "images": 0, "is_error": false}
+{"t": 1793334002.427544, "method": "tools/call", "tool": "click", "args": {"window_id": 8388610, "element_index": 61}, "ms": 425.8, "bytes": 526, "images": 0, "is_error": false}

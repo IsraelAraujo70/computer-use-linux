@@ -1,0 +1,16 @@
+{"t": 1793331110.514352, "method": "initialize", "tool": null, "args": null, "ms": 25.5, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331110.5217092, "method": "tools/list", "tool": null, "args": null, "ms": 6.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331115.8945222, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 722.0, "bytes": 177199, "images": 1, "is_error": false}
+{"t": 1793331118.1467342, "method": "tools/call", "tool": "click", "args": {"element_index": 78}, "ms": 211.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793331120.7925136, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 759.0, "bytes": 171033, "images": 1, "is_error": false}
+{"t": 1793331122.4395661, "method": "tools/call", "tool": "click", "args": {"element_index": 75}, "ms": 208.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793331123.097162, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 656.1, "bytes": 183423, "images": 1, "is_error": false}
+{"t": 1793331124.0578892, "method": "tools/call", "tool": "click", "args": {"element_index": 102}, "ms": 25.3, "bytes": 887, "images": 0, "is_error": false}
+{"t": 1793331124.6782408, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 618.1, "bytes": 188152, "images": 1, "is_error": false}
+{"t": 1793331126.7341177, "method": "tools/call", "tool": "click", "args": {"element_index": 107}, "ms": 203.9, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793331127.283295, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 547.6, "bytes": 187516, "images": 1, "is_error": false}
+{"t": 1793331128.6642473, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 207.4, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793331128.865024, "method": "tools/call", "tool": "click", "args": {"name": "Notifica\u00e7\u00f5es no navegador", "role": "check box"}, "ms": 199.4, "bytes": 878, "images": 0, "is_error": false}
+{"t": 1793331129.568387, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 701.9, "bytes": 185307, "images": 1, "is_error": false}
+{"t": 1793331130.805173, "method": "tools/call", "tool": "click", "args": {"element_index": 88}, "ms": 25.1, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793331131.3743289, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 567.0, "bytes": 164168, "images": 1, "is_error": false}

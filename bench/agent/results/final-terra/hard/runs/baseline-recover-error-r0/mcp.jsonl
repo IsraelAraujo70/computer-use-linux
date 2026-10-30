@@ -1,0 +1,12 @@
+{"t": 1793333024.4256494, "method": "initialize", "tool": null, "args": null, "ms": 22.5, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793333024.431835, "method": "tools/list", "tool": null, "args": null, "ms": 5.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793333033.1611514, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 614.3, "bytes": 152393, "images": 1, "is_error": false}
+{"t": 1793333035.1704776, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(11) 91234-5678"}, "ms": 24.6, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793333036.6824632, "method": "tools/call", "tool": "click", "args": {"x": 840, "y": 538}, "ms": 204.6, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793333036.7615125, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 77.6, "bytes": 1267, "images": 0, "is_error": false}
+{"t": 1793333039.0738409, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A", "window_id": 8388610}, "ms": 279.4, "bytes": 791, "images": 0, "is_error": false}
+{"t": 1793333039.5359077, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678", "window_id": 8388610}, "ms": 460.4, "bytes": 1171, "images": 0, "is_error": false}
+{"t": 1793333039.7476406, "method": "tools/call", "tool": "click", "args": {"x": 747, "y": 588}, "ms": 210.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793333041.8840516, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 645.5, "bytes": 145291, "images": 1, "is_error": false}
+{"t": 1793333045.7013717, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 24.7, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793333048.4670122, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 406.8, "bytes": 13656, "images": 0, "is_error": false}

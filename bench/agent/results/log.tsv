@@ -8,3 +8,5 @@ date	variant	change	binary_commit	runs	success_rate	tasks_per_min	mean_wall_s	me
 2026-10-29	final=v5 (easy, FINAL conditions)	v3 + rich text, dialog errors, faster scroll until, review fixes	c41ede4	30	1.00	2.745	22	5.6	0.2	211	interleaved vs baseline (1.523): 1.80x -> easy bar NOT met under bots flags
 2026-10-29	final=v5 (hard, FINAL conditions)	same	c41ede4	36	1.00	2.934	20	4.9	0.0	176	interleaved vs baseline (0.67, 1.105): +33pp, 2.66x -> hard bar met
 2026-10-29	v6 (easy check, FINAL conditions)	+off-screen content within budget, document-only settle reads, infinite-list scroll until	380c79f	30	1.00	2.577	23	6.7	0.2	195	interleaved vs baseline (0.97, 1.241): 2.08x
+2026-10-30	FINAL v8 (easy, Terra, final conditions)	v6 + target echo, compact reports, chip hint, delivery evidence, review-2 fixes	e0d2cda	30	1.00	2.619	23	5.3	0.2	204	interleaved vs baseline (1.00, 1.266): 2.07x, bar met
+2026-10-30	FINAL v8 (hard, Terra, final conditions)	same	e0d2cda	36	1.00	2.515	24	5.2	0.0	196	interleaved vs baseline (0.69, 1.100): +31pp, 2.29x, bar met; virtual-list median 61s vs 31s baseline

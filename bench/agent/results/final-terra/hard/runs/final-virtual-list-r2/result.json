@@ -1,0 +1,41 @@
+{
+ "run_id": "final-virtual-list-r2",
+ "variant": "final",
+ "task": "virtual-list",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 57.41,
+ "agent_tool_calls": 7,
+ "agent_tool_errors": 0,
+ "mcp_calls": 7,
+ "mcp_ms_total": 35804.3,
+ "mcp_bytes_total": 21310,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "scroll",
+  "get_app_state",
+  "scroll",
+  "scroll",
+  "find_elements",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 305750,
+  "cached": 268160,
+  "output": 355
+ },
+ "final": "Pedido #1377 arquivado.",
+ "state": {
+  "archived": [
+   "1377"
+  ]
+ }
+}

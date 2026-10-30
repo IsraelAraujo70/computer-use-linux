@@ -1,0 +1,39 @@
+{
+ "run_id": "final-file-upload-r1",
+ "variant": "final",
+ "task": "file-upload",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 14.65,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 748.6,
+ "mcp_bytes_total": 2014,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "drop_files",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 122308,
+  "cached": 111616,
+  "output": 178
+ },
+ "final": "Enviei o arquivo comprovante-outubro.pdf.",
+ "state": {
+  "uploaded": {
+   "name": "comprovante-outubro.pdf",
+   "size": 1783,
+   "sha256": "00efce7d82f0f4cd2077a78b16cb9e3aeb7b1b49af9e3095fa033a84a957c79f"
+  }
+ }
+}

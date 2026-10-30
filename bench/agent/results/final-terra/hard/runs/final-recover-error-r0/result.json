@@ -1,0 +1,53 @@
+{
+ "run_id": "final-recover-error-r0",
+ "variant": "final",
+ "task": "recover-error",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 43.77,
+ "agent_tool_calls": 17,
+ "agent_tool_errors": 0,
+ "mcp_calls": 17,
+ "mcp_ms_total": 9043.2,
+ "mcp_bytes_total": 11203,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "press_key",
+  "press_key",
+  "get_app_state",
+  "click",
+  "press_key",
+  "type_text",
+  "click",
+  "click",
+  "get_app_state",
+  "press_key",
+  "set_value",
+  "click",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 465533,
+  "cached": 449664,
+  "output": 734
+ },
+ "final": "O aplicativo informou que salvou, mas o telefone antigo voltou após atualizar a página; não consegui confirmar a alteração.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "run_id": "final-recover-error-r1",
+ "variant": "final",
+ "task": "recover-error",
+ "rep": 1,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 18.71,
+ "agent_tool_calls": 5,
+ "agent_tool_errors": 0,
+ "mcp_calls": 5,
+ "mcp_ms_total": 2664.1,
+ "mcp_bytes_total": 3716,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 188423,
+  "cached": 174464,
+  "output": 235
+ },
+ "final": "Telefone alterado para (11) 91234-5678 e salvo.",
+ "state": {
+  "saved": {
+   "name": "Israel Araujo",
+   "email": "israel.araujo@example.com",
+   "phone": "(11) 91234-5678"
+  }
+ }
+}

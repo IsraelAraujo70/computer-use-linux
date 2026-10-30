@@ -1,0 +1,14 @@
+{"t": 1793332902.1445868, "method": "initialize", "tool": null, "args": null, "ms": 24.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793332902.1507242, "method": "tools/list", "tool": null, "args": null, "ms": 5.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793332910.2782094, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 593.0, "bytes": 175073, "images": 1, "is_error": false}
+{"t": 1793332912.0647984, "method": "tools/call", "tool": "click", "args": {"element_index": 99}, "ms": 210.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793332914.1077013, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 712.6, "bytes": 235964, "images": 1, "is_error": false}
+{"t": 1793332916.5777948, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 205.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793332920.2574263, "method": "tools/call", "tool": "set_value", "args": {"name": "Linha digit\u00e1vel", "role": "entry", "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 1.8, "bytes": 953, "images": 0, "is_error": false}
+{"t": 1793332922.0637324, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 390.3, "bytes": 14502, "images": 0, "is_error": false}
+{"t": 1793332923.6551213, "method": "tools/call", "tool": "set_value", "args": {"element_index": 82, "value": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 24.4, "bytes": 739, "images": 0, "is_error": false}
+{"t": 1793332926.2126327, "method": "tools/call", "tool": "click", "args": {"element_index": 82}, "ms": 209.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793332926.8453624, "method": "tools/call", "tool": "type_text", "args": {"text": "34191.79001 01043.510047 91020.150008 1 96610000012345"}, "ms": 631.1, "bytes": 948, "images": 0, "is_error": false}
+{"t": 1793332928.74147, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 394.6, "bytes": 14639, "images": 0, "is_error": false}
+{"t": 1793332932.327551, "method": "tools/call", "tool": "click", "args": {"element_index": 83}, "ms": 24.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793332932.9120812, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 580.9, "bytes": 14901, "images": 0, "is_error": false}

@@ -1,0 +1,16 @@
+{"t": 1793330418.255198, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793330418.2606244, "method": "tools/list", "tool": null, "args": null, "ms": 5.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793330428.5090744, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 865.6, "bytes": 342571, "images": 1, "is_error": false}
+{"t": 1793330431.03682, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 82.9, "bytes": 1269, "images": 0, "is_error": false}
+{"t": 1793330436.5305882, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 20, "window_id": 8388610}, "ms": 1513.9, "bytes": 713, "images": 0, "is_error": false}
+{"t": 1793330439.293116, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1247.3, "bytes": 350015, "images": 1, "is_error": false}
+{"t": 1793330444.9414496, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 60, "window_id": 8388610}, "ms": 3955.7, "bytes": 713, "images": 0, "is_error": false}
+{"t": 1793330449.219112, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1618.7, "bytes": 338593, "images": 1, "is_error": false}
+{"t": 1793330452.0562437, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 4, "window_id": 8388610}, "ms": 540.7, "bytes": 707, "images": 0, "is_error": false}
+{"t": 1793330455.3796406, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1478.9, "bytes": 332896, "images": 1, "is_error": false}
+{"t": 1793330457.298128, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2, "window_id": 8388610}, "ms": 421.8, "bytes": 712, "images": 0, "is_error": false}
+{"t": 1793330460.3658757, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 1270.8, "bytes": 338313, "images": 1, "is_error": false}
+{"t": 1793330462.5143642, "method": "tools/call", "tool": "click", "args": {"window_id": 8388610, "role": "toggle button", "name": "Marcar Val\u00e9ria Nunes com estrela"}, "ms": 212.9, "bytes": 1174, "images": 0, "is_error": false}
+{"t": 1793330469.3046393, "method": "tools/call", "tool": "find_elements", "args": {"window_id": 8388610, "name": "Val\u00e9ria"}, "ms": 1702.6, "bytes": 616, "images": 0, "is_error": false}
+{"t": 1793330471.7899382, "method": "tools/call", "tool": "click", "args": {"window_id": 8388610, "element_index": 989}, "ms": 423.9, "bytes": 814, "images": 0, "is_error": false}
+{"t": 1793330474.9388647, "method": "tools/call", "tool": "find_elements", "args": {"window_id": 8388610, "name": "Val\u00e9ria"}, "ms": 1483.7, "bytes": 656, "images": 0, "is_error": false}

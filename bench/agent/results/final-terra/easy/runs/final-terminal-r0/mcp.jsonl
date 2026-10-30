@@ -1,0 +1,5 @@
+{"t": 1793330721.501578, "method": "initialize", "tool": null, "args": null, "ms": 23.3, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793330721.504327, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793330729.96112, "method": "tools/call", "tool": "get_app_state", "args": {"wm_class": "Alacritty"}, "ms": 149.0, "bytes": 56870, "images": 1, "is_error": false}
+{"t": 1793330734.0753424, "method": "tools/call", "tool": "type_text", "args": {"window_id": 8388612, "text": "printf 'ola mundo 42\\n' > /tmp/agent-cu-bench/term/nota.txt && cat /tmp/agent-cu-bench/term/nota.txt\n"}, "ms": 848.6, "bytes": 369, "images": 0, "is_error": false}
+{"t": 1793330736.0112424, "method": "tools/call", "tool": "get_app_state", "args": {"wm_class": "Alacritty"}, "ms": 55.6, "bytes": 92582, "images": 1, "is_error": false}

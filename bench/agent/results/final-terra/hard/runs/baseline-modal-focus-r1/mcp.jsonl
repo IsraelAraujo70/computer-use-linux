@@ -1,0 +1,17 @@
+{"t": 1793333540.8374376, "method": "initialize", "tool": null, "args": null, "ms": 24.9, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793333540.8416338, "method": "tools/list", "tool": null, "args": null, "ms": 3.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793333550.9520092, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 650.3, "bytes": 151995, "images": 1, "is_error": false}
+{"t": 1793333553.356267, "method": "tools/call", "tool": "set_value", "args": {"element_index": 103, "value": "Carlos Mendes"}, "ms": 24.0, "bytes": 659, "images": 0, "is_error": false}
+{"t": 1793333553.380365, "method": "tools/call", "tool": "set_value", "args": {"element_index": 105, "value": "carlos@example.com"}, "ms": 23.0, "bytes": 669, "images": 0, "is_error": false}
+{"t": 1793333553.4042695, "method": "tools/call", "tool": "set_value", "args": {"element_index": 107, "value": "Quero cancelar minha assinatura."}, "ms": 22.8, "bytes": 697, "images": 0, "is_error": false}
+{"t": 1793333556.17044, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 420}, "ms": 207.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793333556.5393572, "method": "tools/call", "tool": "type_text", "args": {"text": "Carlos Mendes"}, "ms": 367.4, "bytes": 865, "images": 0, "is_error": false}
+{"t": 1793333556.7438889, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 495}, "ms": 203.0, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793333557.14199, "method": "tools/call", "tool": "type_text", "args": {"text": "carlos@example.com"}, "ms": 396.6, "bytes": 875, "images": 0, "is_error": false}
+{"t": 1793333557.3521338, "method": "tools/call", "tool": "click", "args": {"x": 800, "y": 590}, "ms": 208.3, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793333557.8384883, "method": "tools/call", "tool": "type_text", "args": {"text": "Quero cancelar minha assinatura."}, "ms": 484.7, "bytes": 904, "images": 0, "is_error": false}
+{"t": 1793333560.6815126, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 336.5, "bytes": 12983, "images": 0, "is_error": false}
+{"t": 1793333562.7415335, "method": "tools/call", "tool": "click", "args": {"name": "Agora n\u00e3o", "role": "button"}, "ms": 24.6, "bytes": 918, "images": 0, "is_error": false}
+{"t": 1793333563.1161687, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 372.7, "bytes": 13718, "images": 0, "is_error": false}
+{"t": 1793333564.8507288, "method": "tools/call", "tool": "click", "args": {"name": "Enviar mensagem", "role": "button"}, "ms": 24.8, "bytes": 928, "images": 0, "is_error": false}
+{"t": 1793333565.2413802, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 388.4, "bytes": 13972, "images": 0, "is_error": false}

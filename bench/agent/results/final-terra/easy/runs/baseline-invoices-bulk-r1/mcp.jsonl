@@ -1,0 +1,20 @@
+{"t": 1793331432.508932, "method": "initialize", "tool": null, "args": null, "ms": 24.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331432.5152016, "method": "tools/list", "tool": null, "args": null, "ms": 5.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331441.423336, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1160.2, "bytes": 369389, "images": 1, "is_error": false}
+{"t": 1793331444.628374, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1073.0, "bytes": 369389, "images": 1, "is_error": false}
+{"t": 1793331447.0257618, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1003"}, "ms": 212.8, "bytes": 873, "images": 0, "is_error": false}
+{"t": 1793331447.2335124, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1016"}, "ms": 206.3, "bytes": 873, "images": 0, "is_error": false}
+{"t": 1793331447.4399006, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1028"}, "ms": 204.7, "bytes": 1097, "images": 0, "is_error": false}
+{"t": 1793331452.556855, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 2}, "ms": 174.6, "bytes": 705, "images": 0, "is_error": false}
+{"t": 1793331455.3668299, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1070.0, "bytes": 352853, "images": 1, "is_error": false}
+{"t": 1793331457.8074827, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 3, "x": 900, "y": 850}, "ms": 271.7, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793331467.829576, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1012.5, "bytes": 371070, "images": 1, "is_error": false}
+{"t": 1793331470.3217208, "method": "tools/call", "tool": "click", "args": {"role": "check box", "name": "Selecionar fatura NF-1028"}, "ms": 202.9, "bytes": 874, "images": 0, "is_error": false}
+{"t": 1793331470.5933783, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 3, "x": 900, "y": 500}, "ms": 269.9, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793331473.4000854, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1005.6, "bytes": 352878, "images": 1, "is_error": false}
+{"t": 1793331475.237855, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Arquivar selecionadas"}, "ms": 25.5, "bytes": 940, "images": 0, "is_error": false}
+{"t": 1793331479.8787303, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1023.5, "bytes": 340987, "images": 1, "is_error": false}
+{"t": 1793331482.8670785, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Arquivar"}, "ms": 1.4, "bytes": 1300, "images": 0, "is_error": false}
+{"t": 1793331483.782393, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 914.6, "bytes": 340987, "images": 1, "is_error": false}
+{"t": 1793331487.4130573, "method": "tools/call", "tool": "click", "args": {"element_index": 81}, "ms": 25.8, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793331488.430417, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 1011.4, "bytes": 351358, "images": 1, "is_error": false}

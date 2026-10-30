@@ -1,0 +1,9 @@
+{"t": 1793332637.5135403, "method": "initialize", "tool": null, "args": null, "ms": 24.7, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793332637.520517, "method": "tools/list", "tool": null, "args": null, "ms": 6.5, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793332647.1954672, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 927.0, "bytes": 44480, "images": 0, "is_error": false}
+{"t": 1793332651.7240207, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 18, "element_index": 56}, "ms": 1186.9, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793332654.4791298, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 709.1, "bytes": 54755, "images": 0, "is_error": false}
+{"t": 1793332656.7537491, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 7, "element_index": 56}, "ms": 513.6, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793332659.3026419, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 650.2, "bytes": 54803, "images": 0, "is_error": false}
+{"t": 1793332661.2110925, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Arquivar pedido #1377"}, "ms": 24.1, "bytes": 939, "images": 0, "is_error": false}
+{"t": 1793332664.5197518, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 894.8, "bytes": 55075, "images": 0, "is_error": false}

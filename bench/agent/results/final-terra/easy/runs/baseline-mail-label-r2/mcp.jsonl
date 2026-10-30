@@ -1,0 +1,25 @@
+{"t": 1793331631.1973774, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331631.2039957, "method": "tools/list", "tool": null, "args": null, "ms": 6.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331643.7452435, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 913.4, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793331647.5531158, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 210.2, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793331647.9282525, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 373.6, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793331648.5486772, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 618.3, "bytes": 54123, "images": 0, "is_error": false}
+{"t": 1793331651.2397683, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 185.7, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793331651.7477055, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 506.2, "bytes": 54121, "images": 0, "is_error": false}
+{"t": 1793331654.9397314, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 214.6, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793331655.1470838, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 205.7, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793331655.3564713, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 207.9, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793331655.950802, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 592.7, "bytes": 55036, "images": 0, "is_error": false}
+{"t": 1793331658.6280556, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 210.8, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793331660.807665, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 150.1, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793331661.7037332, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 894.5, "bytes": 54866, "images": 0, "is_error": false}
+{"t": 1793331663.9195678, "method": "tools/call", "tool": "click", "args": {"element_index": 262}, "ms": 211.6, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793331664.6742911, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 753.1, "bytes": 54890, "images": 0, "is_error": false}
+{"t": 1793331667.7738721, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 1, "x": 1000, "y": 800}, "ms": 148.5, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793331668.3592196, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 583.7, "bytes": 55020, "images": 0, "is_error": false}
+{"t": 1793331674.1859698, "method": "tools/call", "tool": "press_key", "args": {"key": "Escape"}, "ms": 179.7, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793331674.3907206, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 203.3, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793331674.879618, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 487.0, "bytes": 55060, "images": 0, "is_error": false}
+{"t": 1793331677.4393241, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 210.2, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793331677.4652278, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 23.8, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793331678.2552743, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 788.1, "bytes": 54952, "images": 0, "is_error": false}

@@ -1,0 +1,25 @@
+{"t": 1793330070.221633, "method": "initialize", "tool": null, "args": null, "ms": 24.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793330070.2271943, "method": "tools/list", "tool": null, "args": null, "ms": 5.3, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793330082.2494385, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 873.8, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793330086.369405, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 218.4, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793330086.4503992, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 79.0, "bytes": 1291, "images": 0, "is_error": false}
+{"t": 1793330086.817472, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 365.6, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793330087.0060732, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 187.1, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793330087.889358, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 881.8, "bytes": 539571, "images": 1, "is_error": false}
+{"t": 1793330092.3808641, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 207.6, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793330092.5846062, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 202.2, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793330092.7893057, "method": "tools/call", "tool": "click", "args": {"element_index": 89}, "ms": 203.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793330093.6611354, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 870.4, "bytes": 534564, "images": 1, "is_error": false}
+{"t": 1793330100.5669677, "method": "tools/call", "tool": "click", "args": {"element_index": 90}, "ms": 212.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793330100.7737205, "method": "tools/call", "tool": "click", "args": {"name": "Selecionar: Comprovante de transfer\u00eancia", "role": "check box"}, "ms": 204.3, "bytes": 1130, "images": 0, "is_error": false}
+{"t": 1793330101.6453378, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 870.0, "bytes": 54648, "images": 0, "is_error": false}
+{"t": 1793330105.6498532, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 206.5, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330105.675806, "method": "tools/call", "tool": "click", "args": {"element_index": 126}, "ms": 24.4, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793330108.8635623, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "element_index": 51}, "ms": 149.0, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793330109.7032282, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 837.7, "bytes": 544666, "images": 1, "is_error": false}
+{"t": 1793330113.5218525, "method": "tools/call", "tool": "click", "args": {"element_index": 259}, "ms": 205.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330113.7263675, "method": "tools/call", "tool": "click", "args": {"element_index": 91}, "ms": 203.4, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793330114.3355474, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 607.3, "bytes": 55020, "images": 0, "is_error": false}
+{"t": 1793330118.6324923, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 201.3, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330118.6593232, "method": "tools/call", "tool": "click", "args": {"element_index": 128}, "ms": 25.1, "bytes": 888, "images": 0, "is_error": false}
+{"t": 1793330119.3367274, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 675.0, "bytes": 54382, "images": 0, "is_error": false}

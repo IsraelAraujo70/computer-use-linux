@@ -1,0 +1,39 @@
+{
+ "run_id": "final-accents-form-r2",
+ "variant": "final",
+ "task": "accents-form",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 11.44,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1411.0,
+ "mcp_bytes_total": 2824,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "fill_form",
+  "click"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 123454,
+  "cached": 113152,
+  "output": 217
+ },
+ "final": "Preenchi os dados exatamente como informados e salvei o cliente.",
+ "state": {
+  "saved": {
+   "name": "João Conceição Araújo",
+   "city": "São Paulo",
+   "notes": "Preço: 1.234,56 € — ótimo! Über façade 😀 ação ênfase"
+  }
+ }
+}

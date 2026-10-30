@@ -1,0 +1,43 @@
+{
+ "run_id": "final-drag-drop-r2",
+ "variant": "final",
+ "task": "drag-drop",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 15.2,
+ "agent_tool_calls": 2,
+ "agent_tool_errors": 0,
+ "mcp_calls": 2,
+ "mcp_ms_total": 1486.5,
+ "mcp_bytes_total": 2355,
+ "screenshots": 0,
+ "tools_used": [
+  "get_app_state",
+  "drag"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 96411,
+  "cached": 77568,
+  "output": 142
+ },
+ "final": "Moved “Revisar contrato” from “A fazer” to “Concluído.”",
+ "state": {
+  "columns": {
+   "k1": "done",
+   "k2": "todo",
+   "k3": "todo",
+   "k4": "doing",
+   "k5": "doing",
+   "k6": "doing",
+   "k7": "done",
+   "k8": "done"
+  }
+ }
+}

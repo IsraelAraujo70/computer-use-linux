@@ -1,0 +1,22 @@
+{"t": 1793334011.141043, "method": "initialize", "tool": null, "args": null, "ms": 22.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793334011.1463645, "method": "tools/list", "tool": null, "args": null, "ms": 4.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793334021.835339, "method": "tools/call", "tool": "get_app_state", "args": {"include_screenshot": false}, "ms": 666.4, "bytes": 18023, "images": 0, "is_error": false}
+{"t": 1793334023.8081164, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 23.9, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793334023.83269, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "S\u00e3o Paulo"}, "ms": 23.2, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793334023.8571773, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 23.0, "bytes": 763, "images": 0, "is_error": false}
+{"t": 1793334026.0150907, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 215.9, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793334026.4503977, "method": "tools/call", "tool": "type_text", "args": {"text": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 433.2, "bytes": 889, "images": 0, "is_error": false}
+{"t": 1793334028.17827, "method": "tools/call", "tool": "click", "args": {"element_index": 96}, "ms": 202.8, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793334028.5224543, "method": "tools/call", "tool": "type_text", "args": {"text": "S\u00e3o Paulo"}, "ms": 342.5, "bytes": 859, "images": 0, "is_error": false}
+{"t": 1793334028.729455, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 205.5, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793334029.3605585, "method": "tools/call", "tool": "type_text", "args": {"text": "Pre\u00e7o: 1.234,56 \u20ac \u2014 \u00f3timo! \u00dcber fa\u00e7ade \ud83d\ude00 a\u00e7\u00e3o \u00eanfase"}, "ms": 629.3, "bytes": 972, "images": 0, "is_error": false}
+{"t": 1793334031.164919, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 321.7, "bytes": 14192, "images": 0, "is_error": false}
+{"t": 1793334035.4292388, "method": "tools/call", "tool": "set_value", "args": {"name": "Nome completo", "role": "entry", "value": "Jo\u00e3o Concei\u00e7\u00e3o Ara\u00fajo"}, "ms": 24.9, "bytes": 718, "images": 0, "is_error": false}
+{"t": 1793334040.650953, "method": "tools/call", "tool": "click", "args": {"name": "Nome completo", "role": "entry"}, "ms": 204.1, "bytes": 842, "images": 0, "is_error": false}
+{"t": 1793334040.846052, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 193.3, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793334041.141375, "method": "tools/call", "tool": "type_text", "args": {"text": "Jo"}, "ms": 293.8, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793334041.3536377, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+Shift+U"}, "ms": 210.6, "bytes": 716, "images": 0, "is_error": false}
+{"t": 1793334041.655916, "method": "tools/call", "tool": "type_text", "args": {"text": "e3"}, "ms": 300.5, "bytes": 844, "images": 0, "is_error": false}
+{"t": 1793334041.8450527, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 187.4, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793334042.375975, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 529.4, "bytes": 14406, "images": 0, "is_error": false}
+{"t": 1793334044.8364987, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false, "tree_format": "json"}, "ms": 348.7, "bytes": 106942, "images": 0, "is_error": false}

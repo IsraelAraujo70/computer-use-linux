@@ -1,0 +1,19 @@
+{"t": 1793333054.43211, "method": "initialize", "tool": null, "args": null, "ms": 24.3, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793333054.4336703, "method": "tools/list", "tool": null, "args": null, "ms": 1.1, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793333060.870534, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 188.2, "bytes": 1052, "images": 0, "is_error": false}
+{"t": 1793333062.5471087, "method": "tools/call", "tool": "set_value", "args": {"element_index": 60, "value": "(11) 91234-5678"}, "ms": 472.4, "bytes": 487, "images": 0, "is_error": false}
+{"t": 1793333065.652797, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 949.2, "bytes": 620, "images": 0, "is_error": false}
+{"t": 1793333068.0870051, "method": "tools/call", "tool": "click", "args": {"element_index": 61}, "ms": 1156.9, "bytes": 506, "images": 0, "is_error": false}
+{"t": 1793333069.4917836, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R", "app_id": "chrome"}, "ms": 10.9, "bytes": 195, "images": 0, "is_error": true}
+{"t": 1793333071.777932, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R", "window_id": 8388610}, "ms": 368.1, "bytes": 1089, "images": 0, "is_error": false}
+{"t": 1793333073.4395676, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 101.9, "bytes": 1064, "images": 0, "is_error": false}
+{"t": 1793333075.43975, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 268.9, "bytes": 491, "images": 0, "is_error": false}
+{"t": 1793333077.2694645, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A", "window_id": 8388610}, "ms": 252.1, "bytes": 255, "images": 0, "is_error": false}
+{"t": 1793333077.5976422, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678", "window_id": 8388610}, "ms": 326.6, "bytes": 520, "images": 0, "is_error": false}
+{"t": 1793333079.71327, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 949.2, "bytes": 627, "images": 0, "is_error": false}
+{"t": 1793333082.4560235, "method": "tools/call", "tool": "click", "args": {"element_index": 123}, "ms": 951.2, "bytes": 446, "images": 0, "is_error": false}
+{"t": 1793333084.2821023, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 94.7, "bytes": 1129, "images": 0, "is_error": false}
+{"t": 1793333087.09802, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+R", "window_id": 8388610}, "ms": 355.7, "bytes": 1091, "images": 0, "is_error": false}
+{"t": 1793333089.5119143, "method": "tools/call", "tool": "set_value", "args": {"element_index": 159, "value": "(11) 91234-5678"}, "ms": 479.7, "bytes": 493, "images": 0, "is_error": false}
+{"t": 1793333090.4747915, "method": "tools/call", "tool": "click", "args": {"element_index": 160}, "ms": 960.9, "bytes": 627, "images": 0, "is_error": false}
+{"t": 1793333095.1486168, "method": "tools/call", "tool": "click", "args": {"element_index": 160}, "ms": 1156.6, "bytes": 511, "images": 0, "is_error": false}

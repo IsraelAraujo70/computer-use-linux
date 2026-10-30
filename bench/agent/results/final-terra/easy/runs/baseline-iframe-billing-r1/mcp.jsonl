@@ -1,0 +1,20 @@
+{"t": 1793331251.2714596, "method": "initialize", "tool": null, "args": null, "ms": 24.6, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331251.2780228, "method": "tools/list", "tool": null, "args": null, "ms": 6.2, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331262.6091697, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 653.5, "bytes": 190380, "images": 1, "is_error": false}
+{"t": 1793331269.8573391, "method": "tools/call", "tool": "set_value", "args": {"element_index": 117, "value": "30130-010"}, "ms": 23.8, "bytes": 651, "images": 0, "is_error": false}
+{"t": 1793331269.8826206, "method": "tools/call", "tool": "set_value", "args": {"element_index": 119, "value": "Avenida Afonso Pena"}, "ms": 23.8, "bytes": 671, "images": 0, "is_error": false}
+{"t": 1793331269.9092984, "method": "tools/call", "tool": "set_value", "args": {"element_index": 121, "value": "1500"}, "ms": 23.7, "bytes": 641, "images": 0, "is_error": false}
+{"t": 1793331269.93406, "method": "tools/call", "tool": "set_value", "args": {"element_index": 123, "value": "Belo Horizonte"}, "ms": 23.4, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793331269.9594083, "method": "tools/call", "tool": "perform_action", "args": {"element_index": 154, "action": "select"}, "ms": 23.9, "bytes": 595, "images": 0, "is_error": false}
+{"t": 1793331271.7718236, "method": "tools/call", "tool": "list_windows", "args": {}, "ms": 81.1, "bytes": 1279, "images": 0, "is_error": false}
+{"t": 1793331274.3427582, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 460}, "ms": 210.3, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793331274.7712264, "method": "tools/call", "tool": "type_text", "args": {"text": "30130-010", "window_id": 8388610}, "ms": 426.4, "bytes": 1160, "images": 0, "is_error": false}
+{"t": 1793331274.9757452, "method": "tools/call", "tool": "click", "args": {"x": 450, "y": 535}, "ms": 203.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793331275.464086, "method": "tools/call", "tool": "type_text", "args": {"text": "Avenida Afonso Pena", "window_id": 8388610}, "ms": 486.7, "bytes": 1180, "images": 0, "is_error": false}
+{"t": 1793331275.6674957, "method": "tools/call", "tool": "click", "args": {"x": 420, "y": 623}, "ms": 201.6, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793331276.067884, "method": "tools/call", "tool": "type_text", "args": {"text": "1500", "window_id": 8388610}, "ms": 398.9, "bytes": 1150, "images": 0, "is_error": false}
+{"t": 1793331276.2767847, "method": "tools/call", "tool": "click", "args": {"x": 600, "y": 623}, "ms": 207.0, "bytes": 806, "images": 0, "is_error": false}
+{"t": 1793331276.7285635, "method": "tools/call", "tool": "type_text", "args": {"text": "Belo Horizonte", "window_id": 8388610}, "ms": 450.1, "bytes": 1170, "images": 0, "is_error": false}
+{"t": 1793331280.0177743, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 820.4, "bytes": 184905, "images": 1, "is_error": false}
+{"t": 1793331282.2768905, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 25.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793331283.1062016, "method": "tools/call", "tool": "get_app_state", "args": {"window_id": 8388610}, "ms": 824.8, "bytes": 188555, "images": 1, "is_error": false}

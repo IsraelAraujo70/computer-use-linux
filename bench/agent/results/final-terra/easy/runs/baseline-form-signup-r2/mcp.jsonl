@@ -1,0 +1,37 @@
+{"t": 1793331808.566606, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793331808.572782, "method": "tools/list", "tool": null, "args": null, "ms": 5.8, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793331815.5845425, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 673.8, "bytes": 161504, "images": 1, "is_error": false}
+{"t": 1793331820.001686, "method": "tools/call", "tool": "set_value", "args": {"element_index": 94, "value": "Joana Ribeiro"}, "ms": 24.2, "bytes": 657, "images": 0, "is_error": false}
+{"t": 1793331820.0267563, "method": "tools/call", "tool": "set_value", "args": {"element_index": 96, "value": "joana.ribeiro@example.com"}, "ms": 23.5, "bytes": 681, "images": 0, "is_error": false}
+{"t": 1793331820.0511656, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(31) 98765-4321"}, "ms": 23.0, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793331820.2576485, "method": "tools/call", "tool": "click", "args": {"element_index": 112}, "ms": 204.9, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793331824.5162256, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 668.4, "bytes": 151202, "images": 1, "is_error": false}
+{"t": 1793331827.653707, "method": "tools/call", "tool": "click", "args": {"element_index": 109}, "ms": 213.1, "bytes": 1031, "images": 0, "is_error": false}
+{"t": 1793331827.859354, "method": "tools/call", "tool": "click", "args": {"name": "Nome completo", "role": "entry"}, "ms": 204.0, "bytes": 841, "images": 0, "is_error": false}
+{"t": 1793331828.2273338, "method": "tools/call", "tool": "type_text", "args": {"text": "Joana Ribeiro"}, "ms": 366.2, "bytes": 866, "images": 0, "is_error": false}
+{"t": 1793331828.4307032, "method": "tools/call", "tool": "click", "args": {"name": "E-mail", "role": "entry"}, "ms": 201.8, "bytes": 828, "images": 0, "is_error": false}
+{"t": 1793331828.8815477, "method": "tools/call", "tool": "type_text", "args": {"text": "joana.ribeiro@example.com"}, "ms": 449.0, "bytes": 890, "images": 0, "is_error": false}
+{"t": 1793331829.083617, "method": "tools/call", "tool": "click", "args": {"name": "Telefone", "role": "entry"}, "ms": 200.5, "bytes": 832, "images": 0, "is_error": false}
+{"t": 1793331829.4498475, "method": "tools/call", "tool": "type_text", "args": {"text": "(31) 98765-4321"}, "ms": 364.5, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793331829.6532247, "method": "tools/call", "tool": "click", "args": {"name": "Pro", "role": "radio button"}, "ms": 201.9, "bytes": 836, "images": 0, "is_error": false}
+{"t": 1793331829.8523262, "method": "tools/call", "tool": "click", "args": {"name": "Aceito os termos de uso", "role": "check box"}, "ms": 197.7, "bytes": 870, "images": 0, "is_error": false}
+{"t": 1793331832.6875699, "method": "tools/call", "tool": "click", "args": {"name": "Estado", "role": "combo box"}, "ms": 201.7, "bytes": 836, "images": 0, "is_error": false}
+{"t": 1793331832.8691626, "method": "tools/call", "tool": "press_key", "args": {"key": "m"}, "ms": 180.0, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793331833.0541115, "method": "tools/call", "tool": "press_key", "args": {"key": "i"}, "ms": 183.4, "bytes": 694, "images": 0, "is_error": false}
+{"t": 1793331833.2369385, "method": "tools/call", "tool": "press_key", "args": {"key": "enter"}, "ms": 181.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793331833.8281608, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 589.8, "bytes": 155541, "images": 1, "is_error": false}
+{"t": 1793331836.9039462, "method": "tools/call", "tool": "click", "args": {"name": "Estado", "role": "combo box"}, "ms": 209.8, "bytes": 836, "images": 0, "is_error": false}
+{"t": 1793331838.8862717, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "x": 950, "y": 850, "pages": 2}, "ms": 210.5, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793331839.5679374, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 679.9, "bytes": 162567, "images": 1, "is_error": false}
+{"t": 1793331841.8082237, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "x": 950, "y": 850, "pages": 1}, "ms": 148.3, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793331842.4316664, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 622.0, "bytes": 160987, "images": 1, "is_error": false}
+{"t": 1793331844.345693, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "x": 950, "y": 850, "pages": 0.5}, "ms": 124.3, "bytes": 702, "images": 0, "is_error": false}
+{"t": 1793331844.9552739, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 608.1, "bytes": 160331, "images": 1, "is_error": false}
+{"t": 1793331848.6863976, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "x": 950, "y": 850, "pages": 0.2}, "ms": 100.0, "bytes": 698, "images": 0, "is_error": false}
+{"t": 1793331849.3022718, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 613.9, "bytes": 162829, "images": 1, "is_error": false}
+{"t": 1793331851.2219987, "method": "tools/call", "tool": "click", "args": {"element_index": 109}, "ms": 201.0, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793331851.837226, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 613.8, "bytes": 156153, "images": 1, "is_error": false}
+{"t": 1793331854.2848516, "method": "tools/call", "tool": "click", "args": {"name": "Pro", "role": "radio button"}, "ms": 202.2, "bytes": 836, "images": 0, "is_error": false}
+{"t": 1793331854.878944, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 592.6, "bytes": 156233, "images": 1, "is_error": false}
+{"t": 1793331856.6656451, "method": "tools/call", "tool": "click", "args": {"name": "Criar conta", "role": "button"}, "ms": 25.2, "bytes": 920, "images": 0, "is_error": false}
+{"t": 1793331857.2760618, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 605.4, "bytes": 160571, "images": 1, "is_error": false}

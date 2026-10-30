@@ -1,0 +1,28 @@
+{"t": 1793330854.9491107, "method": "initialize", "tool": null, "args": null, "ms": 25.8, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793330854.9534984, "method": "tools/list", "tool": null, "args": null, "ms": 4.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793330862.6270754, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 870.0, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793330864.916159, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 807.9, "bytes": 551363, "images": 1, "is_error": false}
+{"t": 1793330867.6514266, "method": "tools/call", "tool": "set_value", "args": {"element_index": 80, "value": "Banco Aurora"}, "ms": 24.0, "bytes": 655, "images": 0, "is_error": false}
+{"t": 1793330869.800941, "method": "tools/call", "tool": "click", "args": {"element_index": 80}, "ms": 205.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793330870.1569264, "method": "tools/call", "tool": "type_text", "args": {"text": "Banco Aurora"}, "ms": 354.2, "bytes": 863, "images": 0, "is_error": false}
+{"t": 1793330870.3413246, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 182.4, "bytes": 701, "images": 0, "is_error": false}
+{"t": 1793330872.9070578, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 957.5, "bytes": 539959, "images": 1, "is_error": false}
+{"t": 1793330875.1993382, "method": "tools/call", "tool": "click", "args": {"element_index": 142}, "ms": 204.3, "bytes": 807, "images": 0, "is_error": false}
+{"t": 1793330875.4029233, "method": "tools/call", "tool": "click", "args": {"element_index": 256}, "ms": 202.0, "bytes": 1032, "images": 0, "is_error": false}
+{"t": 1793330875.6059484, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 201.2, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793330878.9067626, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 730.4, "bytes": 534952, "images": 1, "is_error": false}
+{"t": 1793330880.222816, "method": "tools/call", "tool": "click", "args": {"element_index": 122}, "ms": 207.3, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330880.2489452, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 25.2, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793330883.4216552, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 149.3, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793330884.2977414, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 874.2, "bytes": 545106, "images": 1, "is_error": false}
+{"t": 1793330886.7585115, "method": "tools/call", "tool": "scroll", "args": {"direction": "up", "pages": 1, "x": 1000, "y": 800}, "ms": 149.5, "bytes": 700, "images": 0, "is_error": false}
+{"t": 1793330887.649569, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 889.6, "bytes": 535672, "images": 1, "is_error": false}
+{"t": 1793330889.6894228, "method": "tools/call", "tool": "click", "args": {"element_index": 144}, "ms": 208.1, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330889.840399, "method": "tools/call", "tool": "scroll", "args": {"direction": "down", "pages": 1, "x": 1000, "y": 800}, "ms": 149.4, "bytes": 704, "images": 0, "is_error": false}
+{"t": 1793330890.7044723, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 860.4, "bytes": 540238, "images": 1, "is_error": false}
+{"t": 1793330894.9992766, "method": "tools/call", "tool": "click", "args": {"element_index": 259}, "ms": 209.9, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330895.2068603, "method": "tools/call", "tool": "click", "args": {"name": "Marcadores", "role": "button"}, "ms": 205.7, "bytes": 838, "images": 0, "is_error": false}
+{"t": 1793330896.0323246, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 823.6, "bytes": 537364, "images": 1, "is_error": false}
+{"t": 1793330897.7914202, "method": "tools/call", "tool": "click", "args": {"element_index": 124}, "ms": 203.3, "bytes": 808, "images": 0, "is_error": false}
+{"t": 1793330897.8169725, "method": "tools/call", "tool": "click", "args": {"name": "Aplicar", "role": "button"}, "ms": 24.1, "bytes": 912, "images": 0, "is_error": false}
+{"t": 1793330898.5938163, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 775.2, "bytes": 546858, "images": 1, "is_error": false}

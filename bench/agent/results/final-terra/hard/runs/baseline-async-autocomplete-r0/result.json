@@ -1,0 +1,56 @@
+{
+ "run_id": "baseline-async-autocomplete-r0",
+ "variant": "baseline",
+ "task": "async-autocomplete",
+ "rep": 0,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 35.15,
+ "agent_tool_calls": 18,
+ "agent_tool_errors": 0,
+ "mcp_calls": 18,
+ "mcp_ms_total": 5132.1,
+ "mcp_bytes_total": 466040,
+ "screenshots": 3,
+ "tools_used": [
+  "get_app_state",
+  "set_value",
+  "set_value",
+  "set_value",
+  "set_value",
+  "list_windows",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "click",
+  "type_text",
+  "get_app_state",
+  "click",
+  "click",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 70991,
+ "tokens": {
+  "input": 315970,
+  "cached": 272128,
+  "output": 616
+ },
+ "final": "Endereço de entrega preenchido e salvo.",
+ "state": {
+  "saved": {
+   "cep": "88010-000",
+   "street": "Rua Felipe Schmidt",
+   "number": "200",
+   "city": "Florianópolis",
+   "uf": "SC"
+  }
+ }
+}

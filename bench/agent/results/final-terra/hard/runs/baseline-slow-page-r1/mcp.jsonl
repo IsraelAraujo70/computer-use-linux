@@ -1,0 +1,8 @@
+{"t": 1793333573.4863217, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793333573.4916208, "method": "tools/list", "tool": null, "args": null, "ms": 4.9, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793333584.1736865, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 628.0, "bytes": 149088, "images": 1, "is_error": false}
+{"t": 1793333586.2385755, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 25.0, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793333588.3859262, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 714.8, "bytes": 140323, "images": 1, "is_error": false}
+{"t": 1793333590.9558666, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "text": "Mar\u00e7o", "timeout_ms": 20000}, "ms": 629.3, "bytes": 779, "images": 0, "is_error": false}
+{"t": 1793333592.4461937, "method": "tools/call", "tool": "click", "args": {"role": "button", "name": "Exportar Mar\u00e7o"}, "ms": 25.1, "bytes": 927, "images": 0, "is_error": false}
+{"t": 1793333595.0050206, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing"}, "ms": 847.3, "bytes": 334923, "images": 1, "is_error": false}

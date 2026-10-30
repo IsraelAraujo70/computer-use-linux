@@ -1,0 +1,33 @@
+{
+ "run_id": "final-terminal-r2",
+ "variant": "final",
+ "task": "terminal",
+ "rep": 2,
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "ok": true,
+ "detail": "ok",
+ "timed_out": false,
+ "exit_code": 0,
+ "wall_s": 20.67,
+ "agent_tool_calls": 3,
+ "agent_tool_errors": 0,
+ "mcp_calls": 3,
+ "mcp_ms_total": 1027.2,
+ "mcp_bytes_total": 149821,
+ "screenshots": 2,
+ "tools_used": [
+  "get_app_state",
+  "type_text",
+  "get_app_state"
+ ],
+ "tools_list_bytes": 22679,
+ "tokens": {
+  "input": 128858,
+  "cached": 100864,
+  "output": 277
+ },
+ "final": "Created `/tmp/agent-cu-bench/term/nota.txt` with the requested line.",
+ "state": {}
+}

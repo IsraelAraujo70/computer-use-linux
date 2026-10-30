@@ -1,0 +1,17 @@
+{"t": 1793333891.2723641, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 4858, "images": 0, "is_error": false}
+{"t": 1793333891.2786963, "method": "tools/list", "tool": null, "args": null, "ms": 6.0, "bytes": 70991, "images": 0, "is_error": false}
+{"t": 1793333900.391759, "method": "tools/call", "tool": "get_app_state", "args": {}, "ms": 703.4, "bytes": 152393, "images": 1, "is_error": false}
+{"t": 1793333902.2448869, "method": "tools/call", "tool": "set_value", "args": {"element_index": 98, "value": "(11) 91234-5678"}, "ms": 24.5, "bytes": 661, "images": 0, "is_error": false}
+{"t": 1793333904.0805707, "method": "tools/call", "tool": "click", "args": {"element_index": 98}, "ms": 207.7, "bytes": 805, "images": 0, "is_error": false}
+{"t": 1793333904.2960749, "method": "tools/call", "tool": "press_key", "args": {"key": "Ctrl+A"}, "ms": 213.9, "bytes": 703, "images": 0, "is_error": false}
+{"t": 1793333904.6744316, "method": "tools/call", "tool": "type_text", "args": {"text": "(11) 91234-5678"}, "ms": 376.7, "bytes": 869, "images": 0, "is_error": false}
+{"t": 1793333906.5618448, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 408.1, "bytes": 13391, "images": 0, "is_error": false}
+{"t": 1793333908.328941, "method": "tools/call", "tool": "click", "args": {"element_index": 77}, "ms": 23.9, "bytes": 885, "images": 0, "is_error": false}
+{"t": 1793333910.138801, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 327.2, "bytes": 13757, "images": 0, "is_error": false}
+{"t": 1793333911.8353305, "method": "tools/call", "tool": "click", "args": {"element_index": 79}, "ms": 24.4, "bytes": 886, "images": 0, "is_error": false}
+{"t": 1793333912.2232845, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 385.8, "bytes": 13368, "images": 0, "is_error": false}
+{"t": 1793333924.7197514, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "condition": "appears", "role": "notification", "timeout_ms": 10000}, "ms": 10230.6, "bytes": 346, "images": 0, "is_error": false}
+{"t": 1793333927.1525528, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 352.5, "bytes": 13656, "images": 0, "is_error": false}
+{"t": 1793333929.034377, "method": "tools/call", "tool": "click", "args": {"name": "Reload", "role": "button"}, "ms": 24.3, "bytes": 910, "images": 0, "is_error": false}
+{"t": 1793333929.3680177, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "include_screenshot": false}, "ms": 332.0, "bytes": 13384, "images": 0, "is_error": false}
+{"t": 1793333936.8972902, "method": "tools/call", "tool": "wait_for", "args": {"app_name_or_bundle_identifier": "Google Chrome for Testing", "role": "entry", "name": "Telefone", "text": "91234", "timeout_ms": 5000}, "ms": 5465.9, "bytes": 338, "images": 0, "is_error": false}
