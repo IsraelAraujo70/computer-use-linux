@@ -1,0 +1,9 @@
+task=calendar-event ok=True (ok) wall=23s mcp_calls=9 screenshots=0
+tools: get_app_state click click click fill_form click click click click
+
+- **Slowdowns and guesses:** Clicking the November 18 calendar cell did nothing visible, so I used **Create** and selected the date in the event form. I chose a one-hour duration because only the start time was specified.
+- **Wasted calls:** The click on the calendar cell was ineffective. I also changed the main calendar to November before opening **Create**, but the form still defaulted to October 29, so that navigation did not set the event date.
+- **Tree, elements, screenshots:** I relied on the accessibility outline to find controls and verify the saved event, and on element indices to operate the form. I used no screenshots and would drop them for this task. The outline did not reveal that clicking the date cell would have no effect; element actions sometimes fell back to coordinates.
+- **Most useful change:** A date-aware calendar action could accept a date and return whether it opened an event form with that date selected. That would remove the failed cell click and separate date-picker navigation.
+- **Confusing output:** The cell click reported “ok” even though it produced no useful change. The **Create** form defaulted to October 29 despite the calendar showing November.
+- **Speed:** Individual calls were quick, mostly under a second. The full outlines after month changes and saving were much longer than needed to identify the relevant controls and confirmation.

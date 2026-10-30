@@ -1,0 +1,30 @@
+task=virtual-list ok=True (ok) wall=18s mcp_calls=4 screenshots=0
+tools: find_elements get_app_state scroll click
+
+- **Slowdowns and guesses**
+  - The list is virtualized (2.000 rows, only about 20 rendered), so the #1377 button didn't exist until I scrolled to it.
+  - I guessed that `find_elements` would search the whole list. It only searches rendered nodes, so it found nothing.
+  - I didn't guess coordinates. I acted by element id.
+  - I didn't have to guess whether the click worked. The result showed "Pedido #1377 arquivado" in the status bar, the count dropped from 2.000 to 1.999, and #1377 was gone from the list.
+  - I did not check the "Arquivados" page to confirm the order landed there.
+
+- **Wasted or repeated calls**
+  - The first `find_elements` call was wasted. I ran it before `get_app_state`, against the tool guidance, assuming the button was already in the DOM.
+  - The other three calls (`get_app_state`, `scroll` with `until`, `click`) were each needed. Nothing was repeated.
+
+- **Accessibility tree, element/name actions, screenshots**
+  - I relied on the tree and on acting by id. They were enough on their own.
+  - I took no screenshots and wouldn't have needed any.
+  - The tree was missing the off-screen rows of a virtualized list. The scroll `until` option covered that gap.
+  - Acting by id was reliable. The only gap was that ids shift after the list re-renders, though the click result listed the new ones.
+
+- **One tool or output change that would help most**
+  - A `find_elements` option such as `scroll_container_id` plus `scroll_until_found: true`. It would scroll that container until a node matches and return the matching id. The `scroll` `until` parameter already does this, so the real gap is discoverability: `find_elements` should say, when it finds nothing, that the list may be virtualized and `scroll`'s `until` can reach unrendered rows.
+
+- **Confusing or misleading output**
+  - `find_elements` reported "287 nodes" while `get_app_state` reported `elements=50` and "50 elements outside the visible window omitted". The counts didn't match, and nothing explained the difference.
+  - After the click, the list container showed an odd position (`@258,-14206`, height 79961). It was harmless, but it looked like a glitch.
+
+- **Speed and output size**
+  - The scroll took 20 steps and 7 seconds, which was acceptable.
+  - The post-click outline listed about 25 rows, which was far more than needed. Only the status bar and the count change mattered. A diff-only or truncated report would have been enough.

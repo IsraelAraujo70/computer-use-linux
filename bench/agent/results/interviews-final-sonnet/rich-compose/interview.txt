@@ -1,0 +1,30 @@
+task=rich-compose ok=True (ok) wall=15s mcp_calls=6 screenshots=0
+tools: get_app_state fill_form click type_text press_key click
+
+1. **Guesses and delays**
+   - I guessed that the "Para" combo box would accept free text through `fill_form`. It didn't, and the error said no option named that address was available.
+   - I then guessed that Enter would turn the typed address into a recipient chip. It did: a chip and a "Remover" button appeared.
+   - After `fill_form`, the focus line showed the body as `value=""`, which looked odd. I took the new child line elements and the echoed value as proof that the body was set. I never re-read the body afterward.
+   - I didn't need coordinates. The only coordinate-based action was the click on "Para", and the tool chose the point itself.
+
+2. **Wasted or repeated calls**
+   - The "Para" field in the first `fill_form` call was wasted. I bundled all three fields into one call to save steps, and the failure cost me the extra click, `type_text` and Enter.
+   - Otherwise there were no repeats. The session was six calls: one state read, one fill, one click, one type, one key press and one send.
+
+3. **Tree, index/name actions, screenshots**
+   - **Tree:** I relied on it entirely. It gave me the dialog fields, their roles and names, and the "Mensagem enviada" status bar.
+   - **Index/name actions:** `fill_form`, `click` and `press_key` all worked well. The delta reports (`+`, `-`, `~`) let me confirm each step without re-reading the page.
+   - **Screenshots:** I took none and didn't need them. I'd drop them for this task.
+   - **Missing:** the tree didn't say that "Para" is a token or chip input rather than a plain text box. It also gave no way to check afterward that the body had exactly two lines, apart from the echoed `\n`.
+
+4. **One change that would have helped**
+   - Let `fill_form` and `set_value` take an optional `commit_key` (for example `"Enter"`) or `free_text: true` for combo and token fields. It would type the value, press the key, and return the resulting chips, such as `["ana.souza@example.com"]`.
+   - On the "no option named" error, it could also hint that this field may accept typed text plus Enter.
+
+5. **Confusing or misleading output**
+   - The "no option named" error read as if the address were invalid, when the field simply needed typing and Enter.
+   - After a successful set of the body, the focus line showed `value=""`. That contradicted the "ok" result above it.
+   - `type_text` reported "delivery not verified" even though the changes list showed the text had landed.
+
+6. **Speed**
+   - Responses were fast and short, and I had nothing to complain about on output volume.

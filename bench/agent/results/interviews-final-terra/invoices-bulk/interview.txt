@@ -1,0 +1,9 @@
+task=invoices-bulk ok=True (ok) wall=23s mcp_calls=8 screenshots=0
+tools: get_app_state scroll click click click find_elements click click
+
+- **Slowdowns and guesses:** I had to scroll to inspect the remaining rows. I did not have to guess coordinates or whether the archive worked; the checked-state report and success message confirmed it.
+- **Wasted calls:** The initial tool discovery returned far more descriptions than needed. The three checkbox clicks could have been combined into one form-fill call.
+- **Methods:** I relied on the accessibility outline to match invoice, client and status, then acted by element index. The outline omitted off-screen rows until I scrolled; indices required careful matching to each row. I did not need screenshots and would drop them for this task.
+- **Most useful improvement:** A table-reading tool that accepts a table and column filters, then returns complete matching rows and their actionable element IDs, including off-screen rows.
+- **Confusing output:** The off-screen click reported success without showing the checkbox as checked in its change report. I verified it with a separate checked-elements query.
+- **Speed:** Most calls were quick; the final archive action took about 3.7 seconds. The initial discovery output and full table outlines were lengthy.

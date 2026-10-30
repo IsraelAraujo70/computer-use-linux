@@ -1,0 +1,34 @@
+task=mail-label ok=True (ok) wall=16s mcp_calls=9 screenshots=0
+tools: get_app_state find_elements click find_elements click click click click find_elements
+
+**1. Slowdowns and guesses**
+- The inbox shows 30 messages but only about 20 were in the visible window. I used `find_elements` for "Banco Aurora" to find the second match (the one offscreen) instead of scrolling.
+- I assumed the sender name "Banco Aurora" was an exact match. "Aurora Turismo" is a similar-looking sender that I deliberately did not select, but I had no way to check the sender address.
+- The click on the offscreen checkbox [227] said "AT-SPI check; it is outside the visible page". It did not tell me whether the checkbox actually became checked. The returned change list only showed [94], so I guessed it worked.
+- I never confirmed that both messages were still selected when I clicked "Aplicar". I only saw "Marcadores aplicados" and the labels afterwards.
+- I did not check pages beyond "1–30 de 30", but the counter said that was everything.
+
+**2. Wasted or repeated calls**
+- The first `get_app_state` was needed. I used `find_elements` twice (once for the sender, once for "Comprovante") where one search on "Banco Aurora" and then the checkbox lookup would have been enough.
+- The final `find_elements` for "Financeiro" was a verification call, not waste. It was the only way to see the offscreen second row.
+- No calls were strictly repeated.
+
+**3. Tree vs. index/role actions vs. screenshots**
+- I relied on the accessibility tree and acting by element index. I took no screenshots and would not have needed any.
+- Tree gaps: "(70 elements outside the visible window omitted)" hid rows until I searched. Sender and subject were concatenated into one string with no separator ("Banco AuroraSua fatura…"). Checkbox state after an offscreen click was not reported.
+- Index actions worked well, but the state change for the offscreen element was not echoed back.
+- Screenshots would only help with visual confirmation of an offscreen row, and that was not available.
+
+**4. One change that would help**
+- Make action results echo the target's new state: `{element, checked: true|false}` for the clicked element, including offscreen ones.
+- Alternatively, add a `find_elements` option such as `return_state=true` or `role=list item, text=…` that returns structured fields (`sender`, `subject`, `date`, `checked`, `labels`) instead of one concatenated string.
+
+**5. Confusing or misleading output**
+- The "(AT-SPI check; it is outside the visible page)" message was ambiguous about whether the click succeeded.
+- Element ids changed after the page re-rendered (for example [94] became [355]). The instructions say ids stay valid for the whole session, which was not true after the re-render.
+- The "Aplicar" click returned a full outline dump, which was noisy.
+
+**6. Speed**
+- Responses were fast.
+- The full outline after "Aplicar" was long (about 70 rows), and most of it was irrelevant.
+- The initial state dump was also long, but it was useful.

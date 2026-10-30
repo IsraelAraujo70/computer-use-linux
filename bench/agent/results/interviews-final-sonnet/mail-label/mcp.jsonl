@@ -1,0 +1,11 @@
+{"t": 1793324791.613172, "method": "initialize", "tool": null, "args": null, "ms": 25.5, "bytes": 998, "images": 0, "is_error": false}
+{"t": 1793324791.619046, "method": "tools/list", "tool": null, "args": null, "ms": 2.2, "bytes": 22490, "images": 0, "is_error": false}
+{"t": 1793324793.6249392, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 249.3, "bytes": 8336, "images": 0, "is_error": false}
+{"t": 1793324795.6771076, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "list item", "text": "Banco Aurora"}, "ms": 148.6, "bytes": 959, "images": 0, "is_error": false}
+{"t": 1793324797.7192333, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 530.4, "bytes": 446, "images": 0, "is_error": false}
+{"t": 1793324797.853685, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "role": "check box", "text": "Comprovante"}, "ms": 128.4, "bytes": 517, "images": 0, "is_error": false}
+{"t": 1793324799.5061233, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 419.3, "bytes": 400, "images": 0, "is_error": false}
+{"t": 1793324800.0291448, "method": "tools/call", "tool": "click", "args": {"element_index": 69}, "ms": 516.4, "bytes": 789, "images": 0, "is_error": false}
+{"t": 1793324801.9177873, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 518.6, "bytes": 380, "images": 0, "is_error": false}
+{"t": 1793324802.351365, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 427.5, "bytes": 8517, "images": 0, "is_error": false}
+{"t": 1793324803.8381758, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Financeiro"}, "ms": 143.9, "bytes": 736, "images": 0, "is_error": false}

@@ -1,0 +1,14 @@
+task=mail-label ok=True (ok) wall=30s mcp_calls=12 screenshots=0
+tools: get_app_state set_value press_key get_app_state find_elements find_elements click click click click click find_elements
+
+1. The search field accepted text, but Enter did not filter the list. I then looked for matching rows directly. The second email was off-screen, so I had to rely on the checkbox action and later verify its label.
+
+2. Setting the search field, pressing Enter, and rereading the full outline were wasted because the list did not change. The initial broad tool-discovery call also returned far more information than needed.
+
+3. I relied on the accessibility outline to identify messages and on element indices to select and label them. I used no screenshots; I would drop them for this task. The outline omitted off-screen rows, though `find_elements` found them. Index actions worked, but the off-screen click report did not clearly show the checkbox’s new state.
+
+4. A tool that finds matching list items and returns each item’s sender, subject, checkbox ID, checked state, and labels would have helped most. Its inputs would be the app, list, and sender; it would return all matching rows, including off-screen ones.
+
+5. The off-screen checkbox click reported success without showing its updated state, making verification less direct. The search field gave no indication that submitting the query had no effect.
+
+6. Tool responses were quick. The main overhead was reading the long discovery output and repeated full-page outline.
