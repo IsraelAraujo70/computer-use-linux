@@ -1,0 +1,5 @@
+{"t": 1793341493.1286418, "method": "initialize", "tool": null, "args": null, "ms": 25.0, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793341493.1308355, "method": "tools/list", "tool": null, "args": null, "ms": 1.6, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793341498.6343455, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 239.0, "bytes": 5739, "images": 0, "is_error": false}
+{"t": 1793341555.6960764, "method": "tools/call", "tool": "scroll", "args": {"element_index": 56, "until": {"role": "button", "name": "Arquivar pedido #1377"}}, "ms": 54469.8, "bytes": 476, "images": 0, "is_error": false}
+{"t": 1793341559.7384183, "method": "tools/call", "tool": "click", "args": {"element_index": 29117}, "ms": 471.4, "bytes": 3077, "images": 0, "is_error": false}

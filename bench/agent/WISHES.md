@@ -18,9 +18,9 @@ traces of benchmark episodes (`results/*/runs/*/mcp.jsonl`), and real bot thread
 | 7 | "Upload a file" / "drag a card" | Baseline 0/3 on file-upload and drag-drop; no file dialog exists on the VPS (no GTK, no portal) | Done: `drop_files` (XDND), stepped `drag` by element ids |
 | 8 | "Find an item in a virtualized list directly" | Terra and Sonnet (virtual-list) | Done: `scroll(until=…)`; Sonnet asks that `find_elements` point to it when nothing matches |
 | 9 | "Tell me a dialog is in the way" | Terra (modal-focus): "Cached AT-SPI action name is no longer available" | Done: errors name the dialog and its buttons |
-| 10 | "Show off-screen rows" / "echo the clicked element's new state" | Final-binary interviews: Terra (mail-label, invoices) and Sonnet (mail-label) | In progress (n11/n12) |
+| 10 | "Show off-screen rows" / "echo the clicked element's new state" | Final-binary interviews: Terra (mail-label, invoices) and Sonnet (mail-label) | Done: off-screen rows within a budget, marked (below)/(above); `target:` line after every element action |
 | 11 | "A table/list reader returning rows with their action ids" | Terra (invoices, mail-label) | Partly covered by #10; not built |
-| 12 | "Token/chip inputs: type and commit with Enter" | Sonnet (rich-compose): fill_form said "no option named …" | Hint in the error (n12) |
+| 12 | "Token/chip inputs: type and commit with Enter" | Sonnet (rich-compose): fill_form said "no option named …" | Done: the error says to type it and press Enter |
 | 13 | "Diagnostics that do not send me to the wrong machine" | Secretário thread: "Could not find wayland compositor", wmctrl/hyprctl errors → a delegate stopped as BLOCKED | Done: X11-only doctor; blockers name the fix |
 | 14 | "A way to open an app/URL" | Bots launched Chrome from Bash (Secretário) | Not built (chrome-perfil covers it) |
 | 15 | "Smaller tool catalog" | Every Terra interview mentions long tool discovery | Reduced 76 KB → 21.6 KB; mostly Codex's own tool-search display now |

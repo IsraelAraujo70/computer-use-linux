@@ -1,0 +1,5 @@
+{"t": 1793342103.615964, "method": "initialize", "tool": null, "args": null, "ms": 25.4, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793342103.6187093, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793342110.3628411, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 222.7, "bytes": 4880, "images": 0, "is_error": false}
+{"t": 1793342121.7401252, "method": "tools/call", "tool": "scroll", "args": {"element_index": 58, "until": {"name": "Marcar Val\u00e9ria Nunes com estrela"}}, "ms": 9323.4, "bytes": 519, "images": 0, "is_error": false}
+{"t": 1793342124.0751917, "method": "tools/call", "tool": "click", "args": {"element_index": 966}, "ms": 758.4, "bytes": 544, "images": 0, "is_error": false}

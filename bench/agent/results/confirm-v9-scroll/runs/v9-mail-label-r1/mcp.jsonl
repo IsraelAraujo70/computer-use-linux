@@ -1,0 +1,13 @@
+{"t": 1793342004.989645, "method": "initialize", "tool": null, "args": null, "ms": 24.1, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793342004.9923036, "method": "tools/list", "tool": null, "args": null, "ms": 2.3, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793342012.6813686, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 249.0, "bytes": 11360, "images": 0, "is_error": false}
+{"t": 1793342017.930896, "method": "tools/call", "tool": "set_value", "args": {"element_index": 49, "value": "Banco Aurora"}, "ms": 566.7, "bytes": 523, "images": 0, "is_error": false}
+{"t": 1793342022.0190656, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 299.1, "bytes": 197, "images": 0, "is_error": false}
+{"t": 1793342026.1475594, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 151.2, "bytes": 11380, "images": 0, "is_error": false}
+{"t": 1793342029.1074867, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 393.1, "bytes": 597, "images": 0, "is_error": false}
+{"t": 1793342029.3916047, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 282.5, "bytes": 620, "images": 0, "is_error": false}
+{"t": 1793342029.7706988, "method": "tools/call", "tool": "click", "args": {"element_index": 69}, "ms": 377.6, "bytes": 972, "images": 0, "is_error": false}
+{"t": 1793342032.6655273, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 388.8, "bytes": 476, "images": 0, "is_error": false}
+{"t": 1793342032.9613004, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 294.1, "bytes": 3325, "images": 0, "is_error": false}
+{"t": 1793342034.4765973, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Banco Aurora"}, "ms": 133.7, "bytes": 1378, "images": 0, "is_error": false}
+{"t": 1793342035.8037593, "method": "tools/call", "tool": "find_elements", "args": {"app_name_or_bundle_identifier": "chrome", "text": "Financeiro"}, "ms": 133.1, "bytes": 736, "images": 0, "is_error": false}

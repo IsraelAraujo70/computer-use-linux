@@ -1,0 +1,11 @@
+{"t": 1793342161.3064098, "method": "initialize", "tool": null, "args": null, "ms": 26.5, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793342161.3083134, "method": "tools/list", "tool": null, "args": null, "ms": 1.3, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793342173.1565433, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 246.9, "bytes": 11360, "images": 0, "is_error": false}
+{"t": 1793342177.9881861, "method": "tools/call", "tool": "set_value", "args": {"element_index": 49, "value": "Banco Aurora"}, "ms": 573.5, "bytes": 523, "images": 0, "is_error": false}
+{"t": 1793342181.6756763, "method": "tools/call", "tool": "press_key", "args": {"key": "Enter"}, "ms": 302.3, "bytes": 197, "images": 0, "is_error": false}
+{"t": 1793342184.658438, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 146.3, "bytes": 11380, "images": 0, "is_error": false}
+{"t": 1793342187.2778432, "method": "tools/call", "tool": "click", "args": {"element_index": 94}, "ms": 382.2, "bytes": 597, "images": 0, "is_error": false}
+{"t": 1793342187.5590858, "method": "tools/call", "tool": "click", "args": {"element_index": 227}, "ms": 279.2, "bytes": 620, "images": 0, "is_error": false}
+{"t": 1793342187.9498816, "method": "tools/call", "tool": "click", "args": {"element_index": 69}, "ms": 389.3, "bytes": 972, "images": 0, "is_error": false}
+{"t": 1793342190.7670486, "method": "tools/call", "tool": "click", "args": {"element_index": 322}, "ms": 391.3, "bytes": 476, "images": 0, "is_error": false}
+{"t": 1793342191.0566351, "method": "tools/call", "tool": "click", "args": {"element_index": 326}, "ms": 287.8, "bytes": 3325, "images": 0, "is_error": false}

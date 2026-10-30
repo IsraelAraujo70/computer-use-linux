@@ -1,0 +1,5 @@
+{"t": 1793341662.4563985, "method": "initialize", "tool": null, "args": null, "ms": 25.2, "bytes": 1068, "images": 0, "is_error": false}
+{"t": 1793341662.4582407, "method": "tools/list", "tool": null, "args": null, "ms": 1.5, "bytes": 22679, "images": 0, "is_error": false}
+{"t": 1793341669.5854497, "method": "tools/call", "tool": "get_app_state", "args": {"app_name_or_bundle_identifier": "chrome"}, "ms": 212.7, "bytes": 4880, "images": 0, "is_error": false}
+{"t": 1793341679.8568246, "method": "tools/call", "tool": "scroll", "args": {"element_index": 58, "until": {"text": "Val\u00e9ria Nunes"}}, "ms": 8832.2, "bytes": 538, "images": 0, "is_error": false}
+{"t": 1793341682.548405, "method": "tools/call", "tool": "click", "args": {"element_index": 966}, "ms": 750.4, "bytes": 544, "images": 0, "is_error": false}

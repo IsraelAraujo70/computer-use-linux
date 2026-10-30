@@ -1,0 +1,18 @@
+{
+ "variants": {
+  "v8": "/tmp/agent-cu-bench/bin/v8/computer-use-linux",
+  "v9": "/tmp/agent-cu-bench/bin/v9/computer-use-linux"
+ },
+ "agent": "codex",
+ "model": "gpt-6.1-terra",
+ "effort": "low",
+ "suite": "easy",
+ "chrome_mode": "bots",
+ "tasks": [
+  "contacts-infinite",
+  "mail-label",
+  "invoices-bulk"
+ ],
+ "reps": 3,
+ "timeout": 360
+}
