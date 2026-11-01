@@ -75,3 +75,44 @@ the bar: 2x on the easy suite is the floor; a hard suite measures what breaks bo
   interleaved, 2 reps per task, both suites. Reported, not part of the bar.
 - Flag dependence (reported, not part of the bar): baseline and final on the easy suite with the
   bots' current flags (`--chrome-mode bots-noa11y`, no accessibility flag), 2 reps.
+
+---
+
+# Sol 5x (2026-10-31)
+
+Pre-registered and committed before any change to the MCP server on branch `feat/cu-sol-5x`.
+The agent the bots run for computer use is now GPT-6.1 Sol; this section measures for it.
+
+## Setup
+
+- Agent under test: `gpt-6.1-sol`, reasoning effort `low`, via `codex exec` (same isolated
+  CODEX_HOME and disabled features as above; only the `cu` MCP server).
+- Baseline: the binary installed today in `~/.local/share/computer-use-linux-fork/bin/computer-use-linux`
+  (built from 45bb968, v9 + per-display input lock; sha256 `77bf7316…92b8cc`), frozen as a copy
+  before the first run.
+- Chrome: `run.py --chrome-mode bots` (chrome-perfil flags + `--force-renderer-accessibility`), display `:98`.
+- Suites: easy (10 tasks, timeout 360 s) and hard (12 tasks, timeout 300 s), unchanged.
+- Final comparison: baseline and final interleaved episode by episode, 3 reps per task per variant,
+  both suites (`MODEL=gpt-6.1-sol EFFORT=low MIN_RATIO=1.5 run_all.sh <out> <baseline> <final> codex 3`).
+
+## Primary metric
+
+Throughput = successful episodes / agent wall-clock minutes, per suite, as defined above.
+
+## The bar to install
+
+Per suite (easy and hard each):
+
+1. throughput(final) >= 1.5 x throughput(baseline), and
+2. success rate(final) >= success rate(baseline), and
+3. no task passes for the baseline (strict majority) and fails for the final.
+
+Both suites must meet all three. `summarize.py --min-ratio 1.5` prints `bar met: True/False`.
+Stretch goal (reported, not required): 5x throughput.
+
+## Secondary (reported, not part of the bar)
+
+- Turns per episode (model turns = MCP calls + 1 final answer), MCP ms per call, response bytes,
+  input tokens.
+- Claude confirmation: `claude-sonnet-5-5` (effort medium), baseline vs final interleaved, 2 reps,
+  both suites; the check is "no regression" (success not lower, no pass->fail).
