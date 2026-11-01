@@ -1,12 +1,21 @@
 // Shared helpers for the benchmark apps. postState sends the task's full state
-// to server.py, which the checker reads; pages never post on load.
-async function postState(task, obj) {
-  const response = await fetch('/api/state/' + task, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(obj),
-  });
-  if (!response.ok) throw new Error('Falha ao salvar');
+// to server.py, which the checker reads; pages never post on load. Posts of one
+// task go out one after another, so a slower earlier post can never land after
+// (and overwrite) a later one.
+const postChains = {};
+function postState(task, obj) {
+  const body = JSON.stringify(obj);
+  const send = async () => {
+    const response = await fetch('/api/state/' + task, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!response.ok) throw new Error('Falha ao salvar');
+  };
+  const next = (postChains[task] || Promise.resolve()).catch(() => {}).then(send);
+  postChains[task] = next;
+  return next;
 }
 
 function toast(text) {
