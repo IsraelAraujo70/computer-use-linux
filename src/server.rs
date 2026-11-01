@@ -40,6 +40,7 @@ use tokio::{
 };
 
 mod act;
+mod act_exec;
 
 const INPUT_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 /// How long drag/drop_files wait to reread an element before refusing to act.
