@@ -2,7 +2,7 @@
 ID = 'a35-dnd-slider'
 CATEGORY = 'drag'
 PAGE = 'argo35/dnd_slider.html'
-PROMPT = 'Set "Volume" to 35 and "Graves" to 80, leave the other settings unchanged, then click "Aplicar".'
+PROMPT = "In 'Configurações de áudio', set 'Volume' to 35 and 'Graves' to 80. Leave the other settings unchanged. Then click 'Aplicar'."
 
 def check(state, root):
     """Accept only the requested complete state."""

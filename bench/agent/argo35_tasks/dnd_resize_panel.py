@@ -2,7 +2,7 @@
 ID = 'a35-dnd-resize-panel'
 CATEGORY = 'drag'
 PAGE = 'argo35/dnd_resize_panel.html'
-PROMPT = 'Drag the splitters to make "Explorador" 600 px wide and "Terminal" 300 px tall.'
+PROMPT = "In 'Ambiente de desenvolvimento', make 'Explorador' 600 px wide and 'Terminal' 300 px tall."
 
 def check(state, root):
     """Accept only the requested complete state."""

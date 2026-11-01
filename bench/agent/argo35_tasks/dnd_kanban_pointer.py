@@ -2,7 +2,7 @@
 ID = 'a35-dnd-kanban-pointer'
 CATEGORY = 'drag'
 PAGE = 'argo35/dnd_kanban_pointer.html'
-PROMPT = 'Move "Corrigir login SSO" to the top of "Concluído" and "Escrever testes E2E" to "Em andamento" (any position). Leave all other cards in their current column and relative order.'
+PROMPT = "In 'Quadro da equipe', move 'Corrigir login SSO' to the top of 'Concluído' and 'Escrever testes E2E' to 'Em andamento' at any position. Leave all other cards in their current column and relative order."
 
 def check(state, root):
     """Accept only the requested complete state."""

@@ -1,1 +1,173 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><link rel="stylesheet" href="../style.css"><style>body{margin:0;background:#eef2f6;color:#24334a;font:16px system-ui}header{background:#172d49;color:white;padding:24px 40px}main{margin:32px 40px;background:white;padding:28px;border-radius:12px} .row,.card{padding:18px;margin:8px 0;background:#f6f8fc;border:1px solid #d5deea;border-radius:7px;user-select:none;touch-action:none}.handle{cursor:grab;padding:10px}.placeholder{height:56px;border:2px dashed #477bcc;background:#edf4ff;margin:8px 0}.col{background:#edf1f7;padding:15px;flex:1;min-height:600px}.card{cursor:grab}.track{width:400px;height:12px;background:#c9d7e8;position:relative;margin:28px 0;touch-action:none;cursor:pointer}.thumb{position:absolute;width:24px;height:24px;border-radius:50%;background:#286aca;top:-6px;transform:translateX(-50%)}button{padding:12px 25px} .file,.folder{padding:24px;background:#f1f5fa;border:1px solid #cad6e4;border-radius:8px;min-height:65px}.folder{background:#fff2cc}</style><header>Workspace / Quadro da equipe</header><main><h1>Quadro da equipe</h1><div id="board" style="display:flex;gap:20px"></div></main><script src="../common.js"></script><script>const ID="a35-dnd-kanban-pointer";let columns={"todo": ["e2e", "design", "api"], "doing": ["busca", "perfil", "email"], "review": ["docs", "sso", "pagamento"], "done": ["home", "menu", "tema"]};const labels={"e2e": "Escrever testes E2E", "design": "Revisar design", "api": "Documentar API", "busca": "Otimizar busca", "perfil": "Editar perfil", "email": "Enviar e-mail", "docs": "Revisar documenta\u00e7\u00e3o", "sso": "Corrigir login SSO", "pagamento": "Validar pagamento", "home": "Criar p\u00e1gina inicial", "menu": "Ajustar menu", "tema": "Aplicar tema"};const board=document.querySelector('#board');function render(){board.replaceChildren(...Object.entries(columns).map(([col,ids],i)=>h('section',{class:'col','data-col':col},h('h2',{},['A fazer','Em andamento','Em revisão','Concluído'][i]),...ids.map(id=>h('div',{class:'card','data-id':id},labels[id])))))}render();board.onpointerdown=e=>{const card=e.target.closest('.card');if(!card)return;const x=e.clientX,y=e.clientY,id=card.dataset.id;let active=false,ghost;card.setPointerCapture(e.pointerId);card.onpointermove=v=>{if(!active&&Math.hypot(v.clientX-x,v.clientY-y)<5)return;if(!active){active=true;ghost=card.cloneNode(true);ghost.removeAttribute('data-id');Object.assign(ghost.style,{position:'fixed',width:card.offsetWidth+'px',pointerEvents:'none',opacity:'.8',zIndex:10});document.body.append(ghost);card.style.opacity='.3'}ghost.style.left=v.clientX+12+'px';ghost.style.top=v.clientY+12+'px'};card.onpointerup=v=>{if(active){ghost.remove();card.style.opacity='';const dest=[...board.children].find(c=>{const r=c.getBoundingClientRect();return v.clientX>=r.left&&v.clientX<=r.right&&v.clientY>=r.top&&v.clientY<=r.bottom});if(dest){const col=dest.dataset.col;let index=[...dest.querySelectorAll('.card')].filter(c=>c!==card&&v.clientY>c.getBoundingClientRect().y+c.offsetHeight/2).length;for(const key of Object.keys(columns))columns[key]=columns[key].filter(i=>i!==id);columns[col].splice(index,0,id);render();postState(ID,{columns})}}card.onpointermove=null;card.onpointerup=null}};</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{
+margin:0;
+background:#eef2f6;
+color:#24334a;
+font:16px system-ui
+}header{
+background:#172d49;
+color:white;
+padding:24px 40px
+}main{
+margin:32px 40px;
+background:white;
+padding:28px;
+border-radius:12px
+} .row,.card{
+padding:18px;
+margin:8px 0;
+background:#f6f8fc;
+border:1px solid #d5deea;
+border-radius:7px;
+user-select:none;
+touch-action:none
+}.handle{
+cursor:grab;
+padding:10px
+}.placeholder{
+height:56px;
+border:2px dashed #477bcc;
+background:#edf4ff;
+margin:8px 0
+}.col{
+background:#edf1f7;
+padding:15px;
+flex:1;
+min-height:600px
+}.card{
+cursor:grab
+}.track{
+width:400px;
+height:12px;
+background:#c9d7e8;
+position:relative;
+margin:28px 0;
+touch-action:none;
+cursor:pointer
+}.thumb{
+position:absolute;
+width:24px;
+height:24px;
+border-radius:50%;
+background:#286aca;
+top:-6px;
+transform:translateX(-50%)
+}button{
+padding:12px 25px
+} .file,.folder{
+padding:24px;
+background:#f1f5fa;
+border:1px solid #cad6e4;
+border-radius:8px;
+min-height:65px
+}.folder{
+background:#fff2cc
+}nav{
+padding:18px 40px;
+background:#dce5ef;
+color:#354963
+}small{
+display:block;
+color:#586a80;
+font-size:14px;
+margin:8px 0
+}.row{
+padding:12px;
+margin:6px 0
+}.card{
+padding:14px
+}.file{
+font-size:14px;
+padding:16px
+}.track{
+height:28px;
+margin:20px 0
+}.thumb{
+top:2px;
+width:28px;
+height:28px
+}.handle{
+display:inline-block;
+min-width:28px
+}header{
+font-weight:600
+}main{
+margin-top:20px
+}</style>
+<header>Workspace / Quadro da equipe</header>
+<nav>Visão geral　 /　 Meu espaço　 /　 Equipe　 /　 Relatórios</nav>
+<main>
+<h1>Quadro da equipe</h1>
+<div id="board" style="display:flex;gap:20px">
+</div>
+</main>
+<script src="../common.js">
+</script>
+<script>const ID="a35-dnd-kanban-pointer";
+let columns={
+"todo": ["design", "e2e", "api"], "doing": ["busca", "perfil", "email"], "review": ["docs", "sso", "pagamento"], "done": ["home", "menu", "tema"]
+};
+const labels={
+"e2e": "Escrever testes E2E", "design": "Revisar design", "api": "Documentar API", "busca": "Otimizar busca", "perfil": "Editar perfil", "email": "Enviar e-mail", "docs": "Revisar documenta\u00e7\u00e3o", "sso": "Corrigir login SSO", "pagamento": "Validar pagamento", "home": "Criar p\u00e1gina inicial", "menu": "Ajustar menu", "tema": "Aplicar tema"
+};
+const board=document.querySelector('#board');
+function render(){
+board.replaceChildren(...Object.entries(columns).map(([col,ids],i)=>h('section',{
+class:'col','data-col':col
+},h('h2',{
+
+},['A fazer','Em andamento','Em revisão','Concluído'][i]),...ids.map(id=>h('div',{
+class:'card','data-id':id
+},labels[id],h('small',{
+
+},'Produto · '+['Ana Costa','Bruno Lima','Carla Dias'][ids.indexOf(id)%3]),h('small',{
+
+},'Entrega: 12/11/2026'))))))
+}render();
+board.onpointerdown=e=>{
+const card=e.target.closest('.card');
+if(!card)return;
+const x=e.clientX,y=e.clientY,id=card.dataset.id;
+let active=false,ghost;
+card.setPointerCapture(e.pointerId);
+card.onpointermove=v=>{
+if(!active&&Math.hypot(v.clientX-x,v.clientY-y)<5)return;
+if(!active){
+active=true;
+ghost=card.cloneNode(true);
+ghost.removeAttribute('data-id');
+Object.assign(ghost.style,{
+position:'fixed',width:card.offsetWidth+'px',pointerEvents:'none',opacity:'.8',zIndex:10
+});
+document.body.append(ghost);
+card.style.opacity='.3'
+}ghost.style.left=v.clientX+12+'px';
+ghost.style.top=v.clientY+12+'px'
+};
+card.onpointerup=v=>{
+if(active){
+ghost.remove();
+card.style.opacity='';
+const dest=[...board.children].find(c=>{
+const r=c.getBoundingClientRect();
+return v.clientX>=r.left&&v.clientX<=r.right&&v.clientY>=r.top&&v.clientY<=r.bottom
+});
+if(dest){
+const col=dest.dataset.col;
+let index=[...dest.querySelectorAll('.card')].filter(c=>c!==card&&v.clientY>c.getBoundingClientRect().y+c.offsetHeight/2).length;
+for(const key of Object.keys(columns))columns[key]=columns[key].filter(i=>i!==id);
+columns[col].splice(index,0,id);
+render();
+postState(ID,{
+columns
+})
+}
+}card.onpointermove=null;
+card.onpointerup=null
+}
+};
+</script>
+</html>

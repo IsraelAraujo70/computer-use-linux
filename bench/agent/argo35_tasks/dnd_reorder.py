@@ -2,7 +2,7 @@
 ID = 'a35-dnd-reorder'
 CATEGORY = 'drag'
 PAGE = 'argo35/dnd_reorder.html'
-PROMPT = 'Move "Migrar banco de dados" to the top and "Atualizar dependências" to the bottom by dragging the handles. Keep the other tasks in relative order.'
+PROMPT = "In 'Prioridades da sprint', move 'Migrar banco de dados' to the top and 'Atualizar dependências' to the bottom. Keep all other tasks in relative order."
 
 def check(state, root):
     """Accept only the requested complete state."""

@@ -2,7 +2,7 @@
 ID = 'a35-dnd-file-folder'
 CATEGORY = 'drag'
 PAGE = 'argo35/dnd_file_folder.html'
-PROMPT = 'Drag "contrato-assinado.pdf" and "nota-fiscal-0931.xml" into "Financeiro 2026". Leave every other file where it is.'
+PROMPT = "In 'Arquivos', move 'contrato-assinado.pdf' and 'nota-fiscal-0931.xml' into 'Financeiro 2026'. Leave every other file where it is."
 
 def check(state, root):
     """Accept only the requested complete state."""
