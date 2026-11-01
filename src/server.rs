@@ -5829,15 +5829,16 @@ impl ComputerUseLinux {
         }
     }
 
-    /// One `until` step without the wheel: scrolls the last element rendered
-    /// in the scrolled area (the first, going up) to its top (bottom) edge
+    /// One `until` step without the wheel: scrolls the lowest element shown
+    /// in the scrolled area (the highest, going up) to its top (bottom) edge
     /// with AT-SPI `Component.ScrollTo` (`jump_target`), which Chromium does
     /// at once, with no smooth-scroll animation to wait out. Every element
     /// rendered before the jump was already searched and the one jumped to
-    /// stays rendered, so no row is skipped. Returns the read once the page
-    /// has changed and two reads agree (or a read renders a match); `None`
-    /// when there is no target, ScrollTo fails, or nothing changes within
-    /// `UNTIL_JUMP_LIMIT`, and the caller turns the wheel instead.
+    /// stays rendered, so no row is skipped. Returns the read once the list
+    /// has moved (`jump_moved`) and two reads agree (or a read renders a
+    /// match); `None` for a `point` without an element, no target, a ScrollTo
+    /// that fails or outlasts `UNTIL_JUMP_LIMIT`, or no move within it, and
+    /// the caller turns the wheel instead.
     async fn until_jump(
         &self,
         plan: &ScrollUntil,
@@ -5845,20 +5846,27 @@ impl ComputerUseLinux {
         last: &Rescan,
         previous: &[crate::outline::ElementContent],
     ) -> Option<Rescan> {
+        // A point names a place, not an element: the area scrolled there is
+        // not known, so the wheel turns there instead.
+        if plan.container.is_none() && plan.point.is_some() {
+            return None;
+        }
         let target = jump_target(&last.nodes, plan.container, direction)?;
         let down = direction == ScrollDirection::Down;
-        if !matches!(
-            crate::atspi_tree::scroll_to_edge(&target, down).await,
-            Ok(true)
-        ) {
+        let started = std::time::Instant::now();
+        let scrolled = tokio::time::timeout(
+            UNTIL_JUMP_LIMIT,
+            crate::atspi_tree::scroll_to_edge(&target.object_ref, down),
+        )
+        .await;
+        if !matches!(scrolled, Ok(Ok(true))) {
             return None;
         }
         let hint = plan.hint_ref.as_deref();
-        let started = std::time::Instant::now();
         sleep(UNTIL_JUMP_WAIT).await;
         let mut latest = self.read_page(&last.nodes, hint).await.ok()?;
         let mut contents = crate::outline::element_contents(&latest.nodes);
-        while contents == previous {
+        while contents == previous || !jump_moved(&latest.nodes, &target, direction) {
             if started.elapsed() >= UNTIL_JUMP_LIMIT {
                 return None;
             }
@@ -6434,19 +6442,21 @@ const ROW_ROLES: [&str; 5] = [
     "tree table row",
 ];
 
-/// How many list, table and tree rows a read has.
-/// The element an `until` jump scrolls to an edge (`until_jump`): inside the
-/// scrolled area (`container`, else the visible web document), the rendered
-/// element lowest on the page whose top is below the area's top (going down;
-/// going up, the highest whose bottom is above the area's bottom), shorter
-/// than the area so a list's spacer or the area itself never counts; the
-/// shallowest such element when several share the edge. `None` when nothing
-/// qualifies (an empty or horizontal-only area).
+/// The element an `until` jump scrolls to an edge (`until_jump`), with its
+/// top and bottom before the jump: inside the scrolled area (`container`,
+/// else the visible web document), shorter than the area, the element lowest
+/// on the page whose top is below the area's top edge (going down; going up,
+/// the highest whose bottom is above its bottom edge), the shallowest when
+/// several share the edge. Past the visible part only elements that continue
+/// the shown ones count: each must start within `JUMP_COVERAGE_GAP` of the
+/// lowest bottom (highest top) reached so far, so a virtual list's rows
+/// rendered below the fold extend the jump while a footer beyond its spacer,
+/// past rows never rendered, ends the chain. `None` when nothing qualifies.
 fn jump_target(
     nodes: &[AccessibilityNode],
     container: Option<u32>,
     direction: ScrollDirection,
-) -> Option<String> {
+) -> Option<JumpTarget> {
     let area = crate::page_view::shown_part(nodes, container)?;
     let scope =
         container.or_else(|| crate::page_view::document_parts(nodes).map(|p| p.document))?;
@@ -6464,35 +6474,91 @@ fn jump_target(
         false
     };
     let down = direction == ScrollDirection::Down;
-    let candidates = nodes.iter().filter(|node| {
-        let Some(b) = node.bounds.as_ref() else {
-            return false;
-        };
-        let toward = if down {
-            b.y > area.y + 1
+    let (top, bottom) = (area.y, area.y + area.height);
+    // Distance along the scroll from the area's leading edge: going down an
+    // element's top below the area's top, going up its bottom above the
+    // area's bottom, so one walk serves both directions.
+    let lead = |b: &Bounds| {
+        if down {
+            b.y - top
         } else {
-            b.y + b.height < area.y + area.height - 1
-        };
-        b.width > 0 && b.height > 0 && b.height < area.height && toward && inside(node.index)
-    });
-    let best = if down {
-        candidates.max_by_key(|node| {
-            (
-                node.bounds.as_ref().map_or(i32::MIN, |b| b.y),
-                std::cmp::Reverse(node.depth),
-            )
-        })
-    } else {
-        candidates.min_by_key(|node| {
-            (
-                node.bounds.as_ref().map_or(i32::MAX, |b| b.y + b.height),
-                node.depth,
-            )
-        })
+            bottom - (b.y + b.height)
+        }
     };
-    best.map(|node| node.object_ref.clone())
+    let mut candidates: Vec<&AccessibilityNode> = nodes
+        .iter()
+        .filter(|node| {
+            node.bounds.as_ref().is_some_and(|b| {
+                b.width > 0 && b.height > 0 && b.height < area.height && lead(b) > 1
+            }) && inside(node.index)
+        })
+        .collect();
+    candidates.sort_by_key(|node| {
+        (
+            node.bounds.as_ref().map_or(i32::MAX, lead),
+            std::cmp::Reverse(node.depth),
+        )
+    });
+    let mut reached = area.height;
+    let mut best = None;
+    for node in candidates {
+        let Some(b) = node.bounds.as_ref() else {
+            continue;
+        };
+        if lead(b) > reached + JUMP_COVERAGE_GAP {
+            break;
+        }
+        reached = reached.max(lead(b) + b.height);
+        best = Some(node);
+    }
+    let node = best?;
+    let b = node.bounds.as_ref()?;
+    Some(JumpTarget {
+        object_ref: node.object_ref.clone(),
+        top: b.y,
+        bottom: b.y + b.height,
+    })
 }
 
+/// Largest gap between rendered elements past the visible part that still
+/// counts as one run of rows for `jump_target` (spacing between cards or
+/// rows), far below the height of a row that was never rendered.
+const JUMP_COVERAGE_GAP: i32 = 48;
+
+/// What `jump_target` picked: the element and where it was before the jump.
+#[derive(Debug, Clone, PartialEq)]
+struct JumpTarget {
+    object_ref: String,
+    top: i32,
+    bottom: i32,
+}
+
+/// Whether a jump to `target` moved the list in `direction` by `nodes` (the
+/// read after it): the target moved toward the edge it was scrolled to, or
+/// left the tree because the list re-rendered its rows. Other changes (a
+/// clock, a live log line) do not count.
+fn jump_moved(
+    nodes: &[AccessibilityNode],
+    target: &JumpTarget,
+    direction: ScrollDirection,
+) -> bool {
+    let Some(node) = nodes
+        .iter()
+        .find(|node| node.object_ref == target.object_ref)
+    else {
+        return true;
+    };
+    let Some(b) = node.bounds.as_ref() else {
+        return true;
+    };
+    if direction == ScrollDirection::Down {
+        b.y < target.top - 1
+    } else {
+        b.y + b.height > target.bottom + 1
+    }
+}
+
+/// How many list, table and tree rows a read has.
 fn row_count(nodes: &[AccessibilityNode]) -> usize {
     nodes
         .iter()
@@ -9938,7 +10004,7 @@ mod tests {
     }
 
     #[test]
-    fn until_jumps_to_the_last_rendered_row_inside_the_scrolled_area() {
+    fn until_jumps_to_the_last_row_rendered_in_one_run_inside_the_scrolled_area() {
         let b = |y, height| {
             Some(Bounds {
                 x: 10,
@@ -9955,31 +10021,55 @@ mod tests {
         };
         let nodes = vec![
             child(0, None, 0, b(0, 1000), "frame"),
-            child(1, Some(0), 1, b(100, 500), "section"), // the scrolled list
+            child(1, Some(0), 1, b(100, 500), "section"), // the scrolled list, 100..600
             child(2, Some(1), 2, b(100, 90_000), "section"), // its spacer
             child(3, Some(2), 3, b(150, 40), "section"),
-            child(4, Some(2), 3, b(400, 40), "section"),
-            child(5, Some(2), 3, b(640, 40), "section"), // rendered below the fold
-            child(6, Some(5), 4, b(640, 20), "static"),
-            child(7, Some(0), 1, b(900, 40), "push button"), // outside the list
+            child(4, Some(2), 3, b(560, 40), "section"), // last row shown
+            child(5, Some(4), 4, b(560, 20), "static"),
+            child(6, Some(2), 3, b(640, 40), "section"), // rendered below the fold
+            child(7, Some(1), 2, b(90_100, 40), "section"), // footer past the spacer
+            child(8, Some(0), 1, b(900, 40), "push button"), // outside the list
         ];
-        let reference = |index: u32| nodes[index as usize].object_ref.clone();
-        // Down: the lowest rendered row of the list, not its text, the spacer
-        // or the button outside it.
+        let target = |index: usize| {
+            let b = nodes[index].bounds.clone().unwrap();
+            Some(JumpTarget {
+                object_ref: nodes[index].object_ref.clone(),
+                top: b.y,
+                bottom: b.y + b.height,
+            })
+        };
+        // Down: the lowest row rendered in one run from the shown ones (row 6,
+        // just below the fold), not the footer past the spacer (rows between
+        // were never rendered), the spacer, a row's text or the button
+        // outside the list.
         assert_eq!(
             jump_target(&nodes, Some(1), ScrollDirection::Down),
-            Some(reference(5))
+            target(6)
         );
-        // Up: the highest row.
+        // A gap wider than JUMP_COVERAGE_GAP ends the run at the last row shown.
+        let mut gapped = nodes.clone();
+        gapped[6].bounds = b(700, 40);
         assert_eq!(
-            jump_target(&nodes, Some(1), ScrollDirection::Up),
-            Some(reference(3))
+            jump_target(&gapped, Some(1), ScrollDirection::Down),
+            target(4)
         );
+        // Up: the highest row shown.
+        assert_eq!(jump_target(&nodes, Some(1), ScrollDirection::Up), target(3));
         // A list with only its spacer has nothing to jump to.
         assert_eq!(
             jump_target(&nodes[..3], Some(1), ScrollDirection::Down),
             None
         );
+        // The jump moved the list when its target rose or was re-rendered away;
+        // a change elsewhere with the target in place does not count.
+        let jumped = target(4).unwrap();
+        let mut after = nodes.clone();
+        after[4].bounds = b(110, 40);
+        assert!(jump_moved(&after, &jumped, ScrollDirection::Down));
+        assert!(jump_moved(&nodes[..4], &jumped, ScrollDirection::Down));
+        let mut elsewhere = nodes.clone();
+        elsewhere[8].name = Some("12:01".to_string());
+        assert!(!jump_moved(&elsewhere, &jumped, ScrollDirection::Down));
     }
 
     #[test]
