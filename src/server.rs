@@ -6445,15 +6445,18 @@ const ROW_ROLES: [&str; 5] = [
     "tree table row",
 ];
 
-/// What to tell the agent after a drag that changed nothing (`report` is its
-/// change report): such drags usually pressed beside a thin handle that has
-/// no element of its own, or pressed on selected text, which Chromium then
-/// drags as text, so every later drag from there fails the same way.
+/// What to tell the agent after a drag whose change report (`report`) shows
+/// nothing: the report leaves out geometry and pixels, so the drag may still
+/// have worked; when it did not, it usually pressed beside a thin handle that
+/// has no element of its own, or on selected text, which Chromium then drags
+/// as text, so every later drag from there fails the same way.
 fn idle_drag_note(output: &ActionOutput, report: &str) -> Option<&'static str> {
     (output.ok && output.action == "drag" && report.starts_with("changes: none")).then_some(
-        "note: the drag moved nothing. Press on the handle itself: resize bars and drag \
-         handles are often thin and missing from the tree (a screenshot shows them). A press \
-         on selected text drags that text instead: click an empty spot first to clear it.\n",
+        "note: the drag changed nothing in the accessibility tree (moves, resizes and canvas \
+         pixels do not show there; a screenshot does). If it had no effect: press on the \
+         handle itself, since resize bars and drag handles are often thin and missing from the \
+         tree; and a press on selected text drags that text instead, so click an empty spot \
+         first to clear it.\n",
     )
 }
 
