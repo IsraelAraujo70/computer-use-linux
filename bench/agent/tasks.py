@@ -253,13 +253,17 @@ BY_ID = {task.id: task for task in TASKS}
 
 
 def suite(name: str) -> list[Task]:
-    """Tasks of a named suite: "easy" (this module) or "hard" (tasks_hard.py)."""
+    """Tasks of a named suite: "easy" (this module), "hard" (tasks_hard.py) or "long" (tasks_long.py)."""
     if name == "easy":
         return TASKS
     if name == "hard":
         import tasks_hard
 
         return tasks_hard.HARD_TASKS
+    if name == "long":
+        import tasks_long
+
+        return tasks_long.LONG_TASKS
     raise ValueError(f"unknown suite {name!r}")
 
 
@@ -267,8 +271,9 @@ def by_id(task_id: str) -> Task:
     if task_id in BY_ID:
         return BY_ID[task_id]
     import tasks_hard
+    import tasks_long
 
-    return {t.id: t for t in tasks_hard.HARD_TASKS}[task_id]
+    return {t.id: t for t in tasks_hard.HARD_TASKS + tasks_long.LONG_TASKS}[task_id]
 
 
 def read_state(state_dir: Path, task_id: str) -> dict:
