@@ -39,6 +39,8 @@ use tokio::{
     time::{sleep, timeout},
 };
 
+mod act;
+
 const INPUT_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 /// How long drag/drop_files wait to reread an element before refusing to act.
 const ELEMENT_REREAD_TIMEOUT: Duration = Duration::from_secs(2);
@@ -1978,6 +1980,20 @@ impl ComputerUseLinux {
             Echo::default()
         };
         self.finish_action(output, observe, echo).await
+    }
+
+    #[tool(
+        name = "act",
+        description = "Run several steps in one call: [{do:\"click\",element_index:12}, {do:\"set\",role:\"entry\",name:\"Assunto\",value:\"Oi\"}, {do:\"key\",key:\"Enter\"}, {do:\"wait\",text:\"Salvo\"}]. do is click, set, type, key, scroll or wait. A step may name an element an earlier step reveals by role/name/text instead of an id. The page settles after each step; the call stops at the first step that fails or when a dialog opens, and reports each step, then what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn act_tool(&self, Parameters(params): Parameters<act::ActParams>) -> CallToolResult {
+        self.act(params).await
     }
 
     #[tool(

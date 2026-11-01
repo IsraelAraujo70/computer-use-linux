@@ -193,6 +193,7 @@ def main() -> None:
     else:
         cmd = claude_cmd(spec, env, prompt, mcp_log, run_dir / "mcp-config.json")
     started = time.monotonic()
+    started_at = time.time()
     timed_out = False
     with open(run_dir / "agent.jsonl", "w") as out, open(run_dir / "agent.err", "w") as err:
         stdin = subprocess.PIPE if spec["agent"] == "claude" else subprocess.DEVNULL
@@ -212,6 +213,7 @@ def main() -> None:
                 os.killpg(proc.pid, signal.SIGKILL)
                 proc.wait()
     wall = time.monotonic() - started
+    ended_at = time.time()
     time.sleep(0.5)  # let a final state POST land
     state = tasks.read_state(root / "state", task.id)
     try:
@@ -241,6 +243,8 @@ def main() -> None:
         "timed_out": timed_out,
         "exit_code": proc.returncode,
         "wall_s": round(wall, 2),
+        "started_at": started_at,  # epoch seconds, to line up with mcp.jsonl "t"
+        "ended_at": ended_at,
         "agent_tool_calls": len(parsed["tool_calls"]),
         "agent_tool_errors": sum(c["error"] for c in parsed["tool_calls"]),
         "mcp_calls": len(calls),

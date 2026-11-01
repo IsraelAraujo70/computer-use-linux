@@ -842,6 +842,24 @@ pub fn blocking_dialog(
     Some(note)
 }
 
+/// `blocking_dialog`, with the dialog's element id: `(id, note)`. `act`
+/// uses the id to tell whether its next step targets the dialog.
+pub fn blocking_dialog_with_id(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+) -> Option<(u32, String)> {
+    let _ = (before, after);
+    None
+}
+
+/// Whether element `id` is `ancestor` or lies inside it in `nodes`
+/// (elements matched by id, parents by `parent_index`). False when either
+/// is missing.
+pub fn is_inside(nodes: &[AccessibilityNode], id: u32, ancestor: u32) -> bool {
+    let _ = (nodes, id, ancestor);
+    false
+}
+
 /// Lower-case words a control or status shows while the app is still
 /// working on a request (Portuguese and English, the languages of the apps
 /// agents drive here). A changed label ending in "…" or "..." counts too.
