@@ -1,1 +1,102 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><link rel="stylesheet" href="../style.css"><style>body{background:#f3f5fa;color:#203047;font-family:system-ui;margin:0}main{max-width:1100px;margin:60px auto;background:white;padding:40px;border-radius:16px}button,input,select{font:inherit;padding:12px;margin:8px}article{border:1px solid #d8dfeb;padding:24px;margin:16px 0;border-radius:10px}dialog{border:0;border-radius:14px;padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;gap:16px}.plans article{flex:1}.tip{position:absolute;background:#203047;color:white;padding:14px;border-radius:8px;z-index:5}</style><script src="../common.js"></script><main><small>Órbita · Área de trabalho</small><h1>Agenda da equipe</h1><p id="current">Fuso horário: America/Sao_Paulo</p><button id="settings">Configurações</button><dialog id="cookiesDialog"><h2>Privacidade</h2><p>Usamos cookies opcionais para análise de uso.</p><button id="accept">Aceitar</button><button id="reject">Recusar</button></dialog><dialog id="config"><h2>Configurações</h2><label>Fuso horário <select id="zone"><option>America/Sao_Paulo</option><option>America/Manaus</option><option>America/Recife</option></select></label><button id="save">Salvar</button></dialog><dialog id="confirmation"><h2>Isso vai alterar 12 agendamentos</h2><button id="confirmChange">Confirmar</button><button id="back">Voltar</button></dialog><div id="notice" role="status" hidden>Fuso atualizado <button id="undo">Desfazer</button></div></main><script>let state={timezone:'America/Sao_Paulo',cookies:null},previous;const post=()=>postState('a35-dialog-nested',state);cookiesDialog.showModal();cookiesDialog.oncancel=e=>e.preventDefault();accept.onclick=()=>{state.cookies='aceito';cookiesDialog.close();post();};reject.onclick=()=>{state.cookies='recusado';cookiesDialog.close();post();};settings.onclick=()=>{zone.value=state.timezone;config.showModal();};save.onclick=()=>confirmation.showModal();back.onclick=()=>confirmation.close();confirmChange.onclick=()=>{previous=state.timezone;state.timezone=zone.value;current.textContent='Fuso horário: '+state.timezone;confirmation.close();config.close();post();notice.hidden=false;setTimeout(()=>notice.hidden=true,5000);};undo.onclick=()=>{state.timezone=previous;current.textContent='Fuso horário: '+state.timezone;notice.hidden=true;post();};</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{background:#f3f5fa;
+color:#203047;
+font-family:system-ui;
+font-size:16px;
+margin:0}main{max-width:1100px;
+margin:60px auto;
+background:white;
+padding:40px;
+border-radius:16px}button,input,select{font:inherit;
+padding:12px;
+margin:8px}article{border:1px solid #d8dfeb;
+padding:24px;
+margin:16px 0;
+border-radius:10px}dialog{border:0;
+border-radius:14px;
+padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;
+gap:16px}.plans article{flex:1}.tip{position:absolute;
+background:#203047;
+color:white;
+padding:14px;
+border-radius:8px;
+z-index:5}</style>
+<script src="../common.js">
+
+</script>
+<header style="padding:20px;
+background:#203047;
+color:white">Órbita Workspace · Equipe Oliveira &amp;
+ Duarte</header>
+<nav style="padding:16px;
+background:white">Visão geral　 /　 Equipe　 /　 Documentos　 /　 Administração</nav>
+<main>
+<small>Órbita · Área de trabalho</small>
+<h1>Agenda da equipe</h1>
+<p id="current">Fuso horário: America/Sao_Paulo</p>
+<article>
+<h2>Próximos agendamentos</h2>
+<p>Revisão comercial · Marina Duarte · 03/11/2026 às 10:00</p>
+<p>Planejamento financeiro · Rafael Lima · 04/11/2026 às 14:00</p>
+<p>Entrega mensal · Ana Oliveira · 06/11/2026 às 09:00</p>
+</article>
+<button id="settings">Configurações</button>
+<dialog id="cookiesDialog">
+<h2>Privacidade</h2>
+<p>Usamos cookies opcionais para análise de uso.</p>
+<button id="accept">Aceitar</button>
+<button id="reject">Recusar</button>
+</dialog>
+<dialog id="config">
+<h2>Configurações</h2>
+<label>Idioma <select id="language">
+<option>Português</option>
+<option>English</option>
+</select>
+</label>
+<label>Formato de data <select id="dateFormat">
+<option>DD/MM/AAAA</option>
+<option>MM/DD/AAAA</option>
+</select>
+</label>
+<label>Notificações <select id="notifications">
+<option>Ativadas</option>
+<option>Desativadas</option>
+</select>
+</label>
+<label>Fuso horário <select id="zone">
+<option>America/Sao_Paulo</option>
+<option>America/Manaus</option>
+<option>America/Recife</option>
+</select>
+</label>
+<button id="save">Salvar</button>
+</dialog>
+<dialog id="confirmation">
+<h2>Isso vai alterar 12 agendamentos</h2>
+<button id="confirmChange">Confirmar</button>
+<button id="back">Voltar</button>
+</dialog>
+<div id="notice" role="status" hidden>Fuso atualizado <button id="undo">Desfazer</button>
+</div>
+</main>
+<script>let state={timezone:'America/Sao_Paulo',cookies:null,language:'Português',dateFormat:'DD/MM/AAAA',notifications:'Ativadas'},previous;
+const post=()=>postState('a35-dialog-nested',state);cookiesDialog.showModal();cookiesDialog.oncancel=e=>e.preventDefault();accept.onclick=()=>{state.cookies='aceito';cookiesDialog.close();post();
+};
+reject.onclick=()=>{state.cookies='recusado';cookiesDialog.close();post();
+};
+settings.onclick=()=>{zone.value=state.timezone;language.value=state.language;dateFormat.value=state.dateFormat;notifications.value=state.notifications;config.showModal();
+};
+save.onclick=()=>confirmation.showModal();back.onclick=()=>confirmation.close();confirmChange.onclick=()=>{previous={...state};
+state.language=language.value;state.dateFormat=dateFormat.value;state.notifications=notifications.value;state.timezone=zone.value;current.textContent='Fuso horário: '+state.timezone;confirmation.close();config.close();post();notice.hidden=false;setTimeout(()=>notice.hidden=true,5000);
+};
+undo.onclick=()=>{state={...previous};
+current.textContent='Fuso horário: '+state.timezone;notice.hidden=true;post();
+};
+
+
+</script>
+</html>

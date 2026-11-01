@@ -1,1 +1,56 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><link rel="stylesheet" href="../style.css"><style>body{background:#f3f5fa;color:#203047;font-family:system-ui;margin:0}main{max-width:1100px;margin:60px auto;background:white;padding:40px;border-radius:16px}button,input,select{font:inherit;padding:12px;margin:8px}article{border:1px solid #d8dfeb;padding:24px;margin:16px 0;border-radius:10px}dialog{border:0;border-radius:14px;padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;gap:16px}.plans article{flex:1}.tip{position:absolute;background:#203047;color:white;padding:14px;border-radius:8px;z-index:5}</style><script src="../common.js"></script><main><small>Órbita · Área de trabalho</small><h1>Comparar fornecedores</h1><p>Cotação de 10 cadeiras para o escritório. Consulte cada proposta e inclua a melhor oferta.</p><article><a target="_blank" href="tabs_compare-supplier.html?id=0">Atlas</a></article><article><a target="_blank" href="tabs_compare-supplier.html?id=1">Boreal</a></article><article><a target="_blank" href="tabs_compare-supplier.html?id=2">Cedro</a></article><label>Código do fornecedor <input id="code"></label><button id="add">Adicionar ao pedido</button></main><script>code.oninput=()=>postState('a35-tabs-compare',{supplier_code:code.value});add.onclick=async()=>{await postState('a35-tabs-compare',{supplier_code:code.value});toast('Fornecedor adicionado ao pedido');};</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{background:#f3f5fa;
+color:#203047;
+font-family:system-ui;
+font-size:16px;
+margin:0}main{max-width:1100px;
+margin:60px auto;
+background:white;
+padding:40px;
+border-radius:16px}button,input,select{font:inherit;
+padding:12px;
+margin:8px}article{border:1px solid #d8dfeb;
+padding:24px;
+margin:16px 0;
+border-radius:10px}dialog{border:0;
+border-radius:14px;
+padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;
+gap:16px}.plans article{flex:1}.tip{position:absolute;
+background:#203047;
+color:white;
+padding:14px;
+border-radius:8px;
+z-index:5}</style>
+<script src="../common.js">
+
+</script>
+<header style="padding:20px;background:#203047;color:white">Órbita Workspace · Equipe Oliveira &amp; Duarte</header>
+<nav style="padding:16px;background:white">Visão geral　 /　 Equipe　 /　 Documentos　 /　 Administração</nav>
+<main>
+<small>Órbita · Área de trabalho</small>
+<h1>Comparar fornecedores</h1>
+<p>Cotação de uma cadeira para o escritório. Consulte cada proposta e inclua a melhor oferta.</p>
+<article>
+<a target="_blank" href="tabs_compare-supplier.html?id=0">Atlas</a>
+</article>
+<article>
+<a target="_blank" href="tabs_compare-supplier.html?id=1">Boreal</a>
+</article>
+<article>
+<a target="_blank" href="tabs_compare-supplier.html?id=2">Cedro</a>
+</article>
+<p>Pedido #4821 · Centro de custo: Operações · Solicitante: Marina Duarte</p>
+<p>Entrega: Rua das Flores, 120, São Paulo · Prazo desejado: 12/11/2026</p>
+<label>Código do fornecedor <input id="code">
+</label>
+<button id="add">Adicionar ao pedido</button>
+</main>
+<script>code.oninput=()=>postState('a35-tabs-compare',{supplier_code:code.value});add.onclick=async()=>{await postState('a35-tabs-compare',{supplier_code:code.value});toast('Fornecedor adicionado ao pedido');
+};
+
+
+</script>
+</html>

@@ -1,1 +1,53 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><link rel="stylesheet" href="../style.css"><style>body{background:#f3f5fa;color:#203047;font-family:system-ui;margin:0}main{max-width:1100px;margin:60px auto;background:white;padding:40px;border-radius:16px}button,input,select{font:inherit;padding:12px;margin:8px}article{border:1px solid #d8dfeb;padding:24px;margin:16px 0;border-radius:10px}dialog{border:0;border-radius:14px;padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;gap:16px}.plans article{flex:1}.tip{position:absolute;background:#203047;color:white;padding:14px;border-radius:8px;z-index:5}</style><script src="../common.js"></script><main><small>Órbita · Área de trabalho</small><h1>Autorizar Google Drive</h1><p>Escolha uma conta para continuar no Órbita.</p><label><input type="radio" name="account" value="israel@empresa.com">israel@empresa.com</label><br><label><input type="radio" name="account" value="israel.pessoal@gmail.com">israel.pessoal@gmail.com</label><p>Permitir acesso aos documentos selecionados.</p><button id="allow">Permitir</button></main><script>allow.onclick=()=>{const a=document.querySelector('input:checked');if(a){window.opener.postMessage({account:a.value},location.origin);window.close();}};</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{background:#f3f5fa;
+color:#203047;
+font-family:system-ui;
+font-size:16px;
+margin:0}main{max-width:1100px;
+margin:60px auto;
+background:white;
+padding:40px;
+border-radius:16px}button,input,select{font:inherit;
+padding:12px;
+margin:8px}article{border:1px solid #d8dfeb;
+padding:24px;
+margin:16px 0;
+border-radius:10px}dialog{border:0;
+border-radius:14px;
+padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;
+gap:16px}.plans article{flex:1}.tip{position:absolute;
+background:#203047;
+color:white;
+padding:14px;
+border-radius:8px;
+z-index:5}</style>
+<script src="../common.js">
+
+</script>
+<header style="padding:20px;background:#203047;color:white">Órbita Workspace · Equipe Oliveira &amp; Duarte</header>
+<nav style="padding:16px;background:white">Visão geral　 /　 Equipe　 /　 Documentos　 /　 Administração</nav>
+<main>
+<small>Órbita · Área de trabalho</small>
+<h1>Autorizar Google Drive</h1>
+<p>Escolha uma conta para continuar no Órbita.</p>
+<label>
+<input type="radio" name="account" value="israel@empresa.com">israel@empresa.com</label>
+<br>
+<label>
+<input type="radio" name="account" value="israel.pessoal@gmail.com">israel.pessoal@gmail.com</label>
+<section id="consent" hidden><h2>O Órbita solicita acesso</h2><p>Consultar e organizar documentos selecionados no Google Drive. Você pode revogar esse acesso em Integrações.</p></section>
+<button id="cancel">Cancelar</button>
+<button id="allow" hidden>Permitir</button>
+</main>
+<script>document.querySelectorAll('[name=account]').forEach(input=>input.onchange=()=>{document.getElementById('consent').hidden=false;
+document.getElementById('allow').hidden=false;});
+cancel.onclick=()=>window.close();allow.onclick=()=>{const a=document.querySelector('input:checked');
+if(a){window.opener.postMessage({account:a.value},location.origin);window.close();
+}};
+
+
+</script>
+</html>

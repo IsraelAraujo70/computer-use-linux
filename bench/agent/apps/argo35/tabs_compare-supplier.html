@@ -1,1 +1,46 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><link rel="stylesheet" href="../style.css"><style>body{background:#f3f5fa;color:#203047;font-family:system-ui;margin:0}main{max-width:1100px;margin:60px auto;background:white;padding:40px;border-radius:16px}button,input,select{font:inherit;padding:12px;margin:8px}article{border:1px solid #d8dfeb;padding:24px;margin:16px 0;border-radius:10px}dialog{border:0;border-radius:14px;padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;gap:16px}.plans article{flex:1}.tip{position:absolute;background:#203047;color:white;padding:14px;border-radius:8px;z-index:5}</style><script src="../common.js"></script><main><small>Órbita · Área de trabalho</small><h1>Proposta comercial</h1><article id="offer"></article></main><script>const offers=[['Atlas',800,350,'ATL-10'],['Boreal',950,50,'BOR-42'],['Cedro',1050,80,'CED-73']];const o=offers[Number(new URLSearchParams(location.search).get('id'))]||offers[0];offer.append(h('h2',{},o[0]),h('p',{},'Preço do lote: R$ '+o[1]+',00'),h('p',{},'Frete: R$ '+o[2]+',00'),h('p',{},'Código: '+o[3]));</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{background:#f3f5fa;
+color:#203047;
+font-family:system-ui;
+font-size:16px;
+margin:0}main{max-width:1100px;
+margin:60px auto;
+background:white;
+padding:40px;
+border-radius:16px}button,input,select{font:inherit;
+padding:12px;
+margin:8px}article{border:1px solid #d8dfeb;
+padding:24px;
+margin:16px 0;
+border-radius:10px}dialog{border:0;
+border-radius:14px;
+padding:32px}dialog::backdrop{background:#14213d88}.plans{display:flex;
+gap:16px}.plans article{flex:1}.tip{position:absolute;
+background:#203047;
+color:white;
+padding:14px;
+border-radius:8px;
+z-index:5}</style>
+<script src="../common.js">
+
+</script>
+<header style="padding:20px;background:#203047;color:white">Órbita Workspace · Equipe Oliveira &amp; Duarte</header>
+<nav style="padding:16px;background:white">Visão geral　 /　 Equipe　 /　 Documentos　 /　 Administração</nav>
+<main>
+<small>Órbita · Área de trabalho</small>
+<h1>Proposta comercial</h1>
+<p>Catálogo corporativo / Mobiliário / Cadeira ergonômica</p>
+<div style="background:#e6ebf1;padding:40px;text-align:center">▱ Cadeira executiva · Série Office</div>
+<p>Encosto ajustável, revestimento cinza e garantia de 24 meses. Entrega para São Paulo em até 7 dias úteis.</p>
+<article id="offer">
+</article>
+</main>
+<script>const offers=[['Atlas',800,350,'ATL-10'],['Boreal',950,50,'BOR-42'],['Cedro',1050,80,'CED-73']];
+const o=offers[Number(new URLSearchParams(location.search).get('id'))]||offers[0];
+offer.append(h('h2',{},o[0]),h('p',{},'Preço unitário: R$ '+o[1]+',00'),h('p',{},'Frete: R$ '+o[2]+',00'),h('p',{},'Código do fornecedor: '+o[3]));
+
+</script>
+</html>
