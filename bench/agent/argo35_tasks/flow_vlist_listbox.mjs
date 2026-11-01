@@ -1,0 +1,2 @@
+export const TASK_ID='a35-vlist-listbox';
+export async function flow({page,base}){await page.goto(base+'vlist_listbox.html'); await page.getByRole('button',{name:'Selecionar cidade'}).click(); await page.locator('#view').hover(); await page.mouse.wheel(0,64764); await page.getByRole('option',{name:'Vila Nova do Sul',exact:true}).click(); await page.getByRole('button',{name:'Salvar',exact:true}).click(); }
