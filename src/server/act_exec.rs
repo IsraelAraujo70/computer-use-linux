@@ -140,13 +140,19 @@ impl ComputerUseLinux {
             text.push('\n');
         }
         if let Some(settled) = &last_settled {
-            let shown: Vec<String> = targets
+            // Elements a later step re-rendered or removed are in the change
+            // report already; a `target:` line saying so is noise.
+            let mut shown: Vec<String> = targets
                 .iter()
-                .rev()
-                .take(MAX_TARGET_LINES)
-                .rev()
+                .filter(|object_ref| {
+                    settled
+                        .nodes
+                        .iter()
+                        .any(|node| &node.object_ref == *object_ref)
+                })
                 .cloned()
                 .collect();
+            shown.drain(..shown.len().saturating_sub(MAX_TARGET_LINES));
             let report = self
                 .change_report_since(&start, settled, Some(busy_notes), &shown)
                 .await;

@@ -6828,7 +6828,24 @@ fn resolve_semantic_node(
         .or(selector.text)
         .map(str::trim)
         .filter(|name| !name.is_empty());
-    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 5] = [
+    // The last open dialog holding a match: a user can only reach what is
+    // in front, so a match inside it beats the same control behind it.
+    let front_dialog = nodes
+        .iter()
+        .rev()
+        .filter(|node| {
+            matches!(
+                node.role.to_ascii_lowercase().as_str(),
+                "dialog" | "alert dialog"
+            ) && node_is_showing(node)
+        })
+        .find(|dialog| {
+            matches
+                .iter()
+                .any(|node| crate::page_view::is_inside(nodes, node.index, dialog.index))
+        })
+        .map(|dialog| dialog.index);
+    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 6] = [
         &|node| node_matches_resolve_purpose(node, purpose),
         // A radio group's legend repeats its name as plain text; the group
         // is the field.
@@ -6839,6 +6856,7 @@ fn resolve_semantic_node(
         &node_is_actionable,
         &|node| wanted_name.is_some_and(|name| node_has_exact_name(node, name)),
         &node_is_showing,
+        &|node| front_dialog.is_none_or(|dialog| crate::page_view::is_inside(nodes, node.index, dialog)),
     ];
     for keep in narrowings {
         if matches.len() == 1 {
@@ -10608,6 +10626,37 @@ mod tests {
         assert!(error.contains("matched 2 elements"), "{error}");
         assert!(error.contains("\n[7] push button \"Close\""), "{error}");
         assert!(error.contains("\n[9] push button \"Close\""), "{error}");
+    }
+
+    #[test]
+    fn semantic_selector_prefers_the_match_in_the_front_dialog() {
+        let showing = |mut node: AccessibilityNode| {
+            node.states = vec!["showing".to_string(), "visible".to_string()];
+            node
+        };
+        let mut page = showing(node_with_actions(51, None, vec![click_action()]));
+        page.name = Some("Próximo mês".to_string());
+        let mut dialog = showing(node(225, None));
+        dialog.role = "dialog".to_string();
+        let mut picker = showing(node(242, None));
+        picker.role = "dialog".to_string();
+        picker.parent_index = Some(225);
+        let mut inside = showing(node_with_actions(246, None, vec![click_action()]));
+        inside.name = Some("Próximo mês".to_string());
+        inside.parent_index = Some(242);
+        let nodes = [page.clone(), dialog, picker, inside];
+        let selector = ElementSelector {
+            name: Some("Próximo mês"),
+            ..Default::default()
+        };
+        let chosen = resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap();
+        assert_eq!(chosen.index, 246);
+        // With no dialog in front, the two stay ambiguous.
+        let mut behind = nodes[3].clone();
+        behind.parent_index = None;
+        let error = resolve_semantic_node(&[page, behind], &selector, ElementResolvePurpose::Click)
+            .unwrap_err();
+        assert!(error.contains("matched 2 elements"), "{error}");
     }
 
     fn named(index: u32, role: &str, name: &str) -> AccessibilityNode {
