@@ -64,6 +64,13 @@ struct CachedAccessibilitySnapshot {
     scope: Option<SnapshotScope>,
 }
 
+/// The settled read after an action (`settle`), and the note saying the
+/// page looked busy, when it did.
+struct Settled {
+    rescan: Rescan,
+    busy_note: Option<String>,
+}
+
 /// One read of an observed scope, with stable ids.
 struct Rescan {
     nodes: Vec<AccessibilityNode>,
@@ -2437,7 +2444,7 @@ impl ComputerUseLinux {
     // can't be env!("CARGO_PKG_VERSION"); the MCP safety check (CI) fails the
     // build if it drifts from the Cargo version.
     version = "0.7.17",
-    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid while the element exists; content the page re-renders gets new ids (shown as - old / + new). Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
+    instructions = "Start with get_app_state (scope it: app_name_or_bundle_identifier=chrome); each line starts with an element id [n]. Then finish the task in as few calls as you can: act runs many steps in one call (click, set, type, key, scroll, wait), and a step can name an element that appears only after an earlier step by role and name (e.g. {do:\"click\",role:\"button\",name:\"Responder\"}), so plan the whole sequence and send it at once. act stops at the first step that fails or when a dialog opens and says where, so you continue from there. Every action reports what changed (+ new, - gone, ~ changed, focus), including status messages such as \"Salvo\", so look again only when you need the whole page. set (like set_value and fill_form) types, pastes non-ASCII text, picks options in combo boxes and selects, ticks check boxes and radios, and returns the value now in the field. Ids stay valid while the element exists; re-rendered content gets new ids. Use screenshot or ocr only when the tree lacks the content. If a tool fails, doctor names the fix."
 )]
 impl ServerHandler for ComputerUseLinux {}
 
@@ -4691,12 +4698,31 @@ impl ComputerUseLinux {
     /// acted on) lead a report cut for length. Logs the reads and time to
     /// stderr.
     async fn observe_changes(&self, targets: &[String]) -> String {
-        let acted = std::time::Instant::now();
         let before = self
             .last_snapshot
             .lock()
             .map(|cached| cached.nodes.clone())
             .unwrap_or_default();
+        let settled = match self.settle(&before).await {
+            Ok(settled) => settled,
+            Err(error) => {
+                return format!("changes: unknown (the tree could not be read: {error})\n")
+            }
+        };
+        let report = self
+            .change_report_since(&before, &settled.rescan, settled.busy_note, targets)
+            .await;
+        let Settled { rescan, .. } = settled;
+        self.commit_observation(&rescan.nodes, rescan.root_pid, Some(rescan.scope))
+            .await;
+        report
+    }
+
+    /// The settle loop of `observe_changes`: reads the observed scope until
+    /// two consecutive reads agree and nothing looks busy against `before`,
+    /// or the limit passes. Commits nothing. Err only when no read worked.
+    async fn settle(&self, before: &[AccessibilityNode]) -> std::result::Result<Settled, String> {
+        let acted = std::time::Instant::now();
         sleep(SETTLE_FIRST_WAIT).await;
         let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
         let mut settled: Option<Rescan> = None;
@@ -4707,7 +4733,7 @@ impl ComputerUseLinux {
         let (mut polls, mut nodes_read) = (0, 0);
         loop {
             polls += 1;
-            let base = settled.as_ref().map_or(&before[..], |last| &last.nodes[..]);
+            let base = settled.as_ref().map_or(before, |last| &last.nodes[..]);
             match self.read_page(base, None).await {
                 Ok(rescan) => {
                     nodes_read += rescan.read;
@@ -4716,7 +4742,7 @@ impl ComputerUseLinux {
                     if !stable {
                         quiet_since = std::time::Instant::now();
                     }
-                    let busy = crate::page_view::busy_reason(&before, &rescan.nodes);
+                    let busy = crate::page_view::busy_reason(before, &rescan.nodes);
                     if let Some(busy) = &busy {
                         busy_seen.get_or_insert_with(|| busy.reason.clone());
                     }
@@ -4743,16 +4769,9 @@ impl ComputerUseLinux {
             "settle: {polls} polls, {} ms, {nodes_read} nodes read",
             acted.elapsed().as_millis()
         );
-        let Some(settled) = settled else {
-            return format!(
-                "changes: unknown (the tree could not be read: {})\n",
-                last_error.unwrap_or_default()
-            );
-        };
-        let options = settled.scope.options;
-        let mut report = String::new();
-        if let Some(reason) = busy_seen {
-            report.push_str(&format!(
+        let rescan = settled.ok_or_else(|| last_error.unwrap_or_default())?;
+        let busy_note = busy_seen.map(|reason| {
+            format!(
                 "waited {} ms for the page to finish ({reason}){}\n",
                 acted.elapsed().as_millis(),
                 if still_busy {
@@ -4760,8 +4779,23 @@ impl ComputerUseLinux {
                 } else {
                     ""
                 }
-            ));
-        }
+            )
+        });
+        Ok(Settled { rescan, busy_note })
+    }
+
+    /// The change report of `observe_changes` for `settled` against
+    /// `before`, led by `busy_note`: what changed, the focus (an editor's
+    /// whole text), title, URL and tabs. `targets` lead a cut report.
+    async fn change_report_since(
+        &self,
+        before: &[AccessibilityNode],
+        settled: &Rescan,
+        busy_note: Option<String>,
+        targets: &[String],
+    ) -> String {
+        let options = settled.scope.options;
+        let mut report = busy_note.unwrap_or_default();
         let mut after = crate::page_view::page_view(&settled.nodes, options);
         if let Some(editor) = crate::page_view::focused_element(&settled.nodes)
             .filter(|node| crate::page_view::focus_needs_full_text(node))
@@ -4781,12 +4815,10 @@ impl ComputerUseLinux {
             })
             .unwrap_or_default();
         report.push_str(&crate::page_view::change_report(
-            &crate::page_view::page_view(&before, options),
+            &crate::page_view::page_view(before, options),
             &after,
             &target_ids,
         ));
-        self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
-            .await;
         report
     }
 
