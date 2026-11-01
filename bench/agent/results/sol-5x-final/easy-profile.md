@@ -60,22 +60,8 @@
 | final-terminal-r0 | ok | 10 | 0.1 | 8.4 (3) | 2.8 | 2.1 | 1.8 | 1.3 | type_text 1.2, ocr 0.6 | type_text ocr |
 | final-terminal-r1 | ok | 13 | 0.1 | 11.2 (4) | 2.8 | 3.0 | 1.6 | 1.7 | type_text 1.1, ocr 0.5 | type_text ocr ocr |
 | final-terminal-r2 | ok | 10 | 0.1 | 8.2 (3) | 2.7 | 2.0 | 1.7 | 1.3 | type_text 1.1, ocr 0.5 | type_text ocr |
-| baseline-accents-form-r0 | ok | 11 | 0.1 | 9.4 (4) | 2.4 | 2.3 | 1.4 | 2.8 | fill_form 1.0, click 0.3 | get_app_state fill_form click |
-| baseline-drag-drop-r0 | ok | 13 | 0.1 | 11.7 (4) | 2.9 | 2.9 | 1.6 | 4.3 | drag 1.3, get_app_state 0.2 | get_app_state drag get_app_state |
-| baseline-flaky-field-r0 | ok | 14 | 0.1 | 11.8 (6) | 2.0 | 2.0 | 2.3 | 4.3 | fill_form 1.1, set_value 0.5 | get_app_state fill_form click set_value click |
-| baseline-modal-focus-r0 | ok | 9 | 0.1 | 7.8 (4) | 1.9 | 1.9 | 1.5 | 2.6 | fill_form 1.0, click 0.3 | get_app_state fill_form click |
-| baseline-rich-compose-r0 | ok | 16 | 0.1 | 12.0 (6) | 2.0 | 2.0 | 3.8 | 5.0 | fill_form 2.7, type_text 0.5 | get_app_state fill_form type_text press_key click |
-| baseline-slow-page-r0 | ok | 28 | 0.3 | 25.5 (9) | 2.8 | 3.0 | 1.9 | 12.3 | wait_for 0.7, click 0.4 | get_app_state click get_app_state get_app_state wait_for wait_for get_app_state click |
-| baseline-virtual-list-r0 | ok | 23 | 0.1 | 11.2 (5) | 2.2 | 2.1 | 11.9 | 17.0 | scroll 11.0, click 0.5 | get_app_state scroll click get_app_state |
-| final-accents-form-r0 | ok | 8 | 0.1 | 6.6 (2) | 3.3 | 1.9 | 1.6 | 1.9 | act 1.6 | act |
-| final-drag-drop-r0 | ok | 11 | 0.1 | 9.4 (3) | 3.1 | 2.4 | 1.5 | 2.5 | drag 1.3, get_app_state 0.2 | get_app_state drag |
-| final-flaky-field-r0 | ok | 10 | 0.1 | 7.9 (2) | 4.0 | 2.1 | 1.9 | 2.3 | act 1.9 | act |
-| final-modal-focus-r0 | ok | 15 | 0.7 | 11.7 (4) | 2.9 | 3.2 | 2.2 | 5.1 | act 1.6, act 0.4 | act act act |
-| final-rich-compose-r0 | ok | 18 | 0.1 | 11.7 (4) | 2.9 | 2.3 | 6.6 | 5.7 | act 3.0, act 2.0 | act act act |
-| final-slow-page-r0 | ok | 17 | 0.1 | 12.8 (6) | 2.1 | 2.1 | 3.9 | 9.9 | wait_for 3.1, act 0.4 | get_app_state act wait_for get_app_state act |
-| final-virtual-list-r0 | ok | 28 | 0.2 | 10.7 (5) | 2.1 | 1.4 | 17.4 | 10.2 | scroll 13.7, act 3.0 | act find_elements scroll click |
 
 | variant | eps | mean wall | boot | model | MCP | turns | s per model turn | KB | share boot/model/MCP |
 |---|---|---|---|---|---|---|---|---|---|
-| baseline | 37 | 16.7 | 0.1 | 12.9 | 3.6 | 6.3 | 2.0 | 16.1 | 1%/78%/22% |
-| final | 37 | 15.3 | 0.2 | 11.2 | 4.0 | 4.1 | 2.7 | 10.3 | 1%/73%/26% |
+| baseline | 30 | 16.8 | 0.1 | 13.0 | 3.6 | 6.5 | 2.0 | 18.2 | 1%/77%/22% |
+| final | 30 | 15.3 | 0.2 | 11.5 | 3.7 | 4.2 | 2.7 | 11.4 | 1%/75%/24% |
