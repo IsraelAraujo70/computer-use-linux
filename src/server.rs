@@ -5539,6 +5539,35 @@ impl ComputerUseLinux {
                 }
             }
         }
+        // Only a native <select>, whose options are its own descendants: an
+        // ARIA combo box left on the other option would hold a wrong value.
+        let native_select = crate::page_view::is_inside(&nodes, option.index, nodes[target].index);
+        if !chosen.0 && native_select && !self.shows_a_value(&node.object_ref).await {
+            // A fresh <select> (one a dialog just rendered) exposes neither
+            // its value nor its default option as selected, so choosing that
+            // default changes nothing AT-SPI can see. Choose another option,
+            // then this one again: the second change is visible.
+            let other = options
+                .iter()
+                .map(|&at| &nodes[at])
+                .find(|candidate| candidate.object_ref != option.object_ref);
+            if let Some(other) = other {
+                let other_label = crate::outline::element_label(other);
+                if self
+                    .activate_element(other, &other_label, OPTION_ACTIONS)
+                    .await
+                    .is_ok()
+                    && self
+                        .activate_element(&option, &option_label, OPTION_ACTIONS)
+                        .await
+                        .is_ok()
+                {
+                    chosen = self
+                        .choice_read_back(&node.object_ref, &option.object_ref, &option_name)
+                        .await;
+                }
+            }
+        }
         let (ok, shown) = chosen;
         FieldOutcome {
             ok,
@@ -5563,6 +5592,17 @@ impl ComputerUseLinux {
         let mut nodes = compact_accessibility_tree(snapshot.nodes);
         self.assign_ids(&mut nodes);
         Ok(nodes)
+    }
+
+    /// Whether a combo box exposes a value of its own (text other than its
+    /// name), as one does once the page has drawn its choice.
+    async fn shows_a_value(&self, combo_ref: &str) -> bool {
+        crate::atspi_tree::read_element(combo_ref)
+            .await
+            .ok()
+            .and_then(|combo| crate::fields::field_text(&combo))
+            .and_then(|text| crate::outline::clean(Some(&text)))
+            .is_some()
     }
 
     /// Whether the combo box now shows the option (or the option reports

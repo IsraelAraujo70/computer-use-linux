@@ -825,14 +825,23 @@ pub fn blocking_dialog(
     before: &[AccessibilityNode],
     after: &[AccessibilityNode],
 ) -> Option<String> {
-    blocking_dialog_with_id(before, after).map(|(_, note)| note)
+    dialog_with_id(before, after, false).map(|(_, note)| note)
 }
 
-/// `blocking_dialog`, with the dialog's element id: `(id, note)`. `act`
-/// uses the id to tell whether its next step targets the dialog.
-pub fn blocking_dialog_with_id(
+/// `blocking_dialog` among the dialogs absent from `before` only, with the
+/// dialog's element id: one an action just opened, even while an older modal
+/// stays open. `act` uses the id to tell whether its next step targets it.
+pub fn opened_dialog_with_id(
     before: &[AccessibilityNode],
     after: &[AccessibilityNode],
+) -> Option<(u32, String)> {
+    dialog_with_id(before, after, true)
+}
+
+fn dialog_with_id(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+    new_only: bool,
 ) -> Option<(u32, String)> {
     let tree = Tree::new(after);
     let document = tree.visible_document();
@@ -851,7 +860,8 @@ pub fn blocking_dialog_with_id(
         .filter(|&at| tree.role(at) != "alert" || !buttons(at).is_empty())
         .filter_map(|at| {
             let modal = has_state(&after[at], "modal") || tree.role(at) == "alert dialog";
-            (modal || !earlier.contains(&after[at].index)).then_some((at, modal))
+            let new = !earlier.contains(&after[at].index);
+            (new || (modal && !new_only)).then_some((at, modal))
         })
         .collect();
     let (dialog, _) = candidates
@@ -2022,11 +2032,11 @@ mod tests {
                 dialog.states.push("modal".into());
             }
             after.push(dialog);
-            let (id, note) = blocking_dialog_with_id(&before, &after).unwrap();
+            let (id, note) = opened_dialog_with_id(&before, &after).unwrap();
             assert_eq!(id, 40);
             assert_eq!(Some(note), blocking_dialog(&before, &after));
         }
-        assert_eq!(blocking_dialog_with_id(&before, &before), None);
+        assert_eq!(opened_dialog_with_id(&before, &before), None);
         let nodes = vec![
             node(90, None, "panel", ""),
             node(20, Some(90), "panel", ""),

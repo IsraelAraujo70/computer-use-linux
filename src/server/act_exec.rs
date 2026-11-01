@@ -268,10 +268,7 @@ impl ComputerUseLinux {
         now: &[AccessibilityNode],
         next: &StepPlan,
     ) -> Option<String> {
-        let (dialog, note) = crate::page_view::blocking_dialog_with_id(before, now)?;
-        if before.iter().any(|node| node.index == dialog) {
-            return None;
-        }
+        let (dialog, note) = crate::page_view::opened_dialog_with_id(before, now)?;
         let (target, purpose) = match next {
             StepPlan::Click { target, .. } => (Some(target), ElementResolvePurpose::Click),
             StepPlan::Set { target, .. } => (Some(target), ElementResolvePurpose::SetValue),
@@ -389,15 +386,20 @@ impl ComputerUseLinux {
             StepPlan::Type { target, text } => {
                 // send_text matches role/name only; type into the element the
                 // full selector (text included) resolved above.
-                let element_index = target.as_ref().and_then(|target| {
-                    self.resolve_cached_node(
+                // An id the cache lacks goes through as is: send_text rescans
+                // and fails for a gone element instead of typing into focus.
+                let element_index = match target {
+                    None => None,
+                    Some(target) => match self.resolve_cached_node(
                         target.element_index,
                         &selector_of(target),
                         ElementResolvePurpose::SetValue,
-                    )
-                    .ok()
-                    .map(|node| node.index)
-                });
+                    ) {
+                        Ok(node) => Some(node.index),
+                        Err(_) if target.element_index.is_some() => target.element_index,
+                        Err(message) => return fail(message),
+                    },
+                };
                 let (Json(output), unverified) = self
                     .send_text(TypeTextParams {
                         observe: Some(false),
@@ -595,5 +597,12 @@ mod tests {
         assert!(backend.unexpected_dialog(&before, &now, &enter).is_some());
         // A dialog that was already open is the agent's to handle.
         assert!(backend.unexpected_dialog(&now, &now, &enter).is_none());
+        // A new non-modal dialog counts even with an older modal open.
+        let mut picker = node(20, Some(10), "dialog", "Escolher data");
+        picker.states.retain(|state| state != "modal");
+        let mut with_picker = now.clone();
+        with_picker.push(picker);
+        let note = backend.unexpected_dialog(&now, &with_picker, &enter);
+        assert!(note.is_some_and(|note| note.contains("Escolher data")));
     }
 }
