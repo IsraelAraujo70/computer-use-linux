@@ -1,7 +1,7 @@
 <!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório de despesas</title><link rel="stylesheet" href="../style.css"><script src="../common.js"></script><main><h1>Relatório de despesas</h1>
 <label for="title">Título do relatório</label><input id="title"><p id="title-error" class="error" role="alert"></p>
-<label for="cost">Centro de custo</label><select id="cost"><option>Comercial</option><option>Engenharia</option><option>Marketing</option><option>Operações</option></select>
-<label for="project">Projeto</label><select id="project"><option>Aurora</option><option>Boreal</option><option>Cidade Nova</option></select>
+<label for="cost">Centro de custo</label><select id="cost"><option value="">Selecione</option><option>Comercial</option><option>Engenharia</option><option>Marketing</option><option>Operações</option></select>
+<label for="project">Projeto</label><select id="project"><option value="">Selecione</option><option>Aurora</option><option>Boreal</option><option>Cidade Nova</option></select><p id="header-error" class="error" role="alert"></p>
 <h2>Despesas</h2><table aria-label="Despesas" role="table"><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="rows"></tbody><tfoot><tr><th colspan="3">Total</th><td id="total"></td></tr></tfoot></table>
 <p id="expenses-error" class="error" role="alert"></p><button id="add">Adicionar despesa</button><button id="submit">Enviar para aprovação</button>
 <dialog id="entry" role="dialog" aria-modal="true" aria-labelledby="entry-title"><h2 id="entry-title">Nova despesa</h2><form id="form" novalidate>
@@ -42,7 +42,8 @@ $('form').onsubmit=event=>{
 $('submit').onclick=()=>{
   $('title-error').textContent=$('title').value.trim()?'':'Informe o título.';
   $('expenses-error').textContent=expenses.length?'':'Adicione ao menos uma despesa.';
-  if(!$('title').value.trim()||!expenses.length)return;
+  $('header-error').textContent=$('cost').value&&$('project').value?'':'Escolha o centro de custo e o projeto.';
+  if(!$('title').value.trim()||!expenses.length||!$('cost').value||!$('project').value)return;
   confirmAction('Enviar relatório?','Enviar',async()=>{
     $('confirm-action').disabled=true;
     try { await postState('long-expenses',{report:{title:$('title').value.trim(),cost_center:$('cost').value,project:$('project').value,expenses,total_cents:total()}});$('confirm').close();toast('Relatório enviado'); }
