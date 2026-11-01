@@ -271,9 +271,13 @@ def by_id(task_id: str) -> Task:
     if task_id in BY_ID:
         return BY_ID[task_id]
     import tasks_hard
+
+    hard = {t.id: t for t in tasks_hard.HARD_TASKS}
+    if task_id in hard:
+        return hard[task_id]
     import tasks_long
 
-    return {t.id: t for t in tasks_hard.HARD_TASKS + tasks_long.LONG_TASKS}[task_id]
+    return {t.id: t for t in tasks_long.LONG_TASKS}[task_id]
 
 
 def read_state(state_dir: Path, task_id: str) -> dict:
