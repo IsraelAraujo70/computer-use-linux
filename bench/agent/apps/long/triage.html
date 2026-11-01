@@ -31,7 +31,8 @@ function apply(change) {
 function render() {
   const container = document.querySelector('#rows');
   container.replaceChildren();
-  data.forEach(([sender, subject], i) => {
+  // Display order mixes senders the way a real inbox does; ids keep their meaning.
+  [16, 0, 8, 4, 13, 20, 9, 1, 5, 17, 14, 10, 22, 2, 6, 18, 11, 21, 3, 15, 7, 23, 12, 19].map(i => [data[i], i]).forEach(([[sender, subject], i]) => {
     const id = 'm'+(i+1), state = messages[id];
     if(state.archived) return;
     const checkbox = h('input', {type:'checkbox', id:'select-'+id});

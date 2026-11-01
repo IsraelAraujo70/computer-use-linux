@@ -116,3 +116,17 @@ Stretch goal (reported, not required): 5x throughput.
   input tokens.
 - Claude confirmation: `claude-sonnet-5-5` (effort medium), baseline vs final interleaved, 2 reps,
   both suites; the check is "no regression" (success not lower, no pass->fail).
+
+## Long suite (secondary, pre-registered 2026-11-01 before any agent episode on it)
+
+Added at the dispatcher's request: the easy and hard tasks take 6-8 model turns, so the ~7 s of fixed
+cost per episode (first and final turn) dominates their ratio; real bot work is longer.
+
+- 5 tasks in `tasks_long.py` (`long_tasks/<name>.py`, pages under `apps/long/`), each 22-36 UI actions on
+  the happy path: a 4-step onboarding wizard, a 5-line expense report, an inbox triage with distractors,
+  CRM edits across two pages plus a delete, and a shop checkout. Checkers read posted state; proven by
+  `selftest_long.mjs` + `check_selftest_long.py` (happy path accepted, `{}` and every WRONG case rejected).
+- Agent `gpt-6.1-sol` low via `codex exec`, `--chrome-mode bots`, timeout 600 s, baseline (45bb968) vs final
+  interleaved, 2 reps per task.
+- Reported separately: throughput ratio, success rate, turns and wall time per task. Not part of the
+  install bar above and not mixed into it.
