@@ -2,7 +2,7 @@
 ID = "a35-download-csv"
 CATEGORY = 'upload-download'
 PAGE = "argo35/download_csv.html"
-PROMPT = "Download the CSV for 'Sul' in 'Outubro 2026' using 'Baixar CSV'."
+PROMPT = "In the Relatórios de vendas page, Download the CSV for 'Sul' in 'Outubro 2026' using 'Baixar CSV'."
 import csv
 FILENAME='relatorio-sul-2026-10.csv'
 ROWS=[['pedido','regiao','periodo','valor'],['4821','Sul','2026-10','1250.00'],['4822','Sul','2026-10','890.00'],['4823','Sul','2026-10','430.00']]

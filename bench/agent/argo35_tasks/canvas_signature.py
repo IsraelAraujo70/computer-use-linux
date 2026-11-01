@@ -2,7 +2,7 @@
 ID = "a35-canvas-signature"
 CATEGORY = 'canvas'
 PAGE = "argo35/canvas_signature.html"
-PROMPT = "Sign in the 'Assinatura' box with a full signature, agree to 'Li e concordo com os termos', then click 'Assinar contrato'."
+PROMPT = "In the contract signing page, Sign in the 'Assinatura' box with a full signature, agree to 'Li e concordo com os termos', then click 'Assinar contrato'."
 import math
 
 def check(state, root):

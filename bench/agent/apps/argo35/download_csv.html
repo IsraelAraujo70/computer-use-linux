@@ -1,1 +1,93 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatórios de vendas</title><link rel="stylesheet" href="../style.css"><style>main{max-width:850px;margin:60px auto;background:white;padding:36px;border-radius:16px}button,select,input{padding:12px;margin:10px}canvas{border:1px solid #aaa;touch-action:none}li{padding:12px}label{display:block}.drop{padding:65px;border:2px dashed #678;border-radius:12px}</style><header class="topbar">Portal do cliente</header><main><h1>Relatórios de vendas</h1><label>Período<select id="period"><option value="2026-11">Novembro 2026</option><option value="2026-10">Outubro 2026</option><option value="2026-09">Setembro 2026</option></select></label><label>Região<select id="region"><option>Norte</option><option>Sul</option><option>Sudeste</option></select></label><button>Baixar CSV</button></main><script src="../common.js"></script><script>const ID="a35-download-csv";const period=document.querySelector('#period'),region=document.querySelector('#region');function state(downloaded=null,rows=0){return {downloaded,rows,period:period.value,region:region.value}}period.onchange=region.onchange=()=>postState(ID,state());document.querySelector('button').onclick=()=>{const r=region.value,p=period.value;const text='pedido,regiao,periodo,valor\n'+[['4821','1250.00'],['4822','890.00'],['4823','430.00']].map(([id,v])=>[id,r,p,v].join(',')).join('\n')+'\n';const filename='relatorio-'+r.toLowerCase()+'-'+p+'.csv';const url=URL.createObjectURL(new Blob([text],{type:'text/csv'}));const a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);postState(ID,state(filename,3))};</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Relatórios de vendas</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #f1f5f9; color: #243449; font: 16px/1.5 system-ui; }
+.topbar { background: #142e48; color: white; padding: 20px 32px; font-weight: 700; }
+.layout { display: flex; min-height: 90vh; }
+nav { width: 180px; flex-shrink: 0; padding: 28px 20px; background: #e4ecf3; }
+nav p { padding: 10px; border-bottom: 1px solid #ccd8e3; }
+main { width: min(940px, calc(100% - 210px)); margin: 28px auto; padding: 28px; background: white; border-radius: 12px; }
+h1 { font-size: 26px; margin-top: 0; }
+h2 { font-size: 19px; }
+.summary { border-bottom: 1px solid #d8e0e8; padding-bottom: 18px; margin-bottom: 20px; }
+article { padding: 12px 16px; background: #f5f8fb; margin: 10px 0; border-left: 3px solid #9fb5c9; }
+label { display: block; margin: 12px 0; }
+button, select, input { min-height: 36px; font: inherit; padding: 8px 12px; }
+button { cursor: pointer; margin: 8px 4px; }
+button:disabled { cursor: default; opacity: .5; }
+input[type=checkbox] { min-height: auto; }
+canvas { display: block; max-width: 100%; border: 1px solid #8da0b4; touch-action: none; background: #fcfdff; }
+.drop { padding: 38px; border: 2px dashed #6d8eaf; background: #f5f9fc; border-radius: 10px; text-align: center; }
+li { padding: 8px; border-bottom: 1px solid #ddd; }
+.compose { display: inline-block; padding: 12px 18px; background: #dceafa; cursor: pointer; }
+dt { font-weight: 600; }
+dd { margin: 0 0 10px; color: #586d80; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid #d8e0e8; }
+@media(max-width: 1000px) { nav { width: 140px; padding: 20px 8px; } main { width: calc(100% - 160px); padding: 22px; } }
+</style>
+<header class="topbar">Portal do cliente</header>
+<div class="layout">
+<nav aria-label="Navegação">
+<p>Visão geral</p>
+<p>Minha conta</p>
+<p>Documentos</p>
+<p>Atendimento</p>
+<p>Relatórios</p>
+</nav>
+<main>
+<h1>Relatórios de vendas</h1>
+<section class="summary">
+<h2>Exportação de vendas</h2>
+<p>Consulte pedidos por competência e região. O arquivo CSV contém os mesmos registros da prévia abaixo.</p>
+<p>Últimas exportações: Sudeste, setembro · Norte, agosto · Nordeste, setembro</p>
+</section>
+<label>Período<select id="period">
+<option value="2026-11">Novembro 2026</option>
+<option value="2026-10">Outubro 2026</option>
+<option value="2026-09">Setembro 2026</option>
+</select>
+</label>
+<label>Região<select id="region">
+<option>Norte</option>
+<option>Sul</option>
+<option>Sudeste</option>
+</select>
+</label>
+<button>Baixar CSV</button><h2>Prévia dos pedidos</h2><table><thead><tr><th>Pedido</th><th>Região</th><th>Período</th><th>Valor (R$)</th></tr></thead><tbody id="preview"></tbody></table>
+</main>
+</div>
+<script src="../common.js">
+</script><script>
+const ID="a35-download-csv";
+const period=document.querySelector('#period'),region=document.querySelector('#region');
+function state(downloaded=null,rows=0){return {downloaded,rows,period:period.value,region:region.value}}function preview() {
+ document.querySelector('#preview').replaceChildren();
+ for (const [id, value] of [['4821','1250.00'],['4822','890.00'],['4823','430.00']]) {
+  const row = document.createElement('tr');
+  for (const text of [id, region.value, period.value, value]) {
+   const cell = document.createElement('td');
+   cell.textContent = text;
+   row.append(cell);
+  }
+  document.querySelector('#preview').append(row);
+ }
+}
+preview();
+period.onchange=region.onchange=()=>{preview();postState(ID,state());};
+document.querySelector('button').onclick=()=>{const r=region.value,p=period.value;
+const text='pedido,regiao,periodo,valor\n'+[['4821','1250.00'],['4822','890.00'],['4823','430.00']].map(([id,v])=>[id,r,p,v].join(',')).join('\n')+'\n';
+const filename='relatorio-'+r.toLowerCase()+'-'+p+'.csv';
+const url=URL.createObjectURL(new Blob([text],{type:'text/csv'}));
+const a=document.createElement('a');
+a.href=url;
+a.download=filename;
+a.click();
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+postState(ID,state(filename,3))};
+
+</script></html>

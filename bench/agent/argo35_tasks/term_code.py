@@ -2,7 +2,7 @@
 ID = "a35-term-code"
 CATEGORY = 'multi-window'
 PAGE = "argo35/term_code.html"
-PROMPT = "Read codigo-verificacao.txt in the terminal's current folder, enter it in 'Código de verificação' and click 'Verificar'."
+PROMPT = "In the Verificação em duas etapas page, the terminal is open in a folder containing codigo-verificacao.txt. Read codigo-verificacao.txt in the terminal's current folder, enter it in 'Código de verificação' and click 'Verificar'."
 import time
 KIND = 'web+terminal'
 def setup(root):

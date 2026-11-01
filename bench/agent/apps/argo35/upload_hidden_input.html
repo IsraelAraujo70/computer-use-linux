@@ -1,1 +1,97 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Documentos</title><link rel="stylesheet" href="../style.css"><style>main{max-width:850px;margin:60px auto;background:white;padding:36px;border-radius:16px}button,select,input{padding:12px;margin:10px}canvas{border:1px solid #aaa;touch-action:none}li{padding:12px}label{display:block}.drop{padding:65px;border:2px dashed #678;border-radius:12px}</style><header class="topbar">Portal do cliente</header><main><h1>Documentos</h1><label for="files" class="compose">Selecionar arquivos</label><input id="files" type="file" multiple accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"><ul id="list"></ul><button id="send">Enviar documentos</button><p id="status"></p></main><script src="../common.js"></script><script>const ID="a35-upload-hidden-input";let files=[],sent=[];let pending=Promise.resolve();function emit(){return postState(ID,{sent,selected:files})}async function add(incoming){for(const f of incoming){const bytes=await f.arrayBuffer();const digest=await crypto.subtle.digest('SHA-256',bytes);files.push({name:f.name,size:f.size,sha256:Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')})}sent=[];render();await emit()}function render(){const list=document.querySelector('#list');list.replaceChildren();files.forEach((f,i)=>{const li=document.createElement('li');li.textContent=f.name+' · '+f.size+' bytes ';const b=document.createElement('button');b.textContent='×';b.setAttribute('aria-label','Remover '+f.name);b.onclick=()=>{files.splice(i,1);sent=[];render();emit()};li.append(b);list.append(li)})}document.querySelector('#send').onclick=async()=>{await pending;sent=files.slice();await emit();document.querySelector('#status').textContent='Envio concluído'};document.querySelector('#files').onchange=e=>{const incoming=Array.from(e.target.files);pending=pending.then(()=>add(incoming));e.target.value=''};</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Documentos</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #f1f5f9; color: #243449; font: 16px/1.5 system-ui; }
+.topbar { background: #142e48; color: white; padding: 20px 32px; font-weight: 700; }
+.layout { display: flex; min-height: 90vh; }
+nav { width: 180px; flex-shrink: 0; padding: 28px 20px; background: #e4ecf3; }
+nav p { padding: 10px; border-bottom: 1px solid #ccd8e3; }
+main { width: min(940px, calc(100% - 210px)); margin: 28px auto; padding: 28px; background: white; border-radius: 12px; }
+h1 { font-size: 26px; margin-top: 0; }
+h2 { font-size: 19px; }
+.summary { border-bottom: 1px solid #d8e0e8; padding-bottom: 18px; margin-bottom: 20px; }
+article { padding: 12px 16px; background: #f5f8fb; margin: 10px 0; border-left: 3px solid #9fb5c9; }
+label { display: block; margin: 12px 0; }
+button, select, input { min-height: 36px; font: inherit; padding: 8px 12px; }
+button { cursor: pointer; margin: 8px 4px; }
+button:disabled { cursor: default; opacity: .5; }
+input[type=checkbox] { min-height: auto; }
+canvas { display: block; max-width: 100%; border: 1px solid #8da0b4; touch-action: none; background: #fcfdff; }
+.drop { padding: 38px; border: 2px dashed #6d8eaf; background: #f5f9fc; border-radius: 10px; text-align: center; }
+li { padding: 8px; border-bottom: 1px solid #ddd; }
+.compose { display: inline-block; padding: 12px 18px; background: #dceafa; cursor: pointer; }
+dt { font-weight: 600; }
+dd { margin: 0 0 10px; color: #586d80; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid #d8e0e8; }
+@media(max-width: 1000px) { nav { width: 140px; padding: 20px 8px; } main { width: calc(100% - 160px); padding: 22px; } }
+</style>
+<header class="topbar">Portal do cliente</header>
+<div class="layout">
+<nav aria-label="Navegação">
+<p>Visão geral</p>
+<p>Minha conta</p>
+<p>Documentos</p>
+<p>Atendimento</p>
+<p>Relatórios</p>
+</nav>
+<main>
+<h1>Documentos</h1>
+<section class="summary">
+<h2>Documentos pessoais</h2>
+<p>Marina Duarte · Cadastro individual · Etapa 2 de 3</p>
+<p>Envie imagens legíveis da frente e do verso do documento. Confira os arquivos antes de concluir o envio.</p>
+<dl>
+<dt>Dados pessoais</dt>
+<dd>Concluído em 29/10/2026</dd>
+<dt>Documento de identidade</dt>
+<dd>Aguardando envio</dd>
+<dt>Comprovante de endereço</dt>
+<dd>Recebido · comprovante-outubro.pdf</dd>
+</dl>
+</section>
+<label for="files" class="compose">Selecionar arquivos</label>
+<input id="files" type="file" multiple accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0">
+<ul id="list">
+</ul>
+<button id="send">Enviar documentos</button>
+<p id="status">
+</p>
+</main>
+</div>
+<script src="../common.js">
+</script><script>
+const ID="a35-upload-hidden-input";
+let files=[],sent=[];
+let pending=Promise.resolve();
+function emit(){return postState(ID,{sent,selected:files})}async function add(incoming){for(const f of incoming){const bytes=await f.arrayBuffer();
+const digest=await crypto.subtle.digest('SHA-256',bytes);
+files.push({name:f.name,size:f.size,sha256:Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')})}sent=[];
+render();
+await emit()}function render(){const list=document.querySelector('#list');
+list.replaceChildren();
+files.forEach((f,i)=>{const li=document.createElement('li');
+li.textContent=f.name+' · '+f.size+' bytes ';
+const b=document.createElement('button');
+b.textContent='×';
+b.setAttribute('aria-label','Remover '+f.name);
+b.onclick=()=>{files.splice(i,1);
+sent=[];
+render();
+emit()};
+
+li.append(b);
+list.append(li)})}document.querySelector('#send').onclick=async()=>{await pending;
+sent=files.slice();
+await emit();
+document.querySelector('#status').textContent='Envio concluído'};
+
+document.querySelector('#files').onchange=e=>{const incoming=Array.from(e.target.files);
+pending=pending.then(()=>add(incoming));
+e.target.value=''};
+
+</script></html>
