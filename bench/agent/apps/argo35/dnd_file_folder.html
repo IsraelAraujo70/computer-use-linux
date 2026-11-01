@@ -168,6 +168,7 @@ back.onclick = () => {
 
 function acceptDrop(el, destination) {
 
+ el.ondragenter = e => e.preventDefault();  // a real drag only targets elements that accept dragenter
  el.ondragover = e => {
  e.preventDefault();
  e.dataTransfer.dropEffect = 'move';
