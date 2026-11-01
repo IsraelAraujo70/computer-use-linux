@@ -47,6 +47,12 @@ def tasks(which: str = "all") -> list[Task]:
     return [_task(n) for n in MODULES if n in names]
 
 
+def ids(which: str = "all") -> list[str]:
+    """Task ids of "all", "train" or "holdout" without importing the modules."""
+    names = {"all": MODULES, "train": TRAIN_MODULES, "holdout": HOLDOUT_MODULES}[which]
+    return ["a35-" + n.replace("_", "-") for n in MODULES if n in names]
+
+
 def by_id(task_id: str) -> Task:
     """One task by id; ids are "a35-" + the module name with dashes, so only that module imports."""
     name = task_id.removeprefix("a35-").replace("-", "_")

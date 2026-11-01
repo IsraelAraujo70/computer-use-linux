@@ -93,7 +93,16 @@ def main() -> None:
     for name, binary in variants:
         if not os.access(binary, os.X_OK):
             raise SystemExit(f"variant {name}: {binary} is not executable")
-    task_ids = [t.id for t in tasks.suite(args.suite)] if args.tasks == "all" else args.tasks.split(",")
+    if args.suite.startswith("argo35"):
+        import tasks_argo35
+
+        suite_ids = tasks_argo35.ids(args.suite.removeprefix("argo35-") if "-" in args.suite else "all")
+    else:
+        suite_ids = [t.id for t in tasks.suite(args.suite)]
+    task_ids = suite_ids if args.tasks == "all" else args.tasks.split(",")
+    outside = [t for t in task_ids if t not in suite_ids]
+    if outside:  # keeps holdout tasks out of argo35-train runs
+        raise SystemExit(f"--tasks not in suite {args.suite}: {outside}")
     out = Path(args.out).resolve()
     (out / "runs").mkdir(parents=True, exist_ok=True)
     root = Path(args.root)
