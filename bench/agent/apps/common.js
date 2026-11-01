@@ -1,7 +1,8 @@
 // Shared helpers for the benchmark apps. postState sends the task's full state
-// to server.py, which the checker reads; pages never post on load. Posts of one
-// task go out one after another, so a slower earlier post can never land after
-// (and overwrite) a later one.
+// to server.py, which the checker reads; pages never post on load. A post made
+// while an earlier one of the same task is still in flight waits for it, so a
+// slower earlier post can never land after (and overwrite) a later one; with
+// nothing in flight the request starts at once, inside the event that made it.
 const postChains = {};
 function postState(task, obj) {
   const body = JSON.stringify(obj);
@@ -13,8 +14,11 @@ function postState(task, obj) {
     });
     if (!response.ok) throw new Error('Falha ao salvar');
   };
-  const next = (postChains[task] || Promise.resolve()).catch(() => {}).then(send);
+  const pending = postChains[task];
+  const next = pending ? pending.catch(() => {}).then(send) : send();
   postChains[task] = next;
+  const clear = () => { if (postChains[task] === next) delete postChains[task]; };
+  next.then(clear, clear);
   return next;
 }
 
