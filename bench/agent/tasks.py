@@ -16,7 +16,7 @@ Check = Callable[[dict, Path], tuple[bool, str]]
 @dataclass(frozen=True)
 class Task:
     id: str
-    kind: str  # "web" (Chrome page) or "terminal" (Alacritty)
+    kind: str  # "web" (Chrome page), "terminal" (Alacritty) or "web+terminal" (both)
     page: str  # path under /apps/ for web tasks
     prompt: str
     check: Check
@@ -253,7 +253,8 @@ BY_ID = {task.id: task for task in TASKS}
 
 
 def suite(name: str) -> list[Task]:
-    """Tasks of a named suite: "easy" (this module), "hard" (tasks_hard.py) or "long" (tasks_long.py)."""
+    """Tasks of a named suite: "easy" (this module), "hard" (tasks_hard.py), "long" (tasks_long.py) or
+    "argo35" / "argo35-train" / "argo35-holdout" (tasks_argo35.py)."""
     if name == "easy":
         return TASKS
     if name == "hard":
@@ -264,6 +265,10 @@ def suite(name: str) -> list[Task]:
         import tasks_long
 
         return tasks_long.LONG_TASKS
+    if name in ("argo35", "argo35-train", "argo35-holdout"):
+        import tasks_argo35
+
+        return tasks_argo35.tasks({"argo35": "all", "argo35-train": "train", "argo35-holdout": "holdout"}[name])
     raise ValueError(f"unknown suite {name!r}")
 
 
@@ -277,7 +282,12 @@ def by_id(task_id: str) -> Task:
         return hard[task_id]
     import tasks_long
 
-    return {t.id: t for t in tasks_long.LONG_TASKS}[task_id]
+    long = {t.id: t for t in tasks_long.LONG_TASKS}
+    if task_id in long:
+        return long[task_id]
+    import tasks_argo35
+
+    return {t.id: t for t in tasks_argo35.tasks()}[task_id]
 
 
 def read_state(state_dir: Path, task_id: str) -> dict:

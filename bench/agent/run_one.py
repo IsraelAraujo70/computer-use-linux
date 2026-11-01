@@ -69,39 +69,51 @@ def chrome_args(profile: Path, mode: str) -> list[str]:
     raise ValueError(f"unknown chrome mode {mode!r}")
 
 
-def launch_app(task: tasks.Task, spec: dict, env: dict, root: Path) -> subprocess.Popen:
+def seed_profile(profile: Path, root: Path) -> None:
+    """Point the throwaway profile's downloads at root/downloads without a save dialog."""
+    (profile / "Default").mkdir(parents=True, exist_ok=True)
+    prefs = {"download": {"default_directory": str(root / "downloads"), "prompt_for_download": False,
+                          "directory_upgrade": True}, "savefile": {"default_directory": str(root / "downloads")}}
+    (profile / "Default" / "Preferences").write_text(json.dumps(prefs))
+
+
+def launch_app(task: tasks.Task, spec: dict, env: dict, root: Path) -> list[subprocess.Popen]:
+    """Open the task's app(s): Chrome on its page, Alacritty in root/term, or both ("web+terminal")."""
     full_env = {**os.environ, **env}
-    if task.kind == "terminal":
-        term = root / "term"
-        shutil.rmtree(term, ignore_errors=True)
-        term.mkdir(parents=True)
-        proc = subprocess.Popen(["alacritty", "--working-directory", str(term), "--title", "Terminal"],
-                                env=full_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                start_new_session=True)
-    else:
+    procs = []
+    if task.kind in ("terminal", "web+terminal"):
+        procs.append(subprocess.Popen(["alacritty", "--working-directory", str(root / "term"), "--title", "Terminal"],
+                                      env=full_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                      start_new_session=True))
+        deadline = time.time() + 20
+        while time.time() < deadline and window_count(env) < 1:
+            time.sleep(0.2)
+    if task.kind in ("web", "web+terminal"):
         profile = root / "profiles" / spec["run_id"]
         shutil.rmtree(profile, ignore_errors=True)
         profile.mkdir(parents=True)
+        seed_profile(profile, root)
         url = f"http://127.0.0.1:{spec['port']}/apps/{task.page}"
         args = chrome_args(profile, spec.get("chrome_mode", "bench"))
-        proc = subprocess.Popen(args + [url], env=full_env, stdout=subprocess.DEVNULL,
-                                stderr=subprocess.DEVNULL, start_new_session=True)
+        procs.append(subprocess.Popen(args + [url], env=full_env, stdout=subprocess.DEVNULL,
+                                      stderr=subprocess.DEVNULL, start_new_session=True))
     deadline = time.time() + 20
-    while time.time() < deadline and window_count(env) < 1:
+    while time.time() < deadline and window_count(env) < len(procs):
         time.sleep(0.2)
-    time.sleep(2.5 if task.kind == "web" else 1.0)  # first paint + AT-SPI registration
-    return proc
+    time.sleep(2.5 if task.kind != "terminal" else 1.0)  # first paint + AT-SPI registration
+    return procs
 
 
-def stop_app(proc: subprocess.Popen, spec: dict, root: Path) -> None:
-    try:
-        os.killpg(proc.pid, signal.SIGTERM)
-        proc.wait(timeout=5)
-    except (ProcessLookupError, subprocess.TimeoutExpired):
+def stop_app(procs: list[subprocess.Popen], spec: dict, root: Path) -> None:
+    for proc in procs:
         try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+            os.killpg(proc.pid, signal.SIGTERM)
+            proc.wait(timeout=5)
+        except (ProcessLookupError, subprocess.TimeoutExpired):
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
     shutil.rmtree(root / "profiles" / spec["run_id"], ignore_errors=True)
 
 
@@ -179,11 +191,17 @@ def main() -> None:
     run_dir = spec_path.parent
     env = session_env(root)
     http(f"http://127.0.0.1:{spec['port']}/api/reset", b"{}")
+    # Fresh terminal folder and download folder per episode; setup() may then fill them.
+    for fresh in ("term", "downloads"):
+        shutil.rmtree(root / fresh, ignore_errors=True)
+        (root / fresh).mkdir(parents=True)
     if task.setup:
         task.setup(root)
     app = launch_app(task, spec, env, root)
-    context = ("An Alacritty terminal window is already open." if task.kind == "terminal"
-               else "A Chrome window is already open on the app for this task.")
+    context = {"terminal": "An Alacritty terminal window is already open.",
+               "web": "A Chrome window is already open on the app for this task.",
+               "web+terminal": "A Chrome window is already open on the app for this task, and an Alacritty "
+                               "terminal window is open next to it."}[task.kind]
     prompt = spec.get("prompt_override") or PREAMBLE.format(context=context, prompt=task.prompt)
     mcp_log = run_dir / "mcp.jsonl"
     agent_env = {**os.environ, "CODEX_HOME": spec["codex_home"],

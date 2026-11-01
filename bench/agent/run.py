@@ -82,7 +82,7 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--root", default=os.environ.get("BENCH_ROOT", "/tmp/agent-cu-bench"))
     ap.add_argument("--no-heavy", action="store_true", help="run episodes without heavy.sh")
-    ap.add_argument("--suite", choices=["easy", "hard", "long"], default="easy")
+    ap.add_argument("--suite", choices=["easy", "hard", "long", "argo35", "argo35-train", "argo35-holdout"], default="easy")
     ap.add_argument("--chrome-mode", choices=["bench", "bots", "bots-noa11y"], default="bench",
                     help="bots = chrome-perfil flags + --force-renderer-accessibility; bots-noa11y = chrome-perfil today")
     args = ap.parse_args()
