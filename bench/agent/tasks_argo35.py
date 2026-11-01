@@ -47,6 +47,14 @@ def tasks(which: str = "all") -> list[Task]:
     return [_task(n) for n in MODULES if n in names]
 
 
+def by_id(task_id: str) -> Task:
+    """One task by id; ids are "a35-" + the module name with dashes, so only that module imports."""
+    name = task_id.removeprefix("a35-").replace("-", "_")
+    if name not in MODULES or module(name).ID != task_id:
+        raise KeyError(task_id)
+    return _task(name)
+
+
 def category(task_id: str) -> str:
     return {module(n).ID: module(n).CATEGORY for n in MODULES}[task_id]
 

@@ -287,7 +287,7 @@ def by_id(task_id: str) -> Task:
         return long[task_id]
     import tasks_argo35
 
-    return {t.id: t for t in tasks_argo35.tasks()}[task_id]
+    return tasks_argo35.by_id(task_id)
 
 
 def read_state(state_dir: Path, task_id: str) -> dict:
