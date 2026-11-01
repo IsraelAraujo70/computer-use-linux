@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Servers that share a display take turns with its pointer, focus and keyboard: `click`, `drag`, `scroll`, `type_text`, `press_key`, `activate_window`, `drop_files`, the focus step of window-targeted `screenshot`/`ocr`, and `set_value`/`fill_form` when they fall back to clicks or typing hold an `flock` on `$XDG_RUNTIME_DIR/computer-use-linux/input-<display>.lock`. A call that waits longer than `COMPUTER_USE_LINUX_INPUT_LOCK_TIMEOUT_MS` (default 10000) fails with a retry message and sends nothing. The lock goes away with a killed server, after any `xdotool` it started has finished sending input.
 
 ### Changed
+- `scroll(until=…)` moves vertical steps with AT-SPI `Component.ScrollTo` (top or bottom edge of the last element rendered in one run from the visible part of the scrolled area), which Chromium applies at once, and turns the wheel only when a jump has no target or does not move the list. One call searches for up to 75 s (was 80 steps), so a virtual list of thousands of rows is scanned in one call.
+- A `drag` whose change report shows nothing adds a note: the tree does not show moves, resizes or canvas pixels (a screenshot does); a drag with no effect usually pressed beside a thin handle with no element of its own, or on selected text, which Chromium drags as text.
 - Change reports rank Chromium's `statusbar` role (ARIA `role=status`) as a notice, so toasts such as "Mensagem enviada" survive a cut report.
 - A role/name selector that matches several elements prefers the one inside the front-most open dialog.
 - `set_value`/`fill_form`/`act` leave the option a native `<select>` already holds alone: Chromium's AT-SPI select action on it cleared the select.
