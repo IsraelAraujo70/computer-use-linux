@@ -1,0 +1,2 @@
+export const TASK_ID='a35-iframe-scroll-terms';
+export async function flow({page,base}){await page.goto(base+'iframe_scroll_terms.html');const f=page.frameLocator('iframe');await f.getByRole('heading',{name:'15. Condições de uso',exact:true}).scrollIntoViewIfNeeded();await f.getByLabel('Li e aceito os termos').scrollIntoViewIfNeeded();await f.getByLabel('Li e aceito os termos').check();await page.getByRole('button',{name:'Continuar'}).click();}

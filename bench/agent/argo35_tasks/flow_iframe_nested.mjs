@@ -1,0 +1,2 @@
+export const TASK_ID='a35-iframe-nested';
+export async function flow({page,base}){await page.goto(base+'iframe_nested.html');const f=page.frameLocator('iframe').frameLocator('iframe');await f.getByLabel('Número do pedido').fill('48213');await f.getByLabel('Motivo').selectOption('Produto com defeito');await f.getByLabel('Descrição').fill('Tela trincada na entrega');await f.getByRole('button',{name:'Enviar'}).click();}
