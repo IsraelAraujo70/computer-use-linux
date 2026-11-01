@@ -8,10 +8,192 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "4269ca7de5870f6a409210f5f01fa654d29af95326edc7c2d58dd235e3cfffb9";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "c24dfa687fee4b64d72f6ab1108884054e8dfeb8b8bde7c40ac57b727f756a46";
+export const GENERATED_TOOL_CATALOG_HASH = "ec2f88205aa713072f104dbe921566fa11af6499863b72f3f741512573542e4c";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "e08f4951c0fc524ff7f49b73e71a94e85aba194baffa3fef8e39669dd20dc953";
 export const GENERATED_MCP_TOOLS =
 [
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "Run several steps in one call: [{do:\"click\",element_index:12}, {do:\"set\",role:\"entry\",name:\"Assunto\",value:\"Oi\"}, {do:\"key\",key:\"Enter\"}, {do:\"wait\",text:\"Salvo\"}]. do is click, set, type, key, scroll or wait. A step may name an element an earlier step reveals by role/name/text instead of an id. The page settles after each step; the call stops at the first step that fails or when a dialog opens, and reports each step, then what changed.",
+    "inputSchema": {
+      "$defs": {
+        "ActStep": {
+          "description": "One step of `act`, as the agent writes it: a flat object whose `do`\nsays what to do and whose other fields say to what.",
+          "properties": {
+            "click_count": {
+              "default": null,
+              "description": "click: 2 for a double click.",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "condition": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/WaitCondition"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "wait: appears (default with role/name/text), disappears, or changed."
+            },
+            "direction": {
+              "default": null,
+              "description": "scroll: up or down; with role/name/text and no direction it searches\ndown, then up.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "do": {
+              "$ref": "#/$defs/StepKind",
+              "description": "click, set, type, key, scroll or wait."
+            },
+            "element_index": {
+              "default": null,
+              "description": "Element id `[n]` from an earlier result.",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "key": {
+              "default": null,
+              "description": "key: the key or chord (same as value).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "name": {
+              "default": null,
+              "description": "Name substring.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "role": {
+              "default": null,
+              "description": "Role substring (button, entry, check box, link, …), to name an\nelement without an id, e.g. one an earlier step reveals.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "text": {
+              "default": null,
+              "description": "Substring of the element's name, text or value. For `type` with no\n`value`, the text to type.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "timeout_ms": {
+              "default": null,
+              "description": "wait: give up after this many milliseconds (default 5000, max 30000).",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "value": {
+              "default": null,
+              "description": "set: the value (text, option name, \"true\"/\"false\"). type: the text.\nkey: the key or chord.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "do"
+          ],
+          "type": "object"
+        },
+        "StepKind": {
+          "description": "What a step does.",
+          "oneOf": [
+            {
+              "const": "click",
+              "description": "Click the element.",
+              "type": "string"
+            },
+            {
+              "const": "set",
+              "description": "Set a field like set_value: text, option name, \"true\"/\"false\".",
+              "type": "string"
+            },
+            {
+              "const": "type",
+              "description": "Type text (into the element when one is named, else into focus).",
+              "type": "string"
+            },
+            {
+              "const": "key",
+              "description": "Press a key or chord, e.g. Enter, Escape, Ctrl+L.",
+              "type": "string"
+            },
+            {
+              "const": "scroll",
+              "description": "Scroll the element into view, or scroll until role/name/text appears.",
+              "type": "string"
+            },
+            {
+              "const": "wait",
+              "description": "Wait until role/name/text appears (or disappears, or anything changes).",
+              "type": "string"
+            }
+          ]
+        },
+        "WaitCondition": {
+          "oneOf": [
+            {
+              "const": "appears",
+              "description": "An element matching the query exists.",
+              "type": "string"
+            },
+            {
+              "const": "disappears",
+              "description": "No element matches the query.",
+              "type": "string"
+            },
+            {
+              "const": "changed",
+              "description": "The scoped tree differs from the first poll.",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "steps": {
+          "description": "Steps, run in order; the call stops at the first that fails.",
+          "items": {
+            "$ref": "#/$defs/ActStep"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "steps"
+      ],
+      "type": "object"
+    },
+    "name": "act"
+  },
   {
     "annotations": {
       "destructiveHint": false,

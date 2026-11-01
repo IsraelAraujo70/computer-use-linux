@@ -20,13 +20,24 @@ pub const SHOWN_CHANGE_LINES: usize = 30;
 /// Roles of the elements that tell the user something happened: alerts,
 /// status messages (toasts, counters), dialogs. A change in or of one ranks
 /// right after the acted element's own in a cut change report.
-const NOTICE_ROLES: [&str; 6] = [
+const NOTICE_ROLES: [&str; 7] = [
     "alert",
     "alert dialog",
     "dialog",
     "status bar",
+    "statusbar",
     "notification",
     "log",
+];
+/// The notice roles that report an outcome, not ask for input: a dialog's
+/// fields are not news an agent can cite.
+const STATUS_ROLES: [&str; 6] = [
+    "alert",
+    "statusbar",
+    "status bar",
+    "notification",
+    "log",
+    "status",
 ];
 /// Most element lines a view draws once elements outside the visible area
 /// count. Visible elements are always drawn; outside ones fill what is left.
@@ -60,6 +71,9 @@ pub struct ViewEntry {
     /// Whether it is or lies inside an alert, status message or dialog
     /// (`NOTICE_ROLES`).
     notice: bool,
+    /// Whether it is or lies inside an alert or status message
+    /// (`STATUS_ROLES`): a notice that is not a dialog.
+    status: bool,
     /// Everything but the position, untruncated: a change here is a `~`.
     key: String,
 }
@@ -188,6 +202,10 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
             notice: NOTICE_ROLES.contains(&tree.role(candidate.at).as_str())
                 || tree
                     .ancestor_with_role(candidate.at, &NOTICE_ROLES)
+                    .is_some(),
+            status: STATUS_ROLES.contains(&tree.role(candidate.at).as_str())
+                || tree
+                    .ancestor_with_role(candidate.at, &STATUS_ROLES)
                     .is_some(),
             key: content_key(node),
         });
@@ -719,7 +737,7 @@ pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> St
         .map(|(count, kind)| format!("{count} {kind}"))
         .collect();
         out.push_str(&format!(
-            "… and {} more changes ({}); call get_app_state for the whole page\n",
+            "… and {} more changes ({}) not shown\n",
             total - SHOWN_CHANGE_LINES,
             counts.join(", ")
         ));
@@ -756,6 +774,29 @@ pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> St
     out
 }
 
+/// Most lines `new_notices` returns.
+const NOTICES_SHOWN: usize = 3;
+
+/// Lines of the alerts and status messages (`STATUS_ROLES`, and what lies
+/// inside them) that are new or changed in `after`, with text, at
+/// most `NOTICES_SHOWN`: the "Salvo" / "Mensagem enviada" an agent can cite
+/// as the outcome without looking again.
+pub fn new_notices(before: &PageView, after: &PageView) -> Vec<String> {
+    let earlier: HashMap<u32, &str> = before
+        .entries
+        .iter()
+        .map(|entry| (entry.id, entry.key.as_str()))
+        .collect();
+    after
+        .entries
+        .iter()
+        .filter(|entry| entry.status && entry.line.contains('"'))
+        .filter(|entry| earlier.get(&entry.id) != Some(&entry.key.as_str()))
+        .take(NOTICES_SHOWN)
+        .map(|entry| entry.line.clone())
+        .collect()
+}
+
 /// How much a change line matters when a report must leave some out, most
 /// first: the element acted on, a new or changed alert, status message or
 /// dialog (`NOTICE_ROLES`), anything in the visible area, the rest.
@@ -784,6 +825,24 @@ pub fn blocking_dialog(
     before: &[AccessibilityNode],
     after: &[AccessibilityNode],
 ) -> Option<String> {
+    dialog_with_id(before, after, false).map(|(_, note)| note)
+}
+
+/// `blocking_dialog` among the dialogs absent from `before` only, with the
+/// dialog's element id: one an action just opened, even while an older modal
+/// stays open. `act` uses the id to tell whether its next step targets it.
+pub fn opened_dialog_with_id(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+) -> Option<(u32, String)> {
+    dialog_with_id(before, after, true)
+}
+
+fn dialog_with_id(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+    new_only: bool,
+) -> Option<(u32, String)> {
     let tree = Tree::new(after);
     let document = tree.visible_document();
     let earlier: std::collections::HashSet<u32> = before.iter().map(|node| node.index).collect();
@@ -801,7 +860,8 @@ pub fn blocking_dialog(
         .filter(|&at| tree.role(at) != "alert" || !buttons(at).is_empty())
         .filter_map(|at| {
             let modal = has_state(&after[at], "modal") || tree.role(at) == "alert dialog";
-            (modal || !earlier.contains(&after[at].index)).then_some((at, modal))
+            let new = !earlier.contains(&after[at].index);
+            (new || (modal && !new_only)).then_some((at, modal))
         })
         .collect();
     let (dialog, _) = candidates
@@ -839,7 +899,27 @@ pub fn blocking_dialog(
             ));
         }
     }
-    Some(note)
+    Some((node.index, note))
+}
+
+/// Whether element `id` is `ancestor` or lies inside it in `nodes`
+/// (elements matched by id, parents by `parent_index`). False when either
+/// is missing.
+pub fn is_inside(nodes: &[AccessibilityNode], id: u32, ancestor: u32) -> bool {
+    if !nodes.iter().any(|node| node.index == ancestor) {
+        return false;
+    }
+    let mut current = Some(id);
+    for _ in 0..nodes.len() {
+        let Some(node) = current.and_then(|id| nodes.iter().find(|node| node.index == id)) else {
+            return false;
+        };
+        if node.index == ancestor {
+            return true;
+        }
+        current = node.parent_index;
+    }
+    false
 }
 
 /// Lower-case words a control or status shows while the app is still
@@ -1869,6 +1949,119 @@ mod tests {
     }
 
     #[test]
+    fn statusbar_survives_large_change() {
+        let before = page_view(&browser(vec![]), ViewOptions::default());
+        let mut nodes: Vec<_> = (0..45)
+            .map(|row| {
+                at(
+                    node(100 + row, Some(10), "row", &format!("r{row}")),
+                    0,
+                    100,
+                    10,
+                    10,
+                )
+            })
+            .collect();
+        nodes.push(at(
+            node(200, Some(10), "statusbar", "Mensagem enviada"),
+            0,
+            700,
+            300,
+            20,
+        ));
+        let after = page_view(&browser(nodes), ViewOptions::default());
+        let report = change_report(&before, &after, &[]);
+        assert!(
+            report.lines().any(|line| line.contains("[200] statusbar")),
+            "{report}"
+        );
+    }
+
+    #[test]
+    fn new_notices_lists_new_or_changed_status_text_only() {
+        let before = page_view(
+            &browser(vec![at(
+                node(30, Some(10), "statusbar", "Rascunho"),
+                0,
+                700,
+                300,
+                20,
+            )]),
+            ViewOptions::default(),
+        );
+        let after = page_view(
+            &browser(vec![
+                at(
+                    node(30, Some(10), "statusbar", "Mensagem enviada"),
+                    0,
+                    700,
+                    300,
+                    20,
+                ),
+                at(node(31, Some(10), "button", "Enviar"), 0, 100, 80, 30),
+            ]),
+            ViewOptions::default(),
+        );
+        let notices = new_notices(&before, &after);
+        assert_eq!(notices.len(), 1, "{notices:?}");
+        assert!(notices[0].contains("Mensagem enviada"), "{notices:?}");
+        assert!(new_notices(&after, &after).is_empty());
+        let dialog = page_view(
+            &browser(vec![
+                at(
+                    node(40, Some(10), "dialog", "Novo evento"),
+                    0,
+                    100,
+                    400,
+                    300,
+                ),
+                at(node(41, Some(40), "entry", "Título"), 10, 110, 300, 30),
+            ]),
+            ViewOptions::default(),
+        );
+        assert!(new_notices(&before, &dialog).is_empty());
+    }
+
+    #[test]
+    fn dialog_ids_and_ancestry() {
+        let before = vec![node(10, None, "document web", "Page")];
+        for modal in [false, true] {
+            let mut after = before.clone();
+            let mut dialog = at(node(40, Some(10), "dialog", "Confirm"), 0, 0, 100, 100);
+            if modal {
+                dialog.states.push("modal".into());
+            }
+            after.push(dialog);
+            let (id, note) = opened_dialog_with_id(&before, &after).unwrap();
+            assert_eq!(id, 40);
+            assert_eq!(Some(note), blocking_dialog(&before, &after));
+        }
+        assert_eq!(opened_dialog_with_id(&before, &before), None);
+        let nodes = vec![
+            node(90, None, "panel", ""),
+            node(20, Some(90), "panel", ""),
+            node(7, Some(20), "panel", ""),
+            node(5, None, "panel", ""),
+        ];
+        for (id, ancestor, expected) in [
+            (90, 90, true),
+            (20, 90, true),
+            (7, 90, true),
+            (5, 90, false),
+            (999, 90, false),
+            (90, 999, false),
+        ] {
+            assert_eq!(is_inside(&nodes, id, ancestor), expected);
+        }
+        let cycle = vec![
+            node(1, Some(2), "panel", ""),
+            node(2, Some(1), "panel", ""),
+            node(3, None, "panel", ""),
+        ];
+        assert!(!is_inside(&cycle, 1, 3));
+    }
+
+    #[test]
     fn a_large_change_prints_the_acted_element_notices_and_visible_lines_first() {
         let check_box = |checked: bool| {
             let mut node = at(
@@ -1918,10 +2111,7 @@ mod tests {
             lines[30],
             "~ [60] check box \"Selecionar\" (below) {checked}"
         );
-        assert_eq!(
-            lines[31],
-            "… and 13 more changes (13 added); call get_app_state for the whole page"
-        );
+        assert_eq!(lines[31], "… and 13 more changes (13 added) not shown");
         assert!(!report.contains("[128] row"), "{report}");
         assert!(!report.contains("--- page ---"), "{report}");
     }

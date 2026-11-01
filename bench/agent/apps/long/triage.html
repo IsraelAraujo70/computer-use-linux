@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR"><meta charset="utf-8"><title>Caixa de entrada</title>
+<link rel="stylesheet" href="../style.css">
+<style>.mailrow{height:auto;min-height:58px}.mailrow label{width:300px}.mailrow button{font-size:12px}main{margin:20px}.menu{top:110px}h1{font-size:24px}</style>
+<main><h1>Caixa de entrada</h1><div class="toolbar">
+<button id="archive">Arquivar</button><button id="read">Marcar como lida</button>
+<button id="labels" aria-haspopup="menu" aria-expanded="false">Rótulos</button>
+<span id="error" class="error" role="alert"></span></div>
+<div id="menu" class="menu" role="menu" aria-label="Rótulos" hidden></div>
+<div id="rows"></div></main><script src="../common.js"></script><script>
+const data = [["Banco Aurora", "Fatura de outubro"], ["Banco Aurora", "Extrato mensal"], ["Banco Aurora", "Fatura do cartão"], ["Banco Aurora", "Extrato de investimentos"], ["Ana Ribeiro", "Pedido #201"], ["Carlos Silva", "Pedido #202"], ["Oficina Azul", "Pedido #203"], ["Livraria Central", "Pedido #204"], ["Loja Vértice", "Promoção da semana"], ["Loja Vértice", "Descontos especiais"], ["Loja Vértice", "Oferta de primavera"], ["Loja Vértice", "Cupom exclusivo"], ["Loja Vértice", "Últimas ofertas"], ["Marina Costa", "Almoço amanhã"], ["Marina Costa", "Fotos da viagem"], ["Marina Costa", "Reunião de família"], ["Banco Aurorinha Cashback", "Seu cashback"], ["Recursos Humanos", "Pedidos de férias"], ["Marina Costa Lima", "Apresentação"], ["Biblioteca", "Renovação"], ["Condomínio", "Assembleia"], ["Teatro Municipal", "Programação"], ["Escola Horizonte", "Calendário"], ["Clube Verde", "Novidades"]];
+const messages = Object.fromEntries(data.map((_, i) => ['m'+(i+1), {labels:[], archived:false, starred:false, read:false}]));
+const selected = new Set();
+let saving = Promise.resolve();
+function save() {
+  const snapshot = JSON.parse(JSON.stringify({messages}));
+  saving = saving.then(() => postState('long-triage', snapshot)).then(() => toast('Alterações salvas')).catch(() => {document.querySelector('#error').textContent='Falha ao salvar. Tente novamente.';});
+}
+function validate() {
+  document.querySelector('#error').textContent = selected.size ? '' : 'Selecione pelo menos uma mensagem.';
+  return selected.size > 0;
+}
+function apply(change) {
+  if (!validate()) return;
+  for (const id of selected) change(messages[id]);
+  selected.clear();
+  document.querySelector('#menu').hidden = true;
+  document.querySelector('#labels').setAttribute('aria-expanded', 'false');
+  render(); save();
+}
+function render() {
+  const container = document.querySelector('#rows');
+  container.replaceChildren();
+  // Display order mixes senders the way a real inbox does; ids keep their meaning.
+  [16, 0, 8, 4, 13, 20, 9, 1, 5, 17, 14, 10, 22, 2, 6, 18, 11, 21, 3, 15, 7, 23, 12, 19].map(i => [data[i], i]).forEach(([[sender, subject], i]) => {
+    const id = 'm'+(i+1), state = messages[id];
+    if(state.archived) return;
+    const checkbox = h('input', {type:'checkbox', id:'select-'+id});
+    checkbox.checked = selected.has(id);
+    checkbox.addEventListener('change', () => {
+      checkbox.checked ? selected.add(id) : selected.delete(id);
+      document.querySelector('#error').textContent='';
+    });
+    const star = h('button', {'aria-pressed':String(state.starred), onclick:() => {state.starred=!state.starred; render(); save();}}, state.starred ? 'Remover estrela' : 'Marcar com estrela');
+    container.append(h('div', {class:'mailrow', role:'group', 'aria-label':sender+' - '+subject},
+      checkbox, h('label', {for:'select-'+id}, 'Selecionar '+sender+' - '+subject), star,
+      h('span',{class:'text'}, subject+' — Confira os detalhes desta mensagem. ', state.labels.map(label => h('span',{class:'chip'},label))),
+      h('time', {datetime:'2026-10-'+String(i+1).padStart(2,'0')}, String(i+1)+'/10/2026')));
+  });
+}
+document.querySelector('#archive').onclick=() => apply(m => m.archived=true);
+document.querySelector('#read').onclick=() => apply(m => m.read=true);
+document.querySelector('#labels').onclick=() => {
+  if(!validate()) return;
+  const menu=document.querySelector('#menu');
+  menu.hidden=!menu.hidden;
+  document.querySelector('#labels').setAttribute('aria-expanded',String(!menu.hidden));
+  if(!menu.hidden) menu.querySelector('button').focus();
+};
+for(const label of ['Financeiro','Clientes','Pessoal']) {
+  document.querySelector('#menu').append(h('button',{role:'menuitemcheckbox','aria-checked':'false',onclick:() => apply(m => {if(!m.labels.includes(label)) m.labels.push(label);})},label));
+}
+document.querySelector('#menu').addEventListener('keydown', e => {
+  if(e.key==='Escape'){e.currentTarget.hidden=true;document.querySelector('#labels').setAttribute('aria-expanded','false');document.querySelector('#labels').focus();}
+});
+render();
+</script></html>

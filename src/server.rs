@@ -39,6 +39,9 @@ use tokio::{
     time::{sleep, timeout},
 };
 
+mod act;
+mod act_exec;
+
 const INPUT_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 /// How long drag/drop_files wait to reread an element before refusing to act.
 const ELEMENT_REREAD_TIMEOUT: Duration = Duration::from_secs(2);
@@ -59,6 +62,13 @@ struct CachedAccessibilitySnapshot {
     pid: Option<u32>,
     /// What the snapshot covered, so a rescan reads the same elements.
     scope: Option<SnapshotScope>,
+}
+
+/// The settled read after an action (`settle`), and the note saying the
+/// page looked busy, when it did.
+struct Settled {
+    rescan: Rescan,
+    busy_note: Option<String>,
 }
 
 /// One read of an observed scope, with stable ids.
@@ -1981,6 +1991,20 @@ impl ComputerUseLinux {
     }
 
     #[tool(
+        name = "act",
+        description = "Run several steps in one call: [{do:\"click\",element_index:12}, {do:\"set\",role:\"entry\",name:\"Assunto\",value:\"Oi\"}, {do:\"key\",key:\"Enter\"}, {do:\"wait\",text:\"Salvo\"}]. do is click, set, type, key, scroll or wait. A step may name an element an earlier step reveals by role/name/text instead of an id. The page settles after each step; the call stops at the first step that fails or when a dialog opens, and reports each step, then what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn act_tool(&self, Parameters(params): Parameters<act::ActParams>) -> CallToolResult {
+        self.act(params).await
+    }
+
+    #[tool(
         name = "perform_action",
         description = "Invoke a named AT-SPI action of an element (default: its primary action). Reports what changed.",
         annotations(
@@ -2420,7 +2444,7 @@ impl ComputerUseLinux {
     // can't be env!("CARGO_PKG_VERSION"); the MCP safety check (CI) fails the
     // build if it drifts from the Cargo version.
     version = "0.7.17",
-    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid while the element exists; content the page re-renders gets new ids (shown as - old / + new). Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
+    instructions = "Finish each task in as few calls as you can; every call costs you a turn. act runs many steps in one call (click, set, type, key, scroll, wait) and a step can name an element by role and name (e.g. {do:\"click\",role:\"button\",name:\"Responder\"}), including one an earlier step reveals, so plan the whole sequence and send it at once. When the task names the buttons and fields, start with act right away; otherwise start with get_app_state (app_name_or_bundle_identifier=chrome), whose lines start with element ids [n]. act stops at the first step that fails or when a dialog opens, and then shows the page, so you continue from there without looking again. Every action reports what changed and notice: lines with new status messages such as \"Salvo\"; when they show the outcome, you are done. set (like set_value and fill_form) types, pastes non-ASCII text, picks options in combo boxes and selects, ticks check boxes and radios, and returns the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
 )]
 impl ServerHandler for ComputerUseLinux {}
 
@@ -3200,6 +3224,9 @@ impl From<&ScreenshotCapture> for ScreenshotSummary {
 /// Fewest named or actionable elements for which `get_app_state` skips the
 /// screenshot by default: the tree already shows what the agent needs.
 const MIN_CONTENT_ELEMENTS: usize = 5;
+/// Closing line of an outline the agent can act on: one `act` call can do
+/// the rest of most tasks, which saves the agent a model turn per step.
+const ACT_HINT: &str = "next: do the remaining steps in one act call; a step can name an element an earlier step reveals by role/name.\n";
 
 /// The text `get_app_state` returns: one header line (window, id, URL,
 /// element count), the outline, then notes only when something needs fixing.
@@ -3227,6 +3254,10 @@ fn app_state_text(
     }
     text.push_str(&format!(" elements={}\n", view.entries.len()));
     text.push_str(&view.outline());
+    // Each model turn costs an agent seconds; say where the next ones go.
+    if view.content_elements() >= MIN_CONTENT_ELEMENTS {
+        text.push_str(ACT_HINT);
+    }
     if let Some(capture) = screenshot {
         text.push_str(&format!(
             "screenshot attached: {}x{} image of {}x{} screen pixels (scale {}; click x/y = image pixel / scale)\n",
@@ -4674,12 +4705,31 @@ impl ComputerUseLinux {
     /// acted on) lead a report cut for length. Logs the reads and time to
     /// stderr.
     async fn observe_changes(&self, targets: &[String]) -> String {
-        let acted = std::time::Instant::now();
         let before = self
             .last_snapshot
             .lock()
             .map(|cached| cached.nodes.clone())
             .unwrap_or_default();
+        let settled = match self.settle(&before).await {
+            Ok(settled) => settled,
+            Err(error) => {
+                return format!("changes: unknown (the tree could not be read: {error})\n")
+            }
+        };
+        let report = self
+            .change_report_since(&before, &settled.rescan, settled.busy_note, targets)
+            .await;
+        let Settled { rescan, .. } = settled;
+        self.commit_observation(&rescan.nodes, rescan.root_pid, Some(rescan.scope))
+            .await;
+        report
+    }
+
+    /// The settle loop of `observe_changes`: reads the observed scope until
+    /// two consecutive reads agree and nothing looks busy against `before`,
+    /// or the limit passes. Commits nothing. Err only when no read worked.
+    async fn settle(&self, before: &[AccessibilityNode]) -> std::result::Result<Settled, String> {
+        let acted = std::time::Instant::now();
         sleep(SETTLE_FIRST_WAIT).await;
         let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
         let mut settled: Option<Rescan> = None;
@@ -4690,7 +4740,7 @@ impl ComputerUseLinux {
         let (mut polls, mut nodes_read) = (0, 0);
         loop {
             polls += 1;
-            let base = settled.as_ref().map_or(&before[..], |last| &last.nodes[..]);
+            let base = settled.as_ref().map_or(before, |last| &last.nodes[..]);
             match self.read_page(base, None).await {
                 Ok(rescan) => {
                     nodes_read += rescan.read;
@@ -4699,7 +4749,7 @@ impl ComputerUseLinux {
                     if !stable {
                         quiet_since = std::time::Instant::now();
                     }
-                    let busy = crate::page_view::busy_reason(&before, &rescan.nodes);
+                    let busy = crate::page_view::busy_reason(before, &rescan.nodes);
                     if let Some(busy) = &busy {
                         busy_seen.get_or_insert_with(|| busy.reason.clone());
                     }
@@ -4726,16 +4776,9 @@ impl ComputerUseLinux {
             "settle: {polls} polls, {} ms, {nodes_read} nodes read",
             acted.elapsed().as_millis()
         );
-        let Some(settled) = settled else {
-            return format!(
-                "changes: unknown (the tree could not be read: {})\n",
-                last_error.unwrap_or_default()
-            );
-        };
-        let options = settled.scope.options;
-        let mut report = String::new();
-        if let Some(reason) = busy_seen {
-            report.push_str(&format!(
+        let rescan = settled.ok_or_else(|| last_error.unwrap_or_default())?;
+        let busy_note = busy_seen.map(|reason| {
+            format!(
                 "waited {} ms for the page to finish ({reason}){}\n",
                 acted.elapsed().as_millis(),
                 if still_busy {
@@ -4743,8 +4786,23 @@ impl ComputerUseLinux {
                 } else {
                     ""
                 }
-            ));
-        }
+            )
+        });
+        Ok(Settled { rescan, busy_note })
+    }
+
+    /// The change report of `observe_changes` for `settled` against
+    /// `before`, led by `busy_note`: what changed, the focus (an editor's
+    /// whole text), title, URL and tabs. `targets` lead a cut report.
+    async fn change_report_since(
+        &self,
+        before: &[AccessibilityNode],
+        settled: &Rescan,
+        busy_note: Option<String>,
+        targets: &[String],
+    ) -> String {
+        let options = settled.scope.options;
+        let mut report = busy_note.unwrap_or_default();
         let mut after = crate::page_view::page_view(&settled.nodes, options);
         if let Some(editor) = crate::page_view::focused_element(&settled.nodes)
             .filter(|node| crate::page_view::focus_needs_full_text(node))
@@ -4764,12 +4822,10 @@ impl ComputerUseLinux {
             })
             .unwrap_or_default();
         report.push_str(&crate::page_view::change_report(
-            &crate::page_view::page_view(&before, options),
+            &crate::page_view::page_view(before, options),
             &after,
             &target_ids,
         ));
-        self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
-            .await;
         report
     }
 
@@ -5463,6 +5519,19 @@ impl ComputerUseLinux {
                 ok: outcome.ok,
             };
         }
+        // Chromium's select action on the option a native <select> already
+        // holds deselects it (the select is left with no value), so leave a
+        // chosen option alone. Native: the option is the select's own
+        // descendant.
+        if crate::fields::has_state(&option, "selected")
+            && crate::page_view::is_inside(&nodes, option.index, nodes[target].index)
+        {
+            return FieldOutcome {
+                ok: true,
+                message: format!("{label} already shows \"{option_name}\""),
+                value: Some(option_name),
+            };
+        }
         if let Err(message) = self
             .activate_element(&option, &option_label, OPTION_ACTIONS)
             .await
@@ -5694,12 +5763,20 @@ impl ComputerUseLinux {
             steps += 1;
             *scrolls += 1;
             let (read, settled) = self
-                .read_after_scroll_step(plan.hint_ref.as_deref(), &last.nodes, &previous)
+                .read_after_scroll_step(
+                    plan.hint_ref.as_deref(),
+                    &last.nodes,
+                    &previous,
+                    Some(&plan.query),
+                )
                 .await?;
             let loaded = std::time::Instant::now();
-            let (read, busy) = self
-                .wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
-                .await?;
+            let (read, busy) = if rendered_matches(&read.nodes, &plan.query).is_empty() {
+                self.wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
+                    .await?
+            } else {
+                (read, false)
+            };
             let waited = loaded.elapsed().as_millis();
             let before = std::mem::replace(last, read);
             let rows_before = row_keys(&before.nodes);
@@ -5731,12 +5808,14 @@ impl ComputerUseLinux {
     /// Reads the page (`read_page`, `base` being the read before the step)
     /// after a scroll step: once after `SCROLL_UNTIL_STEP_WAIT`, and a second
     /// time after `SETTLE_POLL` only when it still equals `previous` (the
-    /// contents of `base`), since a virtual list may not have re-rendered yet.
+    /// contents of `base`), since a virtual list may not have re-rendered yet;
+    /// then until two reads agree, unless a read already renders `wanted`.
     async fn read_after_scroll_step(
         &self,
         hint: Option<&str>,
         base: &[AccessibilityNode],
         previous: &[crate::outline::ElementContent],
+        wanted: Option<&ElementQuery>,
     ) -> Result<(Rescan, bool), String> {
         sleep(SCROLL_UNTIL_STEP_WAIT).await;
         let started = std::time::Instant::now();
@@ -5747,6 +5826,11 @@ impl ComputerUseLinux {
             sleep(SETTLE_POLL).await;
             latest = self.read_page(&latest.nodes, hint).await?;
             contents = crate::outline::element_contents(&latest.nodes);
+        }
+        // The element searched for is rendered: the search is over, and
+        // `reveal_until_match` reads again once it is in view.
+        if wanted.is_some_and(|query| !rendered_matches(&latest.nodes, query).is_empty()) {
+            return Ok((latest, false));
         }
         // Chromium scrolls smoothly, so a read can land mid-animation. Read
         // until two reads agree; only a settled read may size the next step.
@@ -5848,7 +5932,7 @@ impl ComputerUseLinux {
             }
             let previous = crate::outline::element_contents(&last.nodes);
             (last, _) = self
-                .read_after_scroll_step(hint, &last.nodes, &previous)
+                .read_after_scroll_step(hint, &last.nodes, &previous, None)
                 .await?;
         }
         let rendered: Vec<u32> = rendered_matches(&last.nodes, &plan.query)
@@ -6779,7 +6863,24 @@ fn resolve_semantic_node(
         .or(selector.text)
         .map(str::trim)
         .filter(|name| !name.is_empty());
-    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 5] = [
+    // The last open dialog holding a match: a user can only reach what is
+    // in front, so a match inside it beats the same control behind it.
+    let front_dialog = nodes
+        .iter()
+        .rev()
+        .filter(|node| {
+            matches!(
+                node.role.to_ascii_lowercase().as_str(),
+                "dialog" | "alert dialog"
+            ) && node_is_showing(node)
+        })
+        .find(|dialog| {
+            matches
+                .iter()
+                .any(|node| crate::page_view::is_inside(nodes, node.index, dialog.index))
+        })
+        .map(|dialog| dialog.index);
+    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 6] = [
         &|node| node_matches_resolve_purpose(node, purpose),
         // A radio group's legend repeats its name as plain text; the group
         // is the field.
@@ -6788,6 +6889,9 @@ fn resolve_semantic_node(
                 || !TEXT_ONLY_ROLES.contains(&node.role.as_str())
         },
         &node_is_actionable,
+        &|node| {
+            front_dialog.is_none_or(|dialog| crate::page_view::is_inside(nodes, node.index, dialog))
+        },
         &|node| wanted_name.is_some_and(|name| node_has_exact_name(node, name)),
         &node_is_showing,
     ];
@@ -10559,6 +10663,52 @@ mod tests {
         assert!(error.contains("matched 2 elements"), "{error}");
         assert!(error.contains("\n[7] push button \"Close\""), "{error}");
         assert!(error.contains("\n[9] push button \"Close\""), "{error}");
+    }
+
+    #[test]
+    fn semantic_selector_prefers_the_match_in_the_front_dialog() {
+        let showing = |mut node: AccessibilityNode| {
+            node.states = vec!["showing".to_string(), "visible".to_string()];
+            node
+        };
+        let mut page = showing(node_with_actions(51, None, vec![click_action()]));
+        page.name = Some("Próximo mês".to_string());
+        let mut dialog = showing(node(225, None));
+        dialog.role = "dialog".to_string();
+        let mut picker = showing(node(242, None));
+        picker.role = "dialog".to_string();
+        picker.parent_index = Some(225);
+        let mut inside = showing(node_with_actions(246, None, vec![click_action()]));
+        inside.name = Some("Próximo mês".to_string());
+        inside.parent_index = Some(242);
+        let nodes = [page.clone(), dialog, picker, inside];
+        let selector = ElementSelector {
+            name: Some("Próximo mês"),
+            ..Default::default()
+        };
+        let chosen =
+            resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap();
+        assert_eq!(chosen.index, 246);
+        // An exact name behind the dialog does not beat a longer one in it.
+        let mut save = showing(node_with_actions(60, None, vec![click_action()]));
+        save.name = Some("Salvar".to_string());
+        let mut save_changes = showing(node_with_actions(61, None, vec![click_action()]));
+        save_changes.name = Some("Salvar alterações".to_string());
+        save_changes.parent_index = Some(242);
+        let in_front = [save, nodes[1].clone(), nodes[2].clone(), save_changes];
+        let save_selector = ElementSelector {
+            name: Some("Salvar"),
+            ..Default::default()
+        };
+        let chosen =
+            resolve_semantic_node(&in_front, &save_selector, ElementResolvePurpose::Click).unwrap();
+        assert_eq!(chosen.index, 61);
+        // With no dialog in front, the two stay ambiguous.
+        let mut behind = nodes[3].clone();
+        behind.parent_index = None;
+        let error = resolve_semantic_node(&[page, behind], &selector, ElementResolvePurpose::Click)
+            .unwrap_err();
+        assert!(error.contains("matched 2 elements"), "{error}");
     }
 
     fn named(index: u32, role: &str, name: &str) -> AccessibilityNode {

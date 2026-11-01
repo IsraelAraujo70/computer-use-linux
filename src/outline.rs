@@ -207,7 +207,7 @@ pub fn is_specific_action(action: &AccessibilityAction) -> bool {
 
 /// Filter for `find_elements` and `wait_for`. Every given field must match;
 /// string fields are case-insensitive substrings.
-#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub struct ElementQuery {
     /// Role substring, e.g. button, entry, link, check box.
     #[serde(default)]
