@@ -1,0 +1,54 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Relatório de despesas</title><link rel="stylesheet" href="../style.css"><script src="../common.js"></script><main><h1>Relatório de despesas</h1>
+<label for="title">Título do relatório</label><input id="title"><p id="title-error" class="error" role="alert"></p>
+<label for="cost">Centro de custo</label><select id="cost"><option>Comercial</option><option>Engenharia</option><option>Marketing</option><option>Operações</option></select>
+<label for="project">Projeto</label><select id="project"><option>Aurora</option><option>Boreal</option><option>Cidade Nova</option></select>
+<h2>Despesas</h2><table aria-label="Despesas" role="table"><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="rows"></tbody><tfoot><tr><th colspan="3">Total</th><td id="total"></td></tr></tfoot></table>
+<p id="expenses-error" class="error" role="alert"></p><button id="add">Adicionar despesa</button><button id="submit">Enviar para aprovação</button>
+<dialog id="entry" role="dialog" aria-modal="true" aria-labelledby="entry-title"><h2 id="entry-title">Nova despesa</h2><form id="form" novalidate>
+<label for="date">Data</label><input id="date" placeholder="dd/mm/aaaa"><p id="date-error" class="error" role="alert"></p>
+<label for="category">Categoria</label><select id="category"><option>Transporte</option><option>Alimentação</option><option>Hospedagem</option><option>Material de escritório</option></select><p id="category-error" class="error" role="alert"></p>
+<label for="description">Descrição</label><input id="description"><p id="description-error" class="error" role="alert"></p>
+<label for="amount">Valor (R$)</label><input id="amount"><p id="amount-error" class="error" role="alert"></p>
+<button type="button" id="cancel-entry">Cancelar</button><button>Salvar despesa</button></form></dialog>
+<dialog id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><h2 id="confirm-title"></h2><p id="send-error" class="error" role="alert"></p><button id="cancel-confirm">Cancelar</button><button id="confirm-action"></button></dialog></main>
+<script>
+const $ = id => document.getElementById(id);
+const expenses = [];
+const money = cents => (cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const total = () => expenses.reduce((sum,e)=>sum+e.amount_cents,0);
+function render() {
+  $('rows').replaceChildren(...expenses.map((e,i)=>h('tr',{},h('td',{},e.date),h('td',{},e.category),h('td',{},e.description),h('td',{},money(e.amount_cents)),h('td',{},h('button',{onclick:()=>confirmAction('Excluir esta despesa?','Excluir',()=>{expenses.splice(i,1);render();$('confirm').close();})},`Excluir despesa ${i+1}`)))));
+  $('total').textContent=money(total());
+}
+function confirmAction(title,label,action) {
+  $('confirm-title').textContent=title; $('confirm-action').textContent=label;
+  $('send-error').textContent=''; $('confirm-action').onclick=action; $('confirm').showModal();
+}
+$('add').onclick=()=>{ $('form').reset(); for(const id of ['date','category','description','amount']) $(id+'-error').textContent=''; $('entry').showModal(); };
+$('cancel-entry').onclick=()=>$('entry').close();
+$('cancel-confirm').onclick=()=>$('confirm').close();
+$('form').onsubmit=event=>{
+  event.preventDefault();
+  const date=$('date').value.trim(), description=$('description').value.trim(), category=$('category').value;
+  const raw=$('amount').value.trim();
+  const amount_cents=/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d{1,2})?$/.test(raw)?Math.round(Number(raw.replaceAll('.','').replace(',','.'))*100):0;
+  const parts=date.split('/').map(Number), parsed=new Date(parts[2],parts[1]-1,parts[0]);
+  const validDate=/^\d{2}\/\d{2}\/\d{4}$/.test(date)&&parsed.getFullYear()===parts[2]&&parsed.getMonth()===parts[1]-1&&parsed.getDate()===parts[0];
+  const errors={date:validDate?'':'Informe uma data válida.',category:category?'':'Selecione uma categoria.',description:description?'':'Informe a descrição.',amount:Number.isSafeInteger(amount_cents)&&amount_cents>0?'':'Informe um valor maior que zero.'};
+  for(const [key,value] of Object.entries(errors)) $(key+'-error').textContent=value;
+  if(Object.values(errors).some(Boolean)) return;
+  expenses.push({date,category,description,amount_cents});render();$('entry').close();
+};
+$('submit').onclick=()=>{
+  $('title-error').textContent=$('title').value.trim()?'':'Informe o título.';
+  $('expenses-error').textContent=expenses.length?'':'Adicione ao menos uma despesa.';
+  if(!$('title').value.trim()||!expenses.length)return;
+  confirmAction('Enviar relatório?','Enviar',async()=>{
+    $('confirm-action').disabled=true;
+    try { await postState('long-expenses',{report:{title:$('title').value.trim(),cost_center:$('cost').value,project:$('project').value,expenses,total_cents:total()}});$('confirm').close();toast('Relatório enviado'); }
+    catch { $('send-error').textContent='Falha ao enviar relatório. Tente novamente.'; }
+    finally { $('confirm-action').disabled=false; }
+  });
+};
+render();
+</script></html>
