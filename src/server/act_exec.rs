@@ -79,8 +79,11 @@ impl ComputerUseLinux {
                 outcome.message
             ));
             // Let the page settle so the next step finds what this one
-            // revealed; a wait step has just read the page itself.
-            if !matches!(plan, StepPlan::Wait { .. }) {
+            // revealed; a wait step has just read the page itself, and a
+            // field followed by another field already in view needs no
+            // settle between them (each is about 0.2 s of reads).
+            let field_run = outcome.ok && self.next_field_ready(plan, plans.get(at + 1));
+            if !field_run && !matches!(plan, StepPlan::Wait { .. }) {
                 match self.settle(&before).await {
                     Ok(settled) => {
                         if let Some(note) = settled.busy_note {
@@ -217,6 +220,28 @@ impl ComputerUseLinux {
         self.commit_observation(&rescan.nodes, rescan.root_pid, Some(rescan.scope))
             .await;
         Some(nodes)
+    }
+
+    /// Whether `plan` sets or types into a field and `next` does the same
+    /// to a field the cached snapshot already resolves.
+    fn next_field_ready(&self, plan: &StepPlan, next: Option<&StepPlan>) -> bool {
+        if !matches!(plan, StepPlan::Set { .. } | StepPlan::Type { .. }) {
+            return false;
+        }
+        let target = match next {
+            Some(StepPlan::Set { target, .. }) => target,
+            Some(StepPlan::Type {
+                target: Some(target),
+                ..
+            }) => target,
+            _ => return false,
+        };
+        self.resolve_cached_node(
+            target.element_index,
+            &selector_of(target),
+            ElementResolvePurpose::SetValue,
+        )
+        .is_ok()
     }
 
     /// A dialog that opened during the last step (absent from `before`)

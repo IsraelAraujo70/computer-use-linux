@@ -29,6 +29,16 @@ const NOTICE_ROLES: [&str; 7] = [
     "notification",
     "log",
 ];
+/// The notice roles that report an outcome, not ask for input: a dialog's
+/// fields are not news an agent can cite.
+const STATUS_ROLES: [&str; 6] = [
+    "alert",
+    "statusbar",
+    "status bar",
+    "notification",
+    "log",
+    "status",
+];
 /// Most element lines a view draws once elements outside the visible area
 /// count. Visible elements are always drawn; outside ones fill what is left.
 pub const OUTLINE_MAX_LINES: usize = 250;
@@ -61,6 +71,9 @@ pub struct ViewEntry {
     /// Whether it is or lies inside an alert, status message or dialog
     /// (`NOTICE_ROLES`).
     notice: bool,
+    /// Whether it is or lies inside an alert or status message
+    /// (`STATUS_ROLES`): a notice that is not a dialog.
+    status: bool,
     /// Everything but the position, untruncated: a change here is a `~`.
     key: String,
 }
@@ -189,6 +202,10 @@ pub fn page_view(nodes: &[AccessibilityNode], options: ViewOptions) -> PageView 
             notice: NOTICE_ROLES.contains(&tree.role(candidate.at).as_str())
                 || tree
                     .ancestor_with_role(candidate.at, &NOTICE_ROLES)
+                    .is_some(),
+            status: STATUS_ROLES.contains(&tree.role(candidate.at).as_str())
+                || tree
+                    .ancestor_with_role(candidate.at, &STATUS_ROLES)
                     .is_some(),
             key: content_key(node),
         });
@@ -760,8 +777,8 @@ pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> St
 /// Most lines `new_notices` returns.
 const NOTICES_SHOWN: usize = 3;
 
-/// Lines of the alerts, status messages and dialogs (`NOTICE_ROLES`, and
-/// what lies inside them) that are new or changed in `after`, with text, at
+/// Lines of the alerts and status messages (`STATUS_ROLES`, and what lies
+/// inside them) that are new or changed in `after`, with text, at
 /// most `NOTICES_SHOWN`: the "Salvo" / "Mensagem enviada" an agent can cite
 /// as the outcome without looking again.
 pub fn new_notices(before: &PageView, after: &PageView) -> Vec<String> {
@@ -773,7 +790,7 @@ pub fn new_notices(before: &PageView, after: &PageView) -> Vec<String> {
     after
         .entries
         .iter()
-        .filter(|entry| entry.notice && entry.line.contains('"'))
+        .filter(|entry| entry.status && entry.line.contains('"'))
         .filter(|entry| earlier.get(&entry.id) != Some(&entry.key.as_str()))
         .take(NOTICES_SHOWN)
         .map(|entry| entry.line.clone())
@@ -1967,6 +1984,14 @@ mod tests {
         assert_eq!(notices.len(), 1, "{notices:?}");
         assert!(notices[0].contains("Mensagem enviada"), "{notices:?}");
         assert!(new_notices(&after, &after).is_empty());
+        let dialog = page_view(
+            &browser(vec![
+                at(node(40, Some(10), "dialog", "Novo evento"), 0, 100, 400, 300),
+                at(node(41, Some(40), "entry", "Título"), 10, 110, 300, 30),
+            ]),
+            ViewOptions::default(),
+        );
+        assert!(new_notices(&before, &dialog).is_empty());
     }
 
     #[test]

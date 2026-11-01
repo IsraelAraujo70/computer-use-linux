@@ -5750,12 +5750,20 @@ impl ComputerUseLinux {
             steps += 1;
             *scrolls += 1;
             let (read, settled) = self
-                .read_after_scroll_step(plan.hint_ref.as_deref(), &last.nodes, &previous)
+                .read_after_scroll_step(
+                    plan.hint_ref.as_deref(),
+                    &last.nodes,
+                    &previous,
+                    Some(&plan.query),
+                )
                 .await?;
             let loaded = std::time::Instant::now();
-            let (read, busy) = self
-                .wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
-                .await?;
+            let (read, busy) = if rendered_matches(&read.nodes, &plan.query).is_empty() {
+                self.wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
+                    .await?
+            } else {
+                (read, false)
+            };
             let waited = loaded.elapsed().as_millis();
             let before = std::mem::replace(last, read);
             let rows_before = row_keys(&before.nodes);
@@ -5787,12 +5795,14 @@ impl ComputerUseLinux {
     /// Reads the page (`read_page`, `base` being the read before the step)
     /// after a scroll step: once after `SCROLL_UNTIL_STEP_WAIT`, and a second
     /// time after `SETTLE_POLL` only when it still equals `previous` (the
-    /// contents of `base`), since a virtual list may not have re-rendered yet.
+    /// contents of `base`), since a virtual list may not have re-rendered yet;
+    /// then until two reads agree, unless a read already renders `wanted`.
     async fn read_after_scroll_step(
         &self,
         hint: Option<&str>,
         base: &[AccessibilityNode],
         previous: &[crate::outline::ElementContent],
+        wanted: Option<&ElementQuery>,
     ) -> Result<(Rescan, bool), String> {
         sleep(SCROLL_UNTIL_STEP_WAIT).await;
         let started = std::time::Instant::now();
@@ -5803,6 +5813,11 @@ impl ComputerUseLinux {
             sleep(SETTLE_POLL).await;
             latest = self.read_page(&latest.nodes, hint).await?;
             contents = crate::outline::element_contents(&latest.nodes);
+        }
+        // The element searched for is rendered: the search is over, and
+        // `reveal_until_match` reads again once it is in view.
+        if wanted.is_some_and(|query| !rendered_matches(&latest.nodes, query).is_empty()) {
+            return Ok((latest, false));
         }
         // Chromium scrolls smoothly, so a read can land mid-animation. Read
         // until two reads agree; only a settled read may size the next step.
@@ -5904,7 +5919,7 @@ impl ComputerUseLinux {
             }
             let previous = crate::outline::element_contents(&last.nodes);
             (last, _) = self
-                .read_after_scroll_step(hint, &last.nodes, &previous)
+                .read_after_scroll_step(hint, &last.nodes, &previous, None)
                 .await?;
         }
         let rendered: Vec<u32> = rendered_matches(&last.nodes, &plan.query)
