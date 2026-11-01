@@ -1,1 +1,90 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Encontre sua hospedagem</title><link rel="stylesheet" href="../style.css"><style>main{max-width:1100px;margin:32px auto}button,input,select,textarea{margin:8px;padding:10px}iframe{width:100%;border:1px solid #ccc;border-radius:10px}table{width:100%}td,th{padding:10px;text-align:left}section{padding:20px;background:white;border:1px solid #ddd}dialog{min-width:400px}</style><body><div class="sitebar"><b>Aurora · Encontre sua hospedagem</b></div><main><h1>Encontre sua hospedagem</h1><label>Check-in — Check-out<input id="range" readonly></label><label>Adultos<select id="adults"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label><button id="search">Buscar</button><section id="calendar" hidden><button id="prev">Mês anterior</button><button id="next">Próximo mês</button><div id="months" style="display:flex;gap:30px"></div></section></main><script src="../common.js"></script><script>let month=10,year=2026,start='',end='';const names=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];function render(){months.replaceChildren();for(let offset=0;offset<2;offset++){const d=new Date(year,month+offset,1),y=d.getFullYear(),m=d.getMonth();let sec=document.createElement('section');sec.innerHTML='<h2>'+names[m]+' '+y+'</h2>';let grid=document.createElement('div');grid.style='display:grid;grid-template-columns:repeat(7,48px)';for(let day=1;day<=new Date(y,m+1,0).getDate();day++){let b=document.createElement('button');b.textContent=day;b.setAttribute('aria-label',day+' de '+names[m]+' de '+y);const value=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');b.onclick=()=>{if(!start||end){start=value;end=''}else if(value>start){end=value;calendar.hidden=true}else start=value;document.querySelector('#range').value=start+' — '+end;postState('a35-datepicker-range',{checkin:start,checkout:end,adults:Number(adults.value)})};grid.append(b)}sec.append(grid);months.append(sec)}}document.querySelector('#range').onclick=()=>{calendar.hidden=!calendar.hidden;render()};prev.onclick=()=>{month--;render()};next.onclick=()=>{month++;render()};adults.onchange=()=>postState('a35-datepicker-range',{checkin:start,checkout:end,adults:Number(adults.value)});search.onclick=()=>{postState('a35-datepicker-range',{checkin:start,checkout:end,adults:Number(adults.value)});toast('Busca realizada')};</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Encontre sua hospedagem</title>
+<link rel="stylesheet" href="../style.css">
+<style>main{max-width:1100px;
+margin:32px auto}button,input,select,textarea{margin:8px;
+padding:10px}iframe{width:100%;
+border:1px solid #ccc;
+border-radius:10px}table{width:100%}td,th{padding:10px;
+text-align:left}section{padding:20px;
+background:white;
+border:1px solid #ddd}dialog{min-width:400px}body{font-size:16px;
+background:#f4f6fa}button,input,select{min-height:36px}h1{color:#203451}nav{color:#52617a}</style>
+<body>
+<div class="sitebar">
+<b>Aurora · Encontre sua hospedagem</b>
+</div>
+<nav style="padding:16px;
+background:#e9eef6">Visão geral　 ·　 Minha conta　 ·　 Documentos　 ·　 Ajuda</nav>
+<main>
+<h1>Encontre sua hospedagem</h1>
+<label>Destino<input value="Gramado, RS">
+</label>
+<p>Encontre pousadas, hotéis e apartamentos para sua próxima viagem.</p>
+<label>Check-in — Check-out<input id="range" readonly>
+</label>
+<label>Adultos<select id="adults">
+<option>1</option>
+<option selected>2</option>
+<option>3</option>
+<option>4</option>
+</select>
+</label>
+<button id="less" aria-label="Diminuir adultos">−</button>
+<button id="more" aria-label="Aumentar adultos">+</button>
+<button id="search">Buscar</button>
+<section id="calendar" hidden>
+<button id="prev">Mês anterior</button>
+<button id="next">Próximo mês</button>
+<div id="months" style="display:flex;
+gap:30px">
+</div>
+</section>
+<section>
+<h2>Inspire sua viagem</h2>
+<p>Serra gaúcha · Gastronomia local · Passeios em família</p>
+<p>Hotel das Araucárias　 ·　 Pousada Jardim do Lago　 ·　 Vila das Hortênsias</p>
+</section>
+</main>
+<script src="../common.js">
+</script>
+<script>less.onclick=()=>{adults.value=String(Math.max(1,Number(adults.value)-1));
+adults.dispatchEvent(new Event('change'))};
+more.onclick=()=>{adults.value=String(Math.min(4,Number(adults.value)+1));
+adults.dispatchEvent(new Event('change'))};
+let month=10,year=2026,start='',end='';
+const names=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function render(){months.replaceChildren();
+for(let offset=0;
+offset<2;
+offset++){const d=new Date(year,month+offset,1),y=d.getFullYear(),m=d.getMonth();
+let sec=document.createElement('section');
+sec.innerHTML='<h2>'+names[m]+' '+y+'</h2>';
+let grid=document.createElement('div');
+grid.style='display:grid;grid-template-columns:repeat(7,48px)';
+for(let day=1;
+day<=new Date(y,m+1,0).getDate();
+day++){let b=document.createElement('button');
+b.textContent=day;
+b.setAttribute('aria-label',day+' de '+names[m]+' de '+y);
+const value=y+'-'+String(m+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+b.onclick=()=>{if(!start||end){start=value;
+end=''}else if(value>start){end=value;
+calendar.hidden=true}else start=value;
+document.querySelector('#range').value=start+' — '+end;
+postState('a35-datepicker-range',{checkin:start,checkout:end,adults:Number(adults.value)})};
+grid.append(b)}sec.append(grid);
+months.append(sec)}}document.querySelector('#range').onclick=()=>{calendar.hidden=!calendar.hidden;
+render()};
+prev.onclick=()=>{month--;
+render()};
+next.onclick=()=>{month++;
+render()};
+adults.onchange=()=>postState('a35-datepicker-range',{checkin:start,checkout:end,adults:Number(adults.value)});
+search.onclick=()=>{postState('a35-datepicker-range',{checkin:start,checkout:end,adults:Number(adults.value)});
+toast('Busca realizada')};
+</script>
+</body>
+</html>

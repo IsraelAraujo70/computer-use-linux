@@ -1,8 +1,10 @@
 ID = "a35-table-sort-edit"
 CATEGORY = 'table'
 PAGE = "argo35/table_sort_edit.html"
-PROMPT = 'Set status "Promovido" for the employee with the highest salary in department "Financeiro". Leave all other employees unchanged.'
-TARGET = {'status': {'emp-1': 'Ativo', 'emp-2': 'Ativo', 'emp-3': 'Ativo', 'emp-4': 'Ativo', 'emp-5': 'Ativo', 'emp-6': 'Ativo', 'emp-7': 'Ativo', 'emp-8': 'Ativo', 'emp-9': 'Ativo', 'emp-10': 'Ativo', 'emp-11': 'Ativo', 'emp-12': 'Ativo', 'emp-13': 'Ativo', 'emp-14': 'Ativo', 'emp-15': 'Ativo', 'emp-16': 'Ativo', 'emp-17': 'Ativo', 'emp-18': 'Ativo', 'emp-19': 'Ativo', 'emp-20': 'Ativo', 'emp-21': 'Ativo', 'emp-22': 'Ativo', 'emp-23': 'Ativo', 'emp-24': 'Ativo', 'emp-25': 'Ativo', 'emp-26': 'Ativo', 'emp-27': 'Ativo', 'emp-28': 'Ativo', 'emp-29': 'Ativo', 'emp-30': 'Ativo', 'emp-31': 'Ativo', 'emp-32': 'Ativo', 'emp-33': 'Ativo', 'emp-34': 'Ativo', 'emp-35': 'Ativo', 'emp-36': 'Ativo', 'emp-37': 'Ativo', 'emp-38': 'Ativo', 'emp-39': 'Ativo', 'emp-40': 'Ativo', 'emp-41': 'Ativo', 'emp-42': 'Ativo', 'emp-43': 'Ativo', 'emp-44': 'Ativo', 'emp-45': 'Ativo', 'emp-46': 'Ativo', 'emp-47': 'Promovido', 'emp-48': 'Ativo', 'emp-49': 'Ativo', 'emp-50': 'Ativo', 'emp-51': 'Ativo', 'emp-52': 'Ativo', 'emp-53': 'Ativo', 'emp-54': 'Ativo', 'emp-55': 'Ativo', 'emp-56': 'Ativo', 'emp-57': 'Ativo', 'emp-58': 'Ativo', 'emp-59': 'Ativo', 'emp-60': 'Ativo'}}
+PROMPT = "In Aurora Pessoas e equipes, set 'Promovido' for the employee with the highest salary in 'Financeiro'. Keep every other field unchanged, then click 'Salvar'."
+NAMES = ['Ana','Bruno','Carla','Diego','Elisa','Fábio','Gabriela','Hugo','Isabela','João']
+SURNAMES = ['Almeida','Barros','Costa','Dias','Esteves','Freitas']
+TARGET = {'employees': [dict(id=f'emp-{n+1}', name='Marina Duarte' if n == 46 else NAMES[n%10]+' '+SURNAMES[n//10], dept='Financeiro' if n%3 == 1 else 'Engenharia' if n%3 == 0 else 'Comercial', salary=18000 if n == 46 else 25000 if n == 59 else 3000+n*130, role='Analista', hired='2022-05-16', status='Promovido' if n == 46 else 'Ativo') for n in range(60)]}
 def check(state, root):
-    return (isinstance(state, dict) and state == TARGET, "Expected exact requested state")
-WRONG = [{'status': {**TARGET['status'], 'emp-47': 'Ativo'}}, {'status': {**TARGET['status'], 'emp-60': 'Promovido'}}, {'status': {**TARGET['status'], 'emp-47': 'Afastado'}}]
+    return isinstance(state, dict) and state == TARGET, 'All employee fields must match the requested change'
+WRONG = [{}, {'employees': []}, {'employees': TARGET['employees'][:-1]}]

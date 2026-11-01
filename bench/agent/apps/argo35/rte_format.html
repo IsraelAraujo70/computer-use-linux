@@ -1,1 +1,64 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Comunicado da equipe</title><link rel="stylesheet" href="../style.css"><style>main{max-width:1100px;margin:32px auto}button,input,select,textarea{margin:8px;padding:10px}iframe{width:100%;border:1px solid #ccc;border-radius:10px}table{width:100%}td,th{padding:10px;text-align:left}section{padding:20px;background:white;border:1px solid #ddd}dialog{min-width:400px}</style><body><div class="sitebar"><b>Aurora · Comunicado da equipe</b></div><main><h1>Comunicado da equipe</h1><div id="toolbar"><button data-cmd="bold">Negrito</button><button data-cmd="italic">Itálico</button><button data-cmd="insertUnorderedList">Lista com marcadores</button><button id="link">Link</button></div><section id="popover" hidden><label>URL<input id="url"></label><button id="insert">Inserir link</button></section><div id="editor" role="textbox" aria-label="Comunicado" contenteditable="true" style="background:white;border:1px solid #ccc;padding:25px;min-height:300px"><p>O prazo final está no portal.</p><p>Item 1</p><p>Item 2</p><p>Item 3</p></div><button id="save">Salvar</button></main><script src="../common.js"></script><script>let selection;document.querySelectorAll('[data-cmd]').forEach(b=>{b.onmousedown=e=>e.preventDefault();b.onclick=()=>{document.execCommand(b.dataset.cmd);postState('a35-rte-format',{html:editor.innerHTML})}});link.onmousedown=e=>{e.preventDefault();selection=getSelection().rangeCount?getSelection().getRangeAt(0).cloneRange():null};link.onclick=()=>{popover.hidden=false;url.focus()};insert.onclick=()=>{editor.focus();if(selection){getSelection().removeAllRanges();getSelection().addRange(selection);document.execCommand('createLink',false,url.value)}popover.hidden=true;postState('a35-rte-format',{html:editor.innerHTML})};editor.oninput=()=>postState('a35-rte-format',{html:editor.innerHTML});save.onclick=()=>{postState('a35-rte-format',{html:editor.innerHTML});toast('Comunicado salvo')};</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Comunicado da equipe</title>
+<link rel="stylesheet" href="../style.css">
+<style>main{max-width:1100px;
+margin:32px auto}button,input,select,textarea{margin:8px;
+padding:10px}iframe{width:100%;
+border:1px solid #ccc;
+border-radius:10px}table{width:100%}td,th{padding:10px;
+text-align:left}section{padding:20px;
+background:white;
+border:1px solid #ddd}dialog{min-width:400px}body{font-size:16px;
+background:#f4f6fa}button,input,select{min-height:36px}h1{color:#203451}nav{color:#52617a}</style>
+<body>
+<div class="sitebar">
+<b>Aurora · Comunicado da equipe</b>
+</div>
+<nav style="padding:16px;
+background:#e9eef6">Visão geral　 ·　 Minha conta　 ·　 Documentos　 ·　 Ajuda</nav>
+<main>
+<h1>Comunicado da equipe</h1>
+<p>Documentos / Comunicação interna · Equipe de operações</p>
+<label>Título<input value="Comunicado da equipe">
+</label>
+<div id="toolbar">
+<button data-cmd="undo" aria-label="Desfazer">↶ Desfazer</button>
+<button data-cmd="bold" aria-label="Negrito">B</button>
+<button data-cmd="italic" aria-label="Itálico">I</button>
+<button data-cmd="insertUnorderedList" aria-label="Lista com marcadores">☷</button>
+<button id="link" aria-label="Link">↗</button>
+</div>
+<section id="popover" hidden>
+<label>URL<input id="url">
+</label>
+<button id="insert">Inserir link</button>
+</section>
+<div id="editor" role="textbox" aria-label="Comunicado" contenteditable="true" style="background:white;
+border:1px solid #ccc;
+padding:25px;
+min-height:300px"><p>O prazo final está no portal.</p><p>Item 1</p><p>Item 2</p><p>Item 3</p></div>
+<button id="save">Salvar</button>
+</main>
+<script src="../common.js">
+</script>
+<script>let selection;
+document.querySelectorAll('[data-cmd]').forEach(b=>{b.onmousedown=e=>e.preventDefault();
+b.onclick=()=>{document.execCommand(b.dataset.cmd);
+postState('a35-rte-format',{html:editor.innerHTML})}});
+link.onmousedown=e=>{e.preventDefault();
+selection=getSelection().rangeCount?getSelection().getRangeAt(0).cloneRange():null};
+link.onclick=()=>{popover.hidden=false;
+url.focus()};
+insert.onclick=()=>{editor.focus();
+if(selection){getSelection().removeAllRanges();
+getSelection().addRange(selection);
+document.execCommand('createLink',false,url.value)}popover.hidden=true;
+postState('a35-rte-format',{html:editor.innerHTML})};
+editor.oninput=()=>postState('a35-rte-format',{html:editor.innerHTML});
+save.onclick=()=>{postState('a35-rte-format',{html:editor.innerHTML});
+toast('Comunicado salvo')};
+</script>
+</body>
+</html>

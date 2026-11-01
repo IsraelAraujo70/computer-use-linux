@@ -2,7 +2,7 @@ from html.parser import HTMLParser
 ID = 'a35-rte-format'
 CATEGORY = 'rich-text'
 PAGE = 'argo35/rte_format.html'
-PROMPT = 'Make "prazo final" bold, turn Item 1, Item 2 and Item 3 into a bulleted list, link "portal" to https://portal.example.com, then click "Salvar". Keep all text unchanged.'
+PROMPT = "In Aurora Comunicado da equipe, make 'prazo final' bold, turn Item 1, Item 2 and Item 3 into a bulleted list, link 'portal' to https://portal.example.com, then click 'Salvar'. Keep all text unchanged."
 class Document(HTMLParser):
     def __init__(self):
         super().__init__(); self.stack=[]; self.text=[]; self.bold=[]; self.links=[]; self.items=[]; self.uls=0; self.bad=False

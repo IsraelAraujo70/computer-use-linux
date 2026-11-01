@@ -1,1 +1,46 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Central de ajuda</title><link rel="stylesheet" href="../style.css"><style>main{max-width:1100px;margin:32px auto}button,input,select,textarea{margin:8px;padding:10px}iframe{width:100%;border:1px solid #ccc;border-radius:10px}table{width:100%}td,th{padding:10px;text-align:left}section{padding:20px;background:white;border:1px solid #ddd}dialog{min-width:400px}</style><body><div class="sitebar"><b>Aurora · Central de ajuda</b></div><main><h1>Central de ajuda</h1><p>Fale com nossa equipe de atendimento.</p><iframe title="Atendimento" height="650"></iframe></main><script src="../common.js"></script><script>document.querySelector('iframe').src='http://localhost:'+location.port+'/apps/argo35/iframe_nested-widget.html';</script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Central de ajuda</title>
+<link rel="stylesheet" href="../style.css">
+<style>main{max-width:1100px;
+margin:32px auto}button,input,select,textarea{margin:8px;
+padding:10px}iframe{width:100%;
+border:1px solid #ccc;
+border-radius:10px}table{width:100%}td,th{padding:10px;
+text-align:left}section{padding:20px;
+background:white;
+border:1px solid #ddd}dialog{min-width:400px}body{font-size:16px;
+background:#f4f6fa}button,input,select{min-height:36px}h1{color:#203451}nav{color:#52617a}</style>
+<body>
+<div class="sitebar">
+<b>Aurora · Central de ajuda</b>
+</div>
+<nav style="padding:16px;
+background:#e9eef6">Visão geral　 ·　 Minha conta　 ·　 Documentos　 ·　 Ajuda</nav>
+<main>
+<h1>Central de ajuda</h1>
+<label>Como podemos ajudar?<input placeholder="Pesquisar artigos">
+</label>
+<section>
+<h2>Seus pedidos</h2>
+<p>Acompanhe entregas, pagamentos e trocas na sua conta.</p>
+<h2>Perguntas frequentes</h2>
+<p>Como acompanhar minha entrega?</p>
+<p>Qual é o prazo para troca?</p>
+<p>Como atualizar meu endereço?</p>
+</section>
+<iframe title="Atendimento" height="730" style="position:fixed;
+right:24px;
+bottom:16px;
+width:480px;
+background:white;
+box-shadow:0 8px 40px #20345133">
+</iframe>
+</main>
+<script src="../common.js">
+</script>
+<script>document.querySelector('iframe').src='http://localhost:'+location.port+'/apps/argo35/iframe_nested-widget.html';
+</script>
+</body>
+</html>
