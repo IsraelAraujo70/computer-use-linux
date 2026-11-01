@@ -6876,9 +6876,11 @@ fn resolve_semantic_node(
                 || !TEXT_ONLY_ROLES.contains(&node.role.as_str())
         },
         &node_is_actionable,
+        &|node| {
+            front_dialog.is_none_or(|dialog| crate::page_view::is_inside(nodes, node.index, dialog))
+        },
         &|node| wanted_name.is_some_and(|name| node_has_exact_name(node, name)),
         &node_is_showing,
-        &|node| front_dialog.is_none_or(|dialog| crate::page_view::is_inside(nodes, node.index, dialog)),
     ];
     for keep in narrowings {
         if matches.len() == 1 {
@@ -10671,8 +10673,23 @@ mod tests {
             name: Some("Próximo mês"),
             ..Default::default()
         };
-        let chosen = resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap();
+        let chosen =
+            resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap();
         assert_eq!(chosen.index, 246);
+        // An exact name behind the dialog does not beat a longer one in it.
+        let mut save = showing(node_with_actions(60, None, vec![click_action()]));
+        save.name = Some("Salvar".to_string());
+        let mut save_changes = showing(node_with_actions(61, None, vec![click_action()]));
+        save_changes.name = Some("Salvar alterações".to_string());
+        save_changes.parent_index = Some(242);
+        let in_front = [save, nodes[1].clone(), nodes[2].clone(), save_changes];
+        let save_selector = ElementSelector {
+            name: Some("Salvar"),
+            ..Default::default()
+        };
+        let chosen =
+            resolve_semantic_node(&in_front, &save_selector, ElementResolvePurpose::Click).unwrap();
+        assert_eq!(chosen.index, 61);
         // With no dialog in front, the two stay ambiguous.
         let mut behind = nodes[3].clone();
         behind.parent_index = None;

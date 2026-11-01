@@ -1970,12 +1970,24 @@ mod tests {
     #[test]
     fn new_notices_lists_new_or_changed_status_text_only() {
         let before = page_view(
-            &browser(vec![at(node(30, Some(10), "statusbar", "Rascunho"), 0, 700, 300, 20)]),
+            &browser(vec![at(
+                node(30, Some(10), "statusbar", "Rascunho"),
+                0,
+                700,
+                300,
+                20,
+            )]),
             ViewOptions::default(),
         );
         let after = page_view(
             &browser(vec![
-                at(node(30, Some(10), "statusbar", "Mensagem enviada"), 0, 700, 300, 20),
+                at(
+                    node(30, Some(10), "statusbar", "Mensagem enviada"),
+                    0,
+                    700,
+                    300,
+                    20,
+                ),
                 at(node(31, Some(10), "button", "Enviar"), 0, 100, 80, 30),
             ]),
             ViewOptions::default(),
@@ -1986,7 +1998,13 @@ mod tests {
         assert!(new_notices(&after, &after).is_empty());
         let dialog = page_view(
             &browser(vec![
-                at(node(40, Some(10), "dialog", "Novo evento"), 0, 100, 400, 300),
+                at(
+                    node(40, Some(10), "dialog", "Novo evento"),
+                    0,
+                    100,
+                    400,
+                    300,
+                ),
                 at(node(41, Some(40), "entry", "Título"), 10, 110, 300, 30),
             ]),
             ViewOptions::default(),
@@ -2083,10 +2101,7 @@ mod tests {
             lines[30],
             "~ [60] check box \"Selecionar\" (below) {checked}"
         );
-        assert_eq!(
-            lines[31],
-            "… and 13 more changes (13 added) not shown"
-        );
+        assert_eq!(lines[31], "… and 13 more changes (13 added) not shown");
         assert!(!report.contains("[128] row"), "{report}");
         assert!(!report.contains("--- page ---"), "{report}");
     }

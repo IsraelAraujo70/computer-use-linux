@@ -1,9 +1,7 @@
 //! Runs `act` steps against the live app: the executor half of `act`
 //! (types and validation live in `act.rs`).
 
-use super::act::{
-    describe_step, plan_steps, ActParams, StepPlan, StepTarget, STEP_FIND_LIMIT,
-};
+use super::act::{describe_step, plan_steps, ActParams, StepPlan, StepTarget, STEP_FIND_LIMIT};
 use super::{
     resolve_semantic_node, ClickParams, ComputerUseLinux, ElementResolvePurpose, ElementSelector,
     PressKeyParams, Rescan, ScrollParams, SetValueParams, TypeTextParams, WaitCondition,
@@ -225,7 +223,25 @@ impl ComputerUseLinux {
     /// Whether `plan` sets or types into a field and `next` does the same
     /// to a field the cached snapshot already resolves.
     fn next_field_ready(&self, plan: &StepPlan, next: Option<&StepPlan>) -> bool {
-        if !matches!(plan, StepPlan::Set { .. } | StepPlan::Type { .. }) {
+        // Only text: a check box, radio or select may open a dialog the
+        // next step must not run past.
+        let typed_text = match plan {
+            StepPlan::Type { .. } => true,
+            StepPlan::Set { target, .. } => self
+                .resolve_cached_node(
+                    target.element_index,
+                    &selector_of(target),
+                    ElementResolvePurpose::SetValue,
+                )
+                .is_ok_and(|node| {
+                    matches!(
+                        crate::fields::field_kind(&node),
+                        crate::fields::FieldKind::Text
+                    )
+                }),
+            _ => false,
+        };
+        if !typed_text {
             return false;
         }
         let target = match next {
@@ -265,9 +281,16 @@ impl ComputerUseLinux {
             } => {
                 return (!crate::page_view::is_inside(now, *id, dialog)).then_some(note);
             }
-            // Waiting for something is how an agent reacts to a dialog it
-            // expects; a key press or scroll with no target is not.
-            StepPlan::Wait { .. } => return None,
+            // Waiting for something in the dialog is how an agent reacts to
+            // one it expects; any other wait, key press or untargeted scroll
+            // is not.
+            StepPlan::Wait { query, .. } => {
+                let expected = !query.is_empty()
+                    && now.iter().any(|node| {
+                        query.matches(node) && crate::page_view::is_inside(now, node.index, dialog)
+                    });
+                return (!expected).then_some(note);
+            }
             _ => (None, ElementResolvePurpose::Click),
         };
         let inside = target.is_some_and(|target| match target.element_index {
@@ -364,14 +387,22 @@ impl ComputerUseLinux {
                 (output.ok, output.message)
             }
             StepPlan::Type { target, text } => {
-                let target = target.clone().unwrap_or_default();
+                // send_text matches role/name only; type into the element the
+                // full selector (text included) resolved above.
+                let element_index = target.as_ref().and_then(|target| {
+                    self.resolve_cached_node(
+                        target.element_index,
+                        &selector_of(target),
+                        ElementResolvePurpose::SetValue,
+                    )
+                    .ok()
+                    .map(|node| node.index)
+                });
                 let (Json(output), unverified) = self
                     .send_text(TypeTextParams {
                         observe: Some(false),
                         text: text.clone(),
-                        element_index: target.element_index,
-                        role: target.role,
-                        name: target.name.or(target.text),
+                        element_index,
                         ..Default::default()
                     })
                     .await;
@@ -490,4 +521,79 @@ fn error_result(text: String) -> CallToolResult {
     let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
     result.is_error = Some(true);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::atspi_tree::Bounds;
+
+    fn node(index: u32, parent: Option<u32>, role: &str, name: &str) -> AccessibilityNode {
+        AccessibilityNode {
+            index,
+            parent_index: parent,
+            depth: 0,
+            object_ref: format!(":1.1/{index}"),
+            role: role.to_string(),
+            name: Some(name.to_string()),
+            description: None,
+            child_count: 0,
+            bounds: Some(Bounds {
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 30,
+            }),
+            states: vec!["showing".to_string(), "visible".to_string()],
+            actions: Vec::new(),
+            value: None,
+            text: None,
+            supports_editable_text: false,
+        }
+    }
+
+    fn wait_for(name: &str) -> StepPlan {
+        StepPlan::Wait {
+            query: ElementQuery {
+                name: Some(name.to_string()),
+                ..Default::default()
+            },
+            condition: WaitCondition::Appears,
+            timeout: Duration::from_secs(1),
+        }
+    }
+
+    #[test]
+    fn a_new_dialog_stops_act_unless_the_next_step_acts_inside_it() {
+        let backend = ComputerUseLinux::default();
+        let before = vec![node(1, None, "button", "Excluir")];
+        let mut now = before.clone();
+        let mut dialog = node(10, None, "dialog", "Excluir lead?");
+        dialog.states.push("modal".to_string());
+        now.push(dialog);
+        now.push(node(11, Some(10), "button", "Confirmar exclusão"));
+        now.push(node(12, None, "statusbar", "Pronto"));
+        let click_inside = StepPlan::Click {
+            target: StepTarget {
+                name: Some("Confirmar exclusão".to_string()),
+                ..Default::default()
+            },
+            click_count: 1,
+        };
+        assert!(backend
+            .unexpected_dialog(&before, &now, &click_inside)
+            .is_none());
+        assert!(backend
+            .unexpected_dialog(&before, &now, &wait_for("Confirmar"))
+            .is_none());
+        // A wait for something outside the dialog does not excuse it.
+        let note = backend.unexpected_dialog(&before, &now, &wait_for("Pronto"));
+        assert!(note.is_some_and(|note| note.contains("Excluir lead?")));
+        let enter = StepPlan::Key {
+            key: "Enter".to_string(),
+        };
+        assert!(backend.unexpected_dialog(&before, &now, &enter).is_some());
+        // A dialog that was already open is the agent's to handle.
+        assert!(backend.unexpected_dialog(&now, &now, &enter).is_none());
+    }
 }
