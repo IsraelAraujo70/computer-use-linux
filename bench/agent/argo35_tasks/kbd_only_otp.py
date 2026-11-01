@@ -2,7 +2,7 @@
 ID = 'a35-kbd-only-otp'
 CATEGORY = 'keyboard-only'
 PAGE = 'argo35/kbd_only_otp.html'
-PROMPT = 'Enter the code shown in the SMS panel and card PIN 7350, then click "Confirmar".'
+PROMPT = "In 'Banco Horizonte', enter the code shown in the SMS panel and card PIN 7350. Then click 'Confirmar'."
 EXPECTED = {'otp': '482913', 'pin': '7350'}
 
 def check(state, root):

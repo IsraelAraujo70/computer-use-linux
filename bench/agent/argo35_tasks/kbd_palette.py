@@ -2,7 +2,7 @@
 ID = 'a35-kbd-palette'
 CATEGORY = 'shortcut'
 PAGE = 'argo35/kbd_palette.html'
-PROMPT = 'Use the command palette to turn on word wrap ("Ativar quebra de linha automática"), choose "Solarizado claro", and set indentation to 2 spaces. Leave other settings unchanged.'
+PROMPT = "In 'Aurora Code', enable 'Ativar quebra de linha automática', choose 'Solarizado claro', and set 'Indentação: 2 espaços'. Leave other settings unchanged."
 EXPECTED = {'wrap': True, 'theme': 'Solarizado claro', 'indent': 2, 'minimap': True}
 
 def check(state, root):
