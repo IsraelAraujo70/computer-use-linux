@@ -855,7 +855,6 @@ pub fn blocking_dialog_with_id(
 /// Whether element `id` is `ancestor` or lies inside it in `nodes`
 /// (elements matched by id, parents by `parent_index`). False when either
 /// is missing.
-#[allow(dead_code, reason = "act integration will use this ancestry helper")]
 pub fn is_inside(nodes: &[AccessibilityNode], id: u32, ancestor: u32) -> bool {
     if !nodes.iter().any(|node| node.index == ancestor) {
         return false;
