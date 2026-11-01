@@ -3224,6 +3224,9 @@ impl From<&ScreenshotCapture> for ScreenshotSummary {
 /// Fewest named or actionable elements for which `get_app_state` skips the
 /// screenshot by default: the tree already shows what the agent needs.
 const MIN_CONTENT_ELEMENTS: usize = 5;
+/// Closing line of an outline the agent can act on: one `act` call can do
+/// the rest of most tasks, which saves the agent a model turn per step.
+const ACT_HINT: &str = "next: do the remaining steps in one act call; a step can name an element an earlier step reveals by role/name.\n";
 
 /// The text `get_app_state` returns: one header line (window, id, URL,
 /// element count), the outline, then notes only when something needs fixing.
@@ -3251,6 +3254,10 @@ fn app_state_text(
     }
     text.push_str(&format!(" elements={}\n", view.entries.len()));
     text.push_str(&view.outline());
+    // Each model turn costs an agent seconds; say where the next ones go.
+    if view.content_elements() >= MIN_CONTENT_ELEMENTS {
+        text.push_str(ACT_HINT);
+    }
     if let Some(capture) = screenshot {
         text.push_str(&format!(
             "screenshot attached: {}x{} image of {}x{} screen pixels (scale {}; click x/y = image pixel / scale)\n",

@@ -153,6 +153,13 @@ impl ComputerUseLinux {
                 .cloned()
                 .collect();
             shown.drain(..shown.len().saturating_sub(MAX_TARGET_LINES));
+            let options = settled.scope.options;
+            for notice in crate::page_view::new_notices(
+                &crate::page_view::page_view(&start, options),
+                &crate::page_view::page_view(&settled.nodes, options),
+            ) {
+                text.push_str(&format!("notice: {notice}\n"));
+            }
             let report = self
                 .change_report_since(&start, settled, Some(busy_notes), &shown)
                 .await;

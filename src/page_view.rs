@@ -757,6 +757,29 @@ pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> St
     out
 }
 
+/// Most lines `new_notices` returns.
+const NOTICES_SHOWN: usize = 3;
+
+/// Lines of the alerts, status messages and dialogs (`NOTICE_ROLES`, and
+/// what lies inside them) that are new or changed in `after`, with text, at
+/// most `NOTICES_SHOWN`: the "Salvo" / "Mensagem enviada" an agent can cite
+/// as the outcome without looking again.
+pub fn new_notices(before: &PageView, after: &PageView) -> Vec<String> {
+    let earlier: HashMap<u32, &str> = before
+        .entries
+        .iter()
+        .map(|entry| (entry.id, entry.key.as_str()))
+        .collect();
+    after
+        .entries
+        .iter()
+        .filter(|entry| entry.notice && entry.line.contains('"'))
+        .filter(|entry| earlier.get(&entry.id) != Some(&entry.key.as_str()))
+        .take(NOTICES_SHOWN)
+        .map(|entry| entry.line.clone())
+        .collect()
+}
+
 /// How much a change line matters when a report must leave some out, most
 /// first: the element acted on, a new or changed alert, status message or
 /// dialog (`NOTICE_ROLES`), anything in the visible area, the rest.
@@ -1925,6 +1948,25 @@ mod tests {
             report.lines().any(|line| line.contains("[200] statusbar")),
             "{report}"
         );
+    }
+
+    #[test]
+    fn new_notices_lists_new_or_changed_status_text_only() {
+        let before = page_view(
+            &browser(vec![at(node(30, Some(10), "statusbar", "Rascunho"), 0, 700, 300, 20)]),
+            ViewOptions::default(),
+        );
+        let after = page_view(
+            &browser(vec![
+                at(node(30, Some(10), "statusbar", "Mensagem enviada"), 0, 700, 300, 20),
+                at(node(31, Some(10), "button", "Enviar"), 0, 100, 80, 30),
+            ]),
+            ViewOptions::default(),
+        );
+        let notices = new_notices(&before, &after);
+        assert_eq!(notices.len(), 1, "{notices:?}");
+        assert!(notices[0].contains("Mensagem enviada"), "{notices:?}");
+        assert!(new_notices(&after, &after).is_empty());
     }
 
     #[test]
