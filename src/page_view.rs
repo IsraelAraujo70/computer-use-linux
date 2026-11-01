@@ -20,11 +20,12 @@ pub const SHOWN_CHANGE_LINES: usize = 30;
 /// Roles of the elements that tell the user something happened: alerts,
 /// status messages (toasts, counters), dialogs. A change in or of one ranks
 /// right after the acted element's own in a cut change report.
-const NOTICE_ROLES: [&str; 6] = [
+const NOTICE_ROLES: [&str; 7] = [
     "alert",
     "alert dialog",
     "dialog",
     "status bar",
+    "statusbar",
     "notification",
     "log",
 ];
@@ -784,6 +785,15 @@ pub fn blocking_dialog(
     before: &[AccessibilityNode],
     after: &[AccessibilityNode],
 ) -> Option<String> {
+    blocking_dialog_with_id(before, after).map(|(_, note)| note)
+}
+
+/// `blocking_dialog`, with the dialog's element id: `(id, note)`. `act`
+/// uses the id to tell whether its next step targets the dialog.
+pub fn blocking_dialog_with_id(
+    before: &[AccessibilityNode],
+    after: &[AccessibilityNode],
+) -> Option<(u32, String)> {
     let tree = Tree::new(after);
     let document = tree.visible_document();
     let earlier: std::collections::HashSet<u32> = before.iter().map(|node| node.index).collect();
@@ -839,24 +849,26 @@ pub fn blocking_dialog(
             ));
         }
     }
-    Some(note)
-}
-
-/// `blocking_dialog`, with the dialog's element id: `(id, note)`. `act`
-/// uses the id to tell whether its next step targets the dialog.
-pub fn blocking_dialog_with_id(
-    before: &[AccessibilityNode],
-    after: &[AccessibilityNode],
-) -> Option<(u32, String)> {
-    let _ = (before, after);
-    None
+    Some((node.index, note))
 }
 
 /// Whether element `id` is `ancestor` or lies inside it in `nodes`
 /// (elements matched by id, parents by `parent_index`). False when either
 /// is missing.
 pub fn is_inside(nodes: &[AccessibilityNode], id: u32, ancestor: u32) -> bool {
-    let _ = (nodes, id, ancestor);
+    if !nodes.iter().any(|node| node.index == ancestor) {
+        return false;
+    }
+    let mut current = Some(id);
+    for _ in 0..nodes.len() {
+        let Some(node) = current.and_then(|id| nodes.iter().find(|node| node.index == id)) else {
+            return false;
+        };
+        if node.index == ancestor {
+            return true;
+        }
+        current = node.parent_index;
+    }
     false
 }
 
@@ -1884,6 +1896,74 @@ mod tests {
             change_report(&before, &after, &[]),
             "changes (1):\n- [20] list box \"Hora\" (and 30 inside)\n"
         );
+    }
+
+    #[test]
+    fn statusbar_survives_large_change() {
+        let before = page_view(&browser(vec![]), ViewOptions::default());
+        let mut nodes: Vec<_> = (0..45)
+            .map(|row| {
+                at(
+                    node(100 + row, Some(10), "row", &format!("r{row}")),
+                    0,
+                    100,
+                    10,
+                    10,
+                )
+            })
+            .collect();
+        nodes.push(at(
+            node(200, Some(10), "statusbar", "Mensagem enviada"),
+            0,
+            700,
+            300,
+            20,
+        ));
+        let after = page_view(&browser(nodes), ViewOptions::default());
+        let report = change_report(&before, &after, &[]);
+        assert!(
+            report.lines().any(|line| line.contains("[200] statusbar")),
+            "{report}"
+        );
+    }
+
+    #[test]
+    fn dialog_ids_and_ancestry() {
+        let before = vec![node(10, None, "document web", "Page")];
+        for modal in [false, true] {
+            let mut after = before.clone();
+            let mut dialog = at(node(40, Some(10), "dialog", "Confirm"), 0, 0, 100, 100);
+            if modal {
+                dialog.states.push("modal".into());
+            }
+            after.push(dialog);
+            let (id, note) = blocking_dialog_with_id(&before, &after).unwrap();
+            assert_eq!(id, 40);
+            assert_eq!(Some(note), blocking_dialog(&before, &after));
+        }
+        assert_eq!(blocking_dialog_with_id(&before, &before), None);
+        let nodes = vec![
+            node(90, None, "panel", ""),
+            node(20, Some(90), "panel", ""),
+            node(7, Some(20), "panel", ""),
+            node(5, None, "panel", ""),
+        ];
+        for (id, ancestor, expected) in [
+            (90, 90, true),
+            (20, 90, true),
+            (7, 90, true),
+            (5, 90, false),
+            (999, 90, false),
+            (90, 999, false),
+        ] {
+            assert_eq!(is_inside(&nodes, id, ancestor), expected);
+        }
+        let cycle = vec![
+            node(1, Some(2), "panel", ""),
+            node(2, Some(1), "panel", ""),
+            node(3, None, "panel", ""),
+        ];
+        assert!(!is_inside(&cycle, 1, 3));
     }
 
     #[test]
