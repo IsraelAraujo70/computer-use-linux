@@ -197,7 +197,7 @@ pub(super) fn plan_step(step: &ActStep) -> Result<StepPlan, String> {
                 .ok_or("key needs key, e.g. Enter")?,
         },
         StepKind::Scroll => {
-            let direction = present(&step.direction).map(|d| d.to_lowercase());
+            let direction = present(&step.direction).map(|d| d.trim().to_lowercase());
             if direction
                 .as_deref()
                 .is_some_and(|d| !matches!(d, "up" | "down" | "left" | "right"))
@@ -365,7 +365,7 @@ mod tests {
                 "key needs key, e.g. Enter",
             ),
             (
-                serde_json::json!({"do":"scroll","direction":" up "}),
+                serde_json::json!({"do":"scroll","direction":"sideways"}),
                 "scroll direction must be up, down, left or right",
             ),
             (
