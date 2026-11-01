@@ -1,1 +1,82 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Cidade de entrega</title><link rel="stylesheet" href="../style.css"><style>body{margin:30px;background:#f3f5f8;color:#213047;font:15px system-ui}main{background:white;padding:24px;border:1px solid #dce2ea;border-radius:12px}button{padding:7px 14px;cursor:pointer}#view{height:620px;overflow:auto;position:relative;border:1px solid #ccd3df;margin-top:16px}.row{position:absolute;box-sizing:border-box;border-bottom:1px solid #e3e8ef;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;width:100%}.cell{position:absolute;box-sizing:border-box;border:1px solid #e4e8ee;padding:8px;height:36px;width:150px;background:white}.sku{position:sticky;left:0;z-index:3;background:#edf2f9}.head{position:sticky;top:0;z-index:5;background:#dce6f3}input{padding:8px}</style><main><h1>Cidade de entrega</h1><button id="open">Selecionar cidade</button><button id="save">Salvar</button><div id="view"></div></main><script src="../common.js"></script><script>const view=document.querySelector("#view");const names=Array.from({length:2500},(_,i)=>i<1798?`Santa Aurora ${String(i+1).padStart(4,'0')}`:i===1798?'Vila Nova':i===1799?'Vila Nova do Sul':i===1800?'Vila Nova do Sul de Minas':`Vila Serena ${String(i).padStart(4,'0')}`);let city=null;view.hidden=true;view.setAttribute('role','listbox');view.setAttribute('aria-label','Cidades');const space=h('div',{style:'height:90000px;position:relative'});view.append(space);function render(){space.replaceChildren();let start=Math.floor(view.scrollTop/36);for(let i=start;i<Math.min(2500,start+20);i++)space.append(h('div',{class:'row',role:'option','aria-selected':city===names[i],style:`top:${i*36}px;height:36px;cursor:pointer`,onclick:()=>{city=names[i];document.querySelector('#open').textContent=city;view.hidden=true;postState('a35-vlist-listbox',{city})}},names[i]));}document.querySelector('#open').onclick=()=>{view.hidden=!view.hidden;render()};document.querySelector('#save').onclick=()=>postState('a35-vlist-listbox',{city});view.onscroll=render;</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Cidade de entrega</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{margin:30px;
+background:#f3f5f8;
+color:#213047;
+font:15px system-ui}main{background:white;
+padding:24px;
+border:1px solid #dce2ea;
+border-radius:12px}button{padding:7px 14px;
+cursor:pointer}#view{height:620px;
+overflow:auto;
+position:relative;
+border:1px solid #ccd3df;
+margin-top:16px}.row{position:absolute;
+box-sizing:border-box;
+border-bottom:1px solid #e3e8ef;
+padding:6px 16px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+width:100%}.cell{position:absolute;
+box-sizing:border-box;
+border:1px solid #e4e8ee;
+padding:8px;
+height:36px;
+width:150px;
+background:white}.sku{position:sticky;
+left:0;
+z-index:3;
+background:#edf2f9}.head{position:sticky;
+top:0;
+z-index:5;
+background:#dce6f3}input{padding:8px}</style>
+<header style="padding:18px;background:#213047;color:white">Órbita · Central de operações</header>
+<nav style="padding:16px">Visão geral　 /　 Operações　 /　 Relatórios　 /　 Configurações</nav>
+<main>
+<h1>Cidade de entrega</h1>
+<button id="open">Selecionar cidade</button>
+<button id="save">Salvar</button>
+<div id="view">
+</div>
+</main>
+<script src="../common.js">
+</script>
+<script>const view=document.querySelector("#view");
+const prefixes=['Água','Alto','Bela','Boa','Campo','Lagoa','Monte','Nova','Porto','Santa','São','Serra','Vale','Vereda','Vila Serena','Vista','Vitória','Zabelê','Zelândia'];
+
+const roots=['Aurora','Bonita','Cedros','Dourada','Esperança','Flores','Horizonte','Jardim','Lago','Madeira','Palmeiras','Pedras','Pinhais','Primavera','Ribeira','Rosário','Sol','Verde','Vitória','Cristal'];
+
+const regions=['do Norte','do Sul','da Serra','do Campo','das Águas','do Vale','de Minas','do Oeste'];
+
+const names=[];
+
+for(const prefix of prefixes)for(const root of roots)for(const region of regions)names.push(prefix+' '+root+' '+region);
+
+const before=names.filter(n=>n.localeCompare('Vila Nova','pt-BR')<0).slice(0,1798);
+const after=names.filter(n=>n.localeCompare('Vila Nova do Sul de Minas','pt-BR')>0).slice(0,699);
+names.splice(0,names.length,...before,'Vila Nova','Vila Nova do Sul','Vila Nova do Sul de Minas',...after);
+names.sort((a,b)=>a.localeCompare(b,'pt-BR'));
+let city=null;
+view.hidden=true;
+view.setAttribute('role','listbox');
+view.setAttribute('aria-label','Cidades');
+const space=h('div',{style:'height:90000px;position:relative'});
+view.append(space);
+function render(){
+space.replaceChildren();
+let start=Math.floor(view.scrollTop/36);
+for(let i=start;
+i<Math.min(2500,start+20);
+i++)space.append(h('div',{class:'row',role:'option','aria-selected':city===names[i],style:`top:${i*36}px;height:36px;cursor:pointer`,onclick:()=>{city=names[i];
+document.querySelector('#open').textContent=city;
+view.hidden=true}},names[i]));
+}document.querySelector('#open').onclick=()=>{view.hidden=!view.hidden;
+render()};
+document.querySelector('#save').onclick=()=>postState('a35-vlist-listbox',{city});
+view.onscroll=render;
+</script>
+</html>

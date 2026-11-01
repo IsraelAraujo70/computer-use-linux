@@ -1,2 +1,71 @@
-<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Registros de auditoria</title><link rel="stylesheet" href="../style.css"><style>body{margin:30px;background:#f3f5f8;color:#213047;font:15px system-ui}main{background:white;padding:24px;border:1px solid #dce2ea;border-radius:12px}button{padding:7px 14px;cursor:pointer}#view{height:620px;overflow:auto;position:relative;border:1px solid #ccd3df;margin-top:16px}.row{position:absolute;box-sizing:border-box;border-bottom:1px solid #e3e8ef;padding:6px 16px;display:flex;align-items:center;justify-content:space-between;width:100%}.cell{position:absolute;box-sizing:border-box;border:1px solid #e4e8ee;padding:8px;height:36px;width:150px;background:white}.sku{position:sticky;left:0;z-index:3;background:#edf2f9}.head{position:sticky;top:0;z-index:5;background:#dce6f3}input{padding:8px}</style><main><h1>Registros de auditoria</h1><p>10.000 registros · Revisão de conformidade</p><div id="view"></div></main><script src="../common.js"></script><script>const view=document.querySelector("#view");const selected=new Set(), offsets=[0]; for(let n=1;n<=10000;n++) offsets.push(offsets[n-1]+ 36); const space=h('div',{style:`height:${offsets[10000]}px;position:relative`}); view.append(space);
-function render(){let start=0;while(start<10000&&offsets[start+1]<view.scrollTop)start++;space.replaceChildren();for(let i=start;i<10000&&offsets[i]<view.scrollTop+700;i++){let n=i+1;let text=`Registro #${n}`;let button=h('button',{'aria-label':`Aprovar registro #${n}`,onclick:()=>{selected.add(n);postState('a35-vlist-10k',{approved:[...selected].sort((a,b)=>a-b)});render()}},selected.has(n)?'Concluído':"Aprovar");space.append(h('div',{class:'row',style:`top:${offsets[i]}px;height:${offsets[i+1]-offsets[i]}px`},h('span',{style:'max-width:75%'},text),button));}}view.onscroll=render;render();</script></html>
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Registros de auditoria</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{margin:30px;
+background:#f3f5f8;
+color:#213047;
+font:15px system-ui}main{background:white;
+padding:24px;
+border:1px solid #dce2ea;
+border-radius:12px}button{padding:4px 14px;
+min-height:28px;
+cursor:pointer}#view{height:620px;
+overflow:auto;
+position:relative;
+border:1px solid #ccd3df;
+margin-top:16px}.row{position:absolute;
+box-sizing:border-box;
+border-bottom:1px solid #e3e8ef;
+padding:2px 16px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+width:100%}.cell{position:absolute;
+box-sizing:border-box;
+border:1px solid #e4e8ee;
+padding:8px;
+height:36px;
+width:150px;
+background:white}.sku{position:sticky;
+left:0;
+z-index:3;
+background:#edf2f9}.head{position:sticky;
+top:0;
+z-index:5;
+background:#dce6f3}input{padding:8px}</style>
+<header style="padding:18px;background:#213047;color:white">Órbita · Central de operações</header>
+<nav style="padding:16px">Visão geral　 /　 Operações　 /　 Relatórios　 /　 Configurações</nav>
+<main>
+<h1>Registros de auditoria</h1>
+<p>10.000 registros · Revisão de conformidade</p>
+<div id="view">
+</div>
+</main>
+<script src="../common.js">
+</script>
+<script>const view=document.querySelector("#view");
+const selected=new Set(), offsets=[0];
+ for(let n=1;
+n<=10000;
+n++) offsets.push(offsets[n-1]+ 36);
+ const space=h('div',{style:`height:${offsets[10000]}px;position:relative`});
+ view.append(space);
+
+function render(){
+let start=0;
+while(start<10000&&offsets[start+1]<view.scrollTop)start++;
+space.replaceChildren();
+for(let i=start;
+i<10000&&offsets[i]<view.scrollTop+700;
+i++){let n=i+1;
+let text=`Registro #${n} · ${["Ana Souza","Carlos Lima","Marina Duarte","Pedro Alves"][n%4]} · ${["Acesso ao sistema","Atualização cadastral","Exportação de relatório"][n%3]} · 30/10/2026 14:${String(n%60).padStart(2,"0")} · 10.24.${n%255}.18 · ${selected.has(n)?"Aprovado":"Pendente"}`;
+let button=h('button',{'aria-label':`Aprovar registro #${n}`,onclick:()=>{selected.has(n)?selected.delete(n):selected.add(n);
+postState('a35-vlist-10k',{approved:[...selected].sort((a,b)=>a-b)});
+render()}},selected.has(n)?'Desfazer aprovação':"Aprovar");
+space.append(h('div',{class:'row',style:`top:${offsets[i]}px;height:${offsets[i+1]-offsets[i]}px`},h('span',{style:'max-width:75%'},text),button));
+}}view.onscroll=render;
+render();
+</script>
+</html>
