@@ -36,6 +36,7 @@ EXPECTED_TOOLS = {
     "perform_action",
     "set_value",
     "fill_form",
+    "act",
 }
 SHELL_TOOL = "run_shell"
 
@@ -108,6 +109,7 @@ DESTRUCTIVE_MUTATING_TOOLS = {
     "perform_action",
     "set_value",
     "fill_form",
+    "act",
     SHELL_TOOL,
 }
 
@@ -368,7 +370,9 @@ def main() -> int:
         instructions = initialize.get("instructions") or ""
         assert_no_injection_text("server instructions", instructions)
         for required in [
-            "Start each turn with get_app_state",
+            # act may run first when the task names the controls; otherwise
+            # the agent observes before acting.
+            "start with get_app_state",
             "refuse to send input when focus cannot be verified",
             "Tools with readOnlyHint=false change app state",
         ]:
