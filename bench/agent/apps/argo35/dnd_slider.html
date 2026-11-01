@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{
+margin:0;
+background:#eef2f6;
+color:#24334a;
+font:16px system-ui
+}header{
+background:#172d49;
+color:white;
+padding:24px 40px
+}main{
+margin:32px 40px;
+background:white;
+padding:28px;
+border-radius:12px
+} .row,.card{
+padding:18px;
+margin:8px 0;
+background:#f6f8fc;
+border:1px solid #d5deea;
+border-radius:7px;
+user-select:none;
+touch-action:none
+}.handle{
+cursor:grab;
+padding:10px
+}.placeholder{
+height:56px;
+border:2px dashed #477bcc;
+background:#edf4ff;
+margin:8px 0
+}.col{
+background:#edf1f7;
+padding:15px;
+flex:1;
+min-height:600px
+}.card{
+cursor:grab
+}.track{
+width:400px;
+height:12px;
+background:#c9d7e8;
+position:relative;
+margin:28px 0;
+touch-action:none;
+cursor:pointer
+}.thumb{
+position:absolute;
+width:24px;
+height:24px;
+border-radius:50%;
+background:#286aca;
+top:-6px;
+transform:translateX(-50%)
+}button{
+padding:12px 25px
+} .file,.folder{
+padding:24px;
+background:#f1f5fa;
+border:1px solid #cad6e4;
+border-radius:8px;
+min-height:65px
+}.folder{
+background:#fff2cc
+}nav{
+padding:18px 40px;
+background:#dce5ef;
+color:#354963
+}small{
+display:block;
+color:#586a80;
+font-size:14px;
+margin:8px 0
+}.row{
+padding:12px;
+margin:6px 0
+}.card{
+padding:14px
+}.file{
+font-size:14px;
+padding:16px
+}.track{
+height:28px;
+margin:20px 0
+}.thumb{
+top:2px;
+width:28px;
+height:28px
+}.handle{
+display:inline-block;
+min-width:28px
+}header{
+font-weight:600
+}main{
+margin-top:20px
+}</style>
+<header>Workspace / Configurações de áudio</header>
+<nav>Visão geral　 /　 Meu espaço　 /　 Equipe　 /　 Relatórios</nav>
+<main>
+<h1>Configurações de áudio</h1>
+<h2>Equalizador</h2>
+<p>Dispositivo de saída: Fones Studio USB · Perfil pessoal</p>
+<p>Personalize os níveis para chamadas e reprodução de música.</p>
+<div id="sliders">
+</div>
+<button>Aplicar</button>
+</main>
+<script src="../common.js">
+</script>
+<script>const ID="a35-dnd-slider";
+const values={
+"Volume": 60, "Graves": 50, "M\u00e9dios": 50, "Agudos": 50, "Balan\u00e7o": 50
+};
+let applied=false;
+const panel=document.querySelector('#sliders');
+for(const name of Object.keys(values)){
+const out=h('span',{
+
+},values[name]),thumb=h('div',{
+class:'thumb',style:'left:'+values[name]+'%'
+}),track=h('div',{
+class:'track','data-name':name
+},thumb);
+panel.append(h('section',{
+
+},h('strong',{
+
+},name+' '),out,track));
+track.onpointerdown=e=>{
+track.setPointerCapture(e.pointerId);
+const update=v=>{
+values[name]=Math.max(0,Math.min(100,Math.round((v.clientX-track.getBoundingClientRect().x)/400*100)));
+out.textContent=values[name];
+thumb.style.left=values[name]+'%';
+applied=false;
+postState(ID,{
+values,applied
+})
+};
+update(e);
+track.onpointermove=update;
+track.onpointerup=()=>{
+track.onpointermove=null
+}
+}
+}document.querySelector('button').onclick=()=>{
+applied=true;
+postState(ID,{
+values,applied
+});
+toast('Configurações aplicadas')
+};
+</script>
+</html>

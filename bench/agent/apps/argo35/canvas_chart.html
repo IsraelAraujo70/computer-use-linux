@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Vendas • Visão anual</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{font-size:16px}header{padding:24px 40px;
+background:#172554;
+color:white;
+font-size:24px}main{margin:24px 40px}nav{display:flex;
+gap:12px;
+margin-bottom:16px}button{padding:12px 20px;
+border:1px solid #cbd5e1;
+border-radius:8px;
+background:white;
+color:#1e3a8a}canvas{background:white;
+border:1px solid #cbd5e1;
+touch-action:none}#detail{padding:16px;
+font-size:18px}</style>
+<header>Vendas • Visão anual</header>
+<aside style="float:right;
+width:210px;
+padding:24px;
+background:#eff6ff;
+height:760px">
+<h2>Workspace</h2>
+<p>Visão geral</p>
+<p>Projetos recentes</p>
+<p>Equipe Aurora</p>
+<hr>
+<p>Campanha primavera</p>
+<p>Atualizado em 28/10/2026</p>
+<p>Responsável: Marina Duarte</p>
+<p>Status: Em revisão</p>
+</aside>
+<main>
+<section style="display:flex;
+gap:40px;
+padding:16px">
+<div>Receita anual<br>
+<strong>R$ 4,56 milhões</strong>
+</div>
+<div>Pedidos<br>
+<strong>12.480</strong>
+</div>
+<div>Ticket médio<br>
+<strong>R$ 365,38</strong>
+</div>
+</section>
+<nav id="tools">
+</nav>
+<canvas width="1200" height="700" role="img" aria-label="Área de trabalho">
+</canvas>
+<div id="detail">Selecione na área de trabalho</div>
+</main>
+<script src="../common.js">
+</script>
+<script>
+const c=document.querySelector('canvas'),ctx=c.getContext('2d'),detail=document.querySelector('#detail');
+const send=s=>postState('a35-canvas-chart',s).then(()=>toast('Salvo'));
+function button(name,fn){const b=document.createElement('button');
+b.textContent=name;
+b.onclick=fn;
+document.querySelector('#tools').append(b)}function pos(e){const r=c.getBoundingClientRect();
+return {x:(e.clientX-r.left)*1200/r.width,y:(e.clientY-r.top)*700/r.height}}function clear(){ctx.clearRect(0,0,1200,700);
+ctx.fillStyle='#334155';
+ctx.strokeStyle='#334155';
+ctx.font='16px Arial'}function text(s,x,y){ctx.fillStyle='#334155';
+ctx.fillText(s,x,y)}
+const months=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],values=[220,310,280,380,340,420,360,450,570,410,390,430];
+let selected=null;
+clear();
+text('Vendas (R$ mil)',80,25);
+text('Receita mensal • 2026',800,25);
+for(let v=0;
+v<=600;
+v+=100){text(String(v),20,640-v);
+ctx.strokeStyle='#e2e8f0';
+ctx.beginPath();
+ctx.moveTo(70,640-v);
+ctx.lineTo(1170,640-v);
+ctx.stroke()}values.forEach((v,i)=>{ctx.fillStyle='#3b82f6';
+ctx.fillRect(90+i*90,640-v,55,v);
+text(months[i],90+i*90,670)});
+c.onpointerdown=e=>{const q=pos(e),i=Math.floor((q.x-90)/90);
+if(i>=0&&i<12&&q.x<=145+i*90&&q.y>=640-values[i]&&q.y<=640){selected=months[i];
+detail.textContent='Vendas de '+selected+' • Receita: R$ '+values[i]+' mil • Pedidos: '+(values[i]*3)+' • Conversão: 4,2%'}};
+button('Abrir relatório',()=>{if(selected)send({report_month:selected})});
+</script>
+</html>

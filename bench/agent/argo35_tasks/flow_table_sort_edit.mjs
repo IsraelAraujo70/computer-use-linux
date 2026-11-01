@@ -1,0 +1,2 @@
+export const TASK_ID='a35-table-sort-edit';
+export async function flow({page,base}){await page.goto(base+'table_sort_edit.html');await page.locator('#dept').selectOption('Financeiro');await page.getByRole('button',{name:'Salário',exact:true}).click();await page.getByRole('button',{name:'Ações de Marina Duarte'}).click();await page.getByRole('button',{name:'Editar',exact:true}).click();await page.locator('#status').selectOption('Promovido');await page.getByRole('button',{name:'Salvar',exact:true}).click();}

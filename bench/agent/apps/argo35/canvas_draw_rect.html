@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Estúdio • Identidade visual</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{font-size:16px}header{padding:24px 40px;
+background:#172554;
+color:white;
+font-size:24px}main{margin:24px 40px}nav{display:flex;
+gap:12px;
+margin-bottom:16px}button{padding:12px 20px;
+border:1px solid #cbd5e1;
+border-radius:8px;
+background:white;
+color:#1e3a8a}canvas{background:white;
+border:1px solid #cbd5e1;
+touch-action:none}#detail{padding:16px;
+font-size:18px}</style>
+<header>Estúdio • Identidade visual</header>
+<aside style="float:right;
+width:210px;
+padding:24px;
+background:#eff6ff;
+height:760px">
+<h2>Workspace</h2>
+<p>Visão geral</p>
+<p>Projetos recentes</p>
+<p>Equipe Aurora</p>
+<hr>
+<p>Campanha primavera</p>
+<p>Atualizado em 28/10/2026</p>
+<p>Responsável: Marina Duarte</p>
+<p>Status: Em revisão</p>
+</aside>
+<main>
+<nav id="tools">
+</nav>
+<canvas width="1200" height="700" role="img" aria-label="Área de trabalho">
+</canvas>
+<div id="detail">Selecione na área de trabalho</div>
+</main>
+<script src="../common.js">
+</script>
+<script>
+const c=document.querySelector('canvas'),ctx=c.getContext('2d'),detail=document.querySelector('#detail');
+const send=s=>postState('a35-canvas-draw-rect',s).then(()=>toast('Salvo'));
+function button(name,fn){const b=document.createElement('button');
+b.textContent=name;
+b.onclick=fn;
+document.querySelector('#tools').append(b)}function pos(e){const r=c.getBoundingClientRect();
+return {x:(e.clientX-r.left)*1200/r.width,y:(e.clientY-r.top)*700/r.height}}function clear(){ctx.clearRect(0,0,1200,700);
+ctx.fillStyle='#334155';
+ctx.strokeStyle='#334155';
+ctx.font='16px Arial'}function text(s,x,y){ctx.fillStyle='#334155';
+ctx.fillText(s,x,y)}
+let selected=-1;
+
+let shapes=[];
+ let tool='Selecionar';
+ let start=null;
+
+for(const name of ['Selecionar','Retângulo','Elipse','Texto']) button(name,()=>{tool=name});
+
+function undo(){shapes.pop();
+selected=-1;
+draw();
+send({shapes})}
+button('Desfazer',undo);
+
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){e.preventDefault();
+undo()}if(e.key==='Delete'&&selected>=0){shapes.splice(selected,1);
+selected=-1;
+draw();
+send({shapes})}});
+
+button('Salvar',()=>send({shapes}));
+
+function draw(){clear();
+ctx.fillStyle='#f1f5f9';
+ctx.fillRect(60,40,1080,620);
+text('AURORA • FESTIVAL DE PRIMAVERA',120,100);
+text('Design da campanha / Banner principal',120,140);
+ctx.fillStyle='#cbd5e1';
+ctx.fillRect(820,180,260,320);
+text('Fotografia da campanha',840,530);
+text('Novas ideias, novos caminhos.',120,570);
+ctx.setLineDash([8,5]);
+ctx.strokeStyle='#64748b';
+ctx.strokeRect(320,180,420,240);
+ctx.setLineDash([]);
+text('Área do logo',320,164);
+for(const s of shapes){ctx.fillStyle='#93c5fd88';
+ctx.fillRect(s.x,s.y,s.w,s.h);
+ctx.strokeRect(s.x,s.y,s.w,s.h)}}
+c.onpointerdown=e=>{if(tool==='Selecionar'){const q=pos(e);
+selected=shapes.findIndex(s=>q.x>=s.x&&q.x<=s.x+s.w&&q.y>=s.y&&q.y<=s.y+s.h);
+return}if(tool==='Retângulo'||tool==='Elipse'){start=pos(e);
+c.setPointerCapture(e.pointerId)}};
+
+c.onpointerup=e=>{if(!start)return;
+const q=pos(e);
+shapes.push({type:tool==='Retângulo'?'rect':'ellipse',x:Math.min(start.x,q.x),y:Math.min(start.y,q.y),w:Math.abs(q.x-start.x),h:Math.abs(q.y-start.y)});
+start=null;
+draw();
+send({shapes})};
+draw();
+</script>
+</html>

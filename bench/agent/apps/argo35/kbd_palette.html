@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>
+body{
+margin:0;
+background:#f3f5f8;
+color:#243247;
+font:16px system-ui}
+header{
+background:#20334c;
+color:white;
+padding:24px 40px}
+main{
+margin:35px auto;
+max-width:1200px;
+background:white;
+padding:32px;
+border:1px solid #dce2eb;
+border-radius:12px}
+ .row{
+padding:16px;
+border-bottom:1px solid #e2e6ed;
+display:flex;
+gap:30px}
+.cursor{
+background:#e5efff;
+box-shadow:inset 4px 0 #2869ce}
+.menu{
+position:fixed;
+background:white;
+border:1px solid #bac4d3;
+box-shadow:0 8px 30px #0003;
+min-width:210px;
+z-index:10}
+.menu>
+div{
+padding:12px;
+position:relative}
+.menu>
+div:hover{
+background:#e5efff}
+.sub{
+display:none;
+position:absolute;
+left:100%;
+top:0}
+.parent:hover>
+.sub{
+display:block}
+input{
+padding:12px;
+font:inherit}
+button{
+padding:12px 20px}
+dialog{
+border:1px solid #ccd5e0;
+border-radius:12px;
+min-width:550px}
+pre{
+line-height:2;
+color:#456}
+footer{
+margin-top:24px;
+color:#65748a}
+ .navigation{
+position:absolute;
+left:24px;
+top:110px;
+width:180px;
+color:#52647a}
+.navigation p{
+padding:10px;
+border-radius:6px;
+background:#e9edf3}
+main{
+margin-left:240px;
+margin-right:30px;
+max-width:1450px}
+.row{
+padding:10px;
+min-height:28px;
+align-items:center}
+.chip{
+background:#edf0f9;
+border-radius:12px;
+padding:4px 12px;
+font-size:14px}
+dialog{
+max-height:75vh;
+overflow:auto}
+#otp input{
+box-sizing:content-box}
+</style>
+<header>
+Aurora Code / projeto-web</header>
+<aside class="navigation">
+<h2>
+Área de trabalho</h2>
+<p>
+Visão geral</p>
+<p>
+Recentes</p>
+<p>
+Compartilhados</p>
+<p>
+Favoritos</p>
+<hr>
+<p>
+Equipe Aurora</p>
+<p>
+Armazenamento</p>
+<small>
+Plano profissional</small>
+</aside>
+<main>
+<h1>
+projeto-web / src / inicio.js</h1>
+<pre>
+export function saudacao(nome) {
+
+    return `Olá, ${nome}!`;
+
+}
+</pre>
+<footer id="status">
+</footer>
+<p>
+Ctrl+K ou Ctrl+Shift+P para abrir a paleta de comandos</p>
+<dialog id="palette">
+<input role="combobox" aria-label="Comando" aria-controls="commands" aria-expanded="true" autocomplete="off">
+<div role="listbox" id="commands">
+</div>
+</dialog>
+</main>
+<script src="../common.js">
+</script>
+<script>
+let state={
+wrap:false,theme:'Escuro',indent:4,minimap:true}
+;
+const commands=[['Ativar quebra de linha automática',()=>
+state.wrap=true],['Desativar quebra de linha automática',()=>
+state.wrap=false],['Solarizado claro',()=>
+state.theme='Solarizado claro'],['Tema escuro',()=>
+state.theme='Escuro'],['Indentação: 2 espaços',()=>
+state.indent=2],['Indentação: 4 espaços',()=>
+state.indent=4],['Ocultar minimapa',()=>
+state.minimap=false],['Mostrar minimapa',()=>
+state.minimap=true],...Array.from({
+length:33}
+,(_,i)=>
+[['Arquivo: abrir recente','Editor: localizar','Editor: substituir','Exibir: painel de saída','Navegar: símbolo','Terminal: selecionar perfil'][i%6]+' '+(i+1),()=>
+{
+}
+])];
+let index=0;
+const dialog=document.querySelector('dialog'),input=document.querySelector('input');
+function matches(){
+return commands.filter(c=>
+c[0].toLocaleLowerCase().includes(input.value.toLocaleLowerCase()));
+}
+function draw(){
+document.querySelector('#commands').replaceChildren(...matches().map((c,i)=>
+h('div',{
+role:'option','aria-selected':i===index,class:'row'+(i===index?' cursor':'')}
+,c[0])));
+document.querySelector('#status').textContent='Quebra de linha: '+(state.wrap?'Ativada':'Desativada')+' · Tema: '+state.theme+' · Indentação: '+state.indent+' espaços · Minimapa: '+state.minimap;
+}
+input.oninput=()=>
+{
+index=0;
+draw();
+}
+;
+input.onkeydown=e=>
+{
+if(e.key==='ArrowDown'){
+e.preventDefault();
+index=Math.min(matches().length-1,index+1);
+draw();
+}
+if(e.key==='ArrowUp'){
+e.preventDefault();
+index=Math.max(0,index-1);
+draw();
+}
+if(e.key==='Enter'&&matches()[index]){
+matches()[index][1]();
+dialog.close();
+draw();
+postState('a35-kbd-palette',state);
+}
+}
+;
+document.addEventListener('keydown',e=>
+{
+if(e.ctrlKey&&(e.key.toLowerCase()==='k'||(e.shiftKey&&e.key.toLowerCase()==='p'))){
+e.preventDefault();
+if(!dialog.open)dialog.showModal();
+input.value='';
+index=0;
+draw();
+input.focus();
+}
+}
+);
+draw();
+</script>
+</html>

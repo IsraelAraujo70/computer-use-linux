@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Criar conta · Termos</title>
+<link rel="stylesheet" href="../style.css">
+<style>main{max-width:1100px;
+margin:32px auto}button,input,select,textarea{margin:8px;
+padding:10px}iframe{width:100%;
+border:1px solid #ccc;
+border-radius:10px}table{width:100%}td,th{padding:10px;
+text-align:left}section{padding:20px;
+background:white;
+border:1px solid #ddd}dialog{min-width:400px}body{font-size:16px;
+background:#f4f6fa}button,input,select{min-height:36px}h1{color:#203451}nav{color:#52617a}</style>
+<body>
+<div class="sitebar">
+<b>Aurora · Criar conta · Termos</b>
+</div>
+<nav style="padding:16px;
+background:#e9eef6">Visão geral　 ·　 Minha conta　 ·　 Documentos　 ·　 Ajuda</nav>
+<main>
+<p>1. Conta criada　 →　 <b>2. Termos de uso</b>　 →　 3. Conclusão</p>
+<section>
+<h2>Resumo da conta</h2>
+<p>Camila Nogueira · Plano Essencial · Cobrança mensal</p>
+</section>
+<h1>Criar conta · Termos</h1>
+<iframe title="Termos de serviço" height="600" src="iframe_scroll_terms-document.html">
+</iframe>
+<button id="next">Continuar</button>
+</main>
+<script src="../common.js">
+</script>
+<script>let state={accepted:false,scrolled_to_end:false};
+addEventListener('message',e=>{if(e.origin===location.origin&&e.source===document.querySelector('iframe').contentWindow){state=e.data;postState('a35-iframe-scroll-terms',state)}});
+document.querySelector('#next').onclick=()=>{postState('a35-iframe-scroll-terms',state);
+toast(state.accepted?'Cadastro concluído':'Aceite os termos para continuar')};
+</script>
+</body>
+</html>

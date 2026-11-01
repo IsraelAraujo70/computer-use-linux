@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Assinatura do contrato</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #f1f5f9; color: #243449; font: 16px/1.5 system-ui; }
+.topbar { background: #142e48; color: white; padding: 20px 32px; font-weight: 700; }
+.layout { display: flex; min-height: 90vh; }
+nav { width: 180px; flex-shrink: 0; padding: 28px 20px; background: #e4ecf3; }
+nav p { padding: 10px; border-bottom: 1px solid #ccd8e3; }
+main { width: min(940px, calc(100% - 210px)); margin: 28px auto; padding: 28px; background: white; border-radius: 12px; }
+h1 { font-size: 26px; margin-top: 0; }
+h2 { font-size: 19px; }
+.summary { border-bottom: 1px solid #d8e0e8; padding-bottom: 18px; margin-bottom: 20px; }
+article { padding: 12px 16px; background: #f5f8fb; margin: 10px 0; border-left: 3px solid #9fb5c9; }
+label { display: block; margin: 12px 0; }
+button, select, input { min-height: 36px; font: inherit; padding: 8px 12px; }
+button { cursor: pointer; margin: 8px 4px; }
+button:disabled { cursor: default; opacity: .5; }
+input[type=checkbox] { min-height: auto; }
+canvas { display: block; max-width: 100%; border: 1px solid #8da0b4; touch-action: none; background: #fcfdff; }
+.drop { padding: 38px; border: 2px dashed #6d8eaf; background: #f5f9fc; border-radius: 10px; text-align: center; }
+li { padding: 8px; border-bottom: 1px solid #ddd; }
+.compose { display: inline-block; padding: 12px 18px; background: #dceafa; cursor: pointer; }
+dt { font-weight: 600; }
+dd { margin: 0 0 10px; color: #586d80; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { padding: 10px; text-align: left; border-bottom: 1px solid #d8e0e8; }
+@media(max-width: 1000px) { nav { width: 140px; padding: 20px 8px; } main { width: calc(100% - 160px); padding: 22px; } }
+</style>
+<header class="topbar">Portal do cliente</header>
+<div class="layout">
+<nav aria-label="Navegação">
+<p>Visão geral</p>
+<p>Minha conta</p>
+<p>Documentos</p>
+<p>Atendimento</p>
+<p>Relatórios</p>
+</nav>
+<main>
+<h1>Assinatura do contrato</h1>
+<section class="summary">
+<h2>Contrato de prestação de serviços #4821</h2>
+<p>Plano Profissional · Vigência de 01/11/2026 a 31/10/2027</p>
+<p>Serviços de suporte e manutenção da plataforma. Mensalidade de R$ 890,00, com vencimento no dia 10. Cancelamento mediante aviso com 30 dias de antecedência.</p>
+<label>Signatária<input value="Marina Duarte" readonly>
+</label>
+<label>CPF<input value="123.456.789-09" readonly>
+</label>
+</section>
+<p>Contrato de prestação de serviços #4821</p>
+<h2>Assinatura</h2>
+<canvas width="600" height="200" role="img" aria-label="Área de assinatura">
+</canvas>
+<button id="clear">Limpar</button>
+<label>
+<input type="checkbox" id="agree">Li e concordo com os termos</label>
+<button id="submit" disabled>Assinar contrato</button>
+<p id="status">
+</p>
+</main>
+</div>
+<script src="../common.js">
+</script><script>
+const ID="a35-canvas-signature";
+const c=document.querySelector('canvas'),ctx=c.getContext('2d');
+let last=null,length=0,min=600,max=0,signed=false;
+const agree=document.querySelector('#agree'),submit=document.querySelector('#submit');
+function state(){return {signed,agreed:agree.checked,stroke_px:length,span_x:Math.max(0,max-min)}}function emit(){postState(ID,state())}function pos(e){const r=c.getBoundingClientRect();
+return [ (e.clientX-r.left)*600/r.width,(e.clientY-r.top)*200/r.height] }c.onpointerdown=e=>{if(e.button!==0)return;
+c.setPointerCapture(e.pointerId);
+last=pos(e)};
+
+c.onpointermove=e=>{if(!last)return;
+const q=pos(e);
+length+=Math.hypot(q[0]-last[0],q[1]-last[1]);
+min=Math.min(min,last[0],q[0]);
+max=Math.max(max,last[0],q[0]);
+ctx.beginPath();
+ctx.moveTo(...last);
+ctx.lineTo(...q);
+ctx.lineWidth=2;
+ctx.stroke();
+last=q;
+signed=false;
+submit.disabled=length===0};
+
+c.onpointerup=c.onpointercancel=()=>{last=null;
+emit()};
+
+agree.onchange=()=>{signed=false;
+emit()};
+
+document.querySelector('#clear').onclick=()=>{ctx.clearRect(0,0,600,200);
+length=0;
+min=600;
+max=0;
+signed=false;
+submit.disabled=true;
+emit()};
+
+submit.onclick=()=>{signed=agree.checked;
+emit();
+document.querySelector('#status').textContent=signed?'Contrato assinado':'Aceite os termos para continuar'};
+
+</script></html>

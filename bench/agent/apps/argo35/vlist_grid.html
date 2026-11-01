@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Inventário</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{margin:30px;
+background:#f3f5f8;
+color:#213047;
+font:15px system-ui}main{background:white;
+padding:24px;
+border:1px solid #dce2ea;
+border-radius:12px}button{padding:7px 14px;
+cursor:pointer}#view{height:620px;
+overflow:auto;
+position:relative;
+border:1px solid #ccd3df;
+margin-top:16px}.row{position:absolute;
+box-sizing:border-box;
+border-bottom:1px solid #e3e8ef;
+padding:6px 16px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+width:100%}.cell{position:absolute;
+box-sizing:border-box;
+border:1px solid #e4e8ee;
+padding:8px;
+height:36px;
+width:150px;
+background:white}.sku{position:sticky;
+left:0;
+z-index:3;
+background:#edf2f9}.head{position:sticky;
+top:0;
+z-index:5;
+background:#dce6f3}input{padding:8px}</style>
+<header style="padding:18px;background:#213047;color:white">Órbita · Central de operações</header>
+<nav style="padding:16px">Visão geral　 /　 Operações　 /　 Relatórios　 /　 Configurações</nav>
+<main>
+<h1>Inventário</h1>
+<div id="view">
+</div>
+</main>
+<script src="../common.js">
+</script>
+<script>const view=document.querySelector("#view");
+const edits={},cols=['SKU','Produto','Categoria','Fornecedor','Marca','Unidade','Preço','Custo','Margem','Depósito','Corredor','Prateleira','Lote','Validade','Origem','Código fiscal','Peso','Altura','Largura','Comprimento','Reservado','Mínimo','Estoque','Máximo','Compras','Vendas','Responsável','Atualizado','Status','Observação'];
+const space=h('div',{style:'height:180036px;width:4500px;position:relative'});
+view.append(space);
+function initial(r,c){return c===1?['Caderno executivo','Caneta azul','Pasta de arquivo'][r%3]:c===2?'Papelaria':c===3?'Distribuidora Horizonte':String((r*31+c*7)%150)}function render(){
+space.replaceChildren();
+let start=Math.floor(view.scrollTop/36),left=Math.floor(view.scrollLeft/150);
+for(let r=start;
+r<Math.min(5000,start+19);
+r++){let sku=`SKU-${String(r+1).padStart(5,'0')}`;
+for(let c of [...new Set([0,...Array.from({length:13},(_,i)=>left+i).filter(i=>i<30)])]){let key=sku+':'+cols[c];
+let cell=h('div',{class:'cell',tabindex:0,'aria-label':key,style:`top:${(r+1)*36}px;left:${c===0?view.scrollLeft:c*150}px;z-index:${c===0?3:1}`},c===0?sku:edits[key]??initial(r,c));
+function edit(){if(c===0)return;
+const input=h('input',{'aria-label':`Editar ${key}`,value:cell.textContent,style:'width:110px'});
+cell.replaceChildren(input);
+input.focus();
+input.select();
+input.onkeydown=e=>{if(e.key==='Enter'){if(input.value===initial(r,c))delete edits[key];
+else edits[key]=input.value;
+postState('a35-vlist-grid',{edits:{...edits}});
+render()}if(e.key==='Escape')render()}}cell.ondblclick=edit;
+cell.onkeydown=e=>{if(e.key==='Enter'&&e.target===cell)edit()};
+space.append(cell)}}for(let c of [...new Set([0,...Array.from({length:13},(_,i)=>left+i).filter(i=>i<30)])])space.append(h('div',{class:'cell head',style:`position:absolute;top:${view.scrollTop}px;left:${c===0?view.scrollLeft:c*150}px;z-index:6`},cols[c]));
+}view.onscroll=render;
+render();
+</script>
+</html>

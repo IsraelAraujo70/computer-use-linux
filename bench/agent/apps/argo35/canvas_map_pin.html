@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Lojas • Encontre sua unidade</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{font-size:16px}header{padding:24px 40px;
+background:#172554;
+color:white;
+font-size:24px}main{margin:24px 40px}nav{display:flex;
+gap:12px;
+margin-bottom:16px}button{padding:12px 20px;
+border:1px solid #cbd5e1;
+border-radius:8px;
+background:white;
+color:#1e3a8a}canvas{background:white;
+border:1px solid #cbd5e1;
+touch-action:none}#detail{padding:16px;
+font-size:18px}</style>
+<header>Lojas • Encontre sua unidade</header>
+<aside style="float:right;
+width:210px;
+padding:24px;
+background:#eff6ff;
+height:760px">
+<h2>Workspace</h2>
+<p>Visão geral</p>
+<p>Projetos recentes</p>
+<p>Equipe Aurora</p>
+<hr>
+<p>Campanha primavera</p>
+<p>Atualizado em 28/10/2026</p>
+<p>Responsável: Marina Duarte</p>
+<p>Status: Em revisão</p>
+</aside>
+<main>
+<nav id="tools">
+</nav>
+<canvas width="1200" height="700" role="img" aria-label="Área de trabalho">
+</canvas>
+<div id="detail">Selecione na área de trabalho</div>
+</main>
+<script src="../common.js">
+</script>
+<script>
+const c=document.querySelector('canvas'),ctx=c.getContext('2d'),detail=document.querySelector('#detail');
+const send=s=>postState('a35-canvas-map-pin',s).then(()=>toast('Salvo'));
+function button(name,fn){const b=document.createElement('button');
+b.textContent=name;
+b.onclick=fn;
+document.querySelector('#tools').append(b)}function pos(e){const r=c.getBoundingClientRect();
+return {x:(e.clientX-r.left)*1200/r.width,y:(e.clientY-r.top)*700/r.height}}function clear(){ctx.clearRect(0,0,1200,700);
+ctx.fillStyle='#334155';
+ctx.strokeStyle='#334155';
+ctx.font='16px Arial'}function text(s,x,y){ctx.fillStyle='#334155';
+ctx.fillText(s,x,y)}
+const labels=['Loja Centro','Loja Centro-Oeste','Loja Centro Histórico','Loja Norte','Loja Sul','Loja Leste','Loja Oeste','Loja Jardim','Loja Parque','Loja Estação','Loja Lago','Loja Serra'];
+const pins=labels.map((name,i)=>({name,x:100+i%4*280+(i*37%65),y:120+Math.floor(i/4)*210+(i*29%55)}));
+[pins[0],pins[5]]=[{...pins[0],x:pins[5].x,y:pins[5].y},{...pins[5],x:pins[0].x,y:pins[0].y}];
+clear();
+ctx.fillStyle='#bbf7d0';
+ctx.fillRect(30,30,360,620);
+ctx.strokeStyle='#7dd3fc';
+ctx.lineWidth=65;
+ctx.beginPath();
+ctx.moveTo(900,0);
+ctx.bezierCurveTo(600,250,1100,400,900,700);
+ctx.stroke();
+ctx.lineWidth=1;
+text('Parque Municipal',70,60);
+text('Jardim Aurora',470,60);
+for(let y=60;
+y<700;
+y+=130){ctx.fillStyle='#e2e8f0';
+ctx.fillRect(0,y,1200,18)}for(let x=20;
+x<1200;
+x+=80){ctx.fillStyle='#e2e8f0';
+ctx.fillRect(x,0,18,700)}for(const pin of pins){ctx.fillStyle='#2563eb';
+ctx.beginPath();
+ctx.arc(pin.x,pin.y,12,0,7);
+ctx.fill();
+text(pin.name,pin.x-55,pin.y+32)}let selected=null;
+c.onpointerdown=e=>{const q=pos(e);
+selected=pins.findIndex(p=>Math.hypot(q.x-p.x,q.y-p.y)<=14);
+if(selected<0)return;
+detail.textContent=pins[selected].name+' • Rua das Flores, '+(120+selected*24)+' • Seg–sáb: 9h às 18h';
+};
+button('Definir como minha loja',()=>{if(selected!==null&&selected>=0)send({my_store:'store-'+selected})});
+</script>
+</html>

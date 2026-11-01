@@ -39,6 +39,9 @@ use tokio::{
     time::{sleep, timeout},
 };
 
+mod act;
+mod act_exec;
+
 const INPUT_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 /// How long drag/drop_files wait to reread an element before refusing to act.
 const ELEMENT_REREAD_TIMEOUT: Duration = Duration::from_secs(2);
@@ -59,6 +62,13 @@ struct CachedAccessibilitySnapshot {
     pid: Option<u32>,
     /// What the snapshot covered, so a rescan reads the same elements.
     scope: Option<SnapshotScope>,
+}
+
+/// The settled read after an action (`settle`), and the note saying the
+/// page looked busy, when it did.
+struct Settled {
+    rescan: Rescan,
+    busy_note: Option<String>,
 }
 
 /// One read of an observed scope, with stable ids.
@@ -1981,6 +1991,20 @@ impl ComputerUseLinux {
     }
 
     #[tool(
+        name = "act",
+        description = "Run several steps in one call: [{do:\"click\",element_index:12}, {do:\"set\",role:\"entry\",name:\"Assunto\",value:\"Oi\"}, {do:\"key\",key:\"Enter\"}, {do:\"wait\",text:\"Salvo\"}]. do is click, set, type, key, scroll or wait. A step may name an element an earlier step reveals by role/name/text instead of an id. The page settles after each step; the call stops at the first step that fails or when a dialog opens, and reports each step, then what changed.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = true,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn act_tool(&self, Parameters(params): Parameters<act::ActParams>) -> CallToolResult {
+        self.act(params).await
+    }
+
+    #[tool(
         name = "perform_action",
         description = "Invoke a named AT-SPI action of an element (default: its primary action). Reports what changed.",
         annotations(
@@ -2420,7 +2444,7 @@ impl ComputerUseLinux {
     // can't be env!("CARGO_PKG_VERSION"); the MCP safety check (CI) fails the
     // build if it drifts from the Cargo version.
     version = "0.7.17",
-    instructions = "Start each turn with get_app_state (scope it, e.g. app_name_or_bundle_identifier=chrome). Each line starts with an element id [n] that stays valid while the element exists; content the page re-renders gets new ids (shown as - old / + new). Act by id with click, set_value, fill_form, type_text, press_key or scroll. Every action reports what changed (+ new, - gone, ~ changed, focus), so look again only when you need the whole page. fill_form and set_value type, paste non-ASCII text, choose options in combo boxes and selects, tick check boxes and radios, and return the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
+    instructions = "Finish each task in as few calls as you can; every call costs you a turn. act runs many steps in one call (click, set, type, key, scroll, wait) and a step can name an element by role and name (e.g. {do:\"click\",role:\"button\",name:\"Responder\"}), including one an earlier step reveals, so plan the whole sequence and send it at once. When the task names the buttons and fields, start with act right away; otherwise start with get_app_state (app_name_or_bundle_identifier=chrome), whose lines start with element ids [n]. act stops at the first step that fails or when a dialog opens, and then shows the page, so you continue from there without looking again. Every action reports what changed and notice: lines with new status messages such as \"Salvo\"; when they show the outcome, you are done. set (like set_value and fill_form) types, pastes non-ASCII text, picks options in combo boxes and selects, ticks check boxes and radios, and returns the value now in the field. Use screenshot or ocr only when the tree lacks the content. type_text and press_key refuse to send input when focus cannot be verified. Tools with readOnlyHint=false change app state. Hosts may ask the user to approve tools that submit, send, delete or buy. If a tool fails, doctor names the fix."
 )]
 impl ServerHandler for ComputerUseLinux {}
 
@@ -3200,6 +3224,9 @@ impl From<&ScreenshotCapture> for ScreenshotSummary {
 /// Fewest named or actionable elements for which `get_app_state` skips the
 /// screenshot by default: the tree already shows what the agent needs.
 const MIN_CONTENT_ELEMENTS: usize = 5;
+/// Closing line of an outline the agent can act on: one `act` call can do
+/// the rest of most tasks, which saves the agent a model turn per step.
+const ACT_HINT: &str = "next: do the remaining steps in one act call; a step can name an element an earlier step reveals by role/name.\n";
 
 /// The text `get_app_state` returns: one header line (window, id, URL,
 /// element count), the outline, then notes only when something needs fixing.
@@ -3227,6 +3254,10 @@ fn app_state_text(
     }
     text.push_str(&format!(" elements={}\n", view.entries.len()));
     text.push_str(&view.outline());
+    // Each model turn costs an agent seconds; say where the next ones go.
+    if view.content_elements() >= MIN_CONTENT_ELEMENTS {
+        text.push_str(ACT_HINT);
+    }
     if let Some(capture) = screenshot {
         text.push_str(&format!(
             "screenshot attached: {}x{} image of {}x{} screen pixels (scale {}; click x/y = image pixel / scale)\n",
@@ -4514,6 +4545,9 @@ impl ComputerUseLinux {
                     report.push_str(&format!("note: nothing changed and {dialog}\n"));
                 }
             }
+            if let Some(note) = idle_drag_note(&output, &report) {
+                report.push_str(note);
+            }
         }
         let mut target_lines = String::new();
         let mut target_text = None;
@@ -4674,12 +4708,31 @@ impl ComputerUseLinux {
     /// acted on) lead a report cut for length. Logs the reads and time to
     /// stderr.
     async fn observe_changes(&self, targets: &[String]) -> String {
-        let acted = std::time::Instant::now();
         let before = self
             .last_snapshot
             .lock()
             .map(|cached| cached.nodes.clone())
             .unwrap_or_default();
+        let settled = match self.settle(&before).await {
+            Ok(settled) => settled,
+            Err(error) => {
+                return format!("changes: unknown (the tree could not be read: {error})\n")
+            }
+        };
+        let report = self
+            .change_report_since(&before, &settled.rescan, settled.busy_note, targets)
+            .await;
+        let Settled { rescan, .. } = settled;
+        self.commit_observation(&rescan.nodes, rescan.root_pid, Some(rescan.scope))
+            .await;
+        report
+    }
+
+    /// The settle loop of `observe_changes`: reads the observed scope until
+    /// two consecutive reads agree and nothing looks busy against `before`,
+    /// or the limit passes. Commits nothing. Err only when no read worked.
+    async fn settle(&self, before: &[AccessibilityNode]) -> std::result::Result<Settled, String> {
+        let acted = std::time::Instant::now();
         sleep(SETTLE_FIRST_WAIT).await;
         let mut previous: Option<Vec<crate::outline::ElementContent>> = None;
         let mut settled: Option<Rescan> = None;
@@ -4690,7 +4743,7 @@ impl ComputerUseLinux {
         let (mut polls, mut nodes_read) = (0, 0);
         loop {
             polls += 1;
-            let base = settled.as_ref().map_or(&before[..], |last| &last.nodes[..]);
+            let base = settled.as_ref().map_or(before, |last| &last.nodes[..]);
             match self.read_page(base, None).await {
                 Ok(rescan) => {
                     nodes_read += rescan.read;
@@ -4699,7 +4752,7 @@ impl ComputerUseLinux {
                     if !stable {
                         quiet_since = std::time::Instant::now();
                     }
-                    let busy = crate::page_view::busy_reason(&before, &rescan.nodes);
+                    let busy = crate::page_view::busy_reason(before, &rescan.nodes);
                     if let Some(busy) = &busy {
                         busy_seen.get_or_insert_with(|| busy.reason.clone());
                     }
@@ -4726,16 +4779,9 @@ impl ComputerUseLinux {
             "settle: {polls} polls, {} ms, {nodes_read} nodes read",
             acted.elapsed().as_millis()
         );
-        let Some(settled) = settled else {
-            return format!(
-                "changes: unknown (the tree could not be read: {})\n",
-                last_error.unwrap_or_default()
-            );
-        };
-        let options = settled.scope.options;
-        let mut report = String::new();
-        if let Some(reason) = busy_seen {
-            report.push_str(&format!(
+        let rescan = settled.ok_or_else(|| last_error.unwrap_or_default())?;
+        let busy_note = busy_seen.map(|reason| {
+            format!(
                 "waited {} ms for the page to finish ({reason}){}\n",
                 acted.elapsed().as_millis(),
                 if still_busy {
@@ -4743,8 +4789,23 @@ impl ComputerUseLinux {
                 } else {
                     ""
                 }
-            ));
-        }
+            )
+        });
+        Ok(Settled { rescan, busy_note })
+    }
+
+    /// The change report of `observe_changes` for `settled` against
+    /// `before`, led by `busy_note`: what changed, the focus (an editor's
+    /// whole text), title, URL and tabs. `targets` lead a cut report.
+    async fn change_report_since(
+        &self,
+        before: &[AccessibilityNode],
+        settled: &Rescan,
+        busy_note: Option<String>,
+        targets: &[String],
+    ) -> String {
+        let options = settled.scope.options;
+        let mut report = busy_note.unwrap_or_default();
         let mut after = crate::page_view::page_view(&settled.nodes, options);
         if let Some(editor) = crate::page_view::focused_element(&settled.nodes)
             .filter(|node| crate::page_view::focus_needs_full_text(node))
@@ -4764,12 +4825,10 @@ impl ComputerUseLinux {
             })
             .unwrap_or_default();
         report.push_str(&crate::page_view::change_report(
-            &crate::page_view::page_view(&before, options),
+            &crate::page_view::page_view(before, options),
             &after,
             &target_ids,
         ));
-        self.commit_observation(&settled.nodes, settled.root_pid, Some(settled.scope))
-            .await;
         report
     }
 
@@ -5463,6 +5522,19 @@ impl ComputerUseLinux {
                 ok: outcome.ok,
             };
         }
+        // Chromium's select action on the option a native <select> already
+        // holds deselects it (the select is left with no value), so leave a
+        // chosen option alone. Native: the option is the select's own
+        // descendant.
+        if crate::fields::has_state(&option, "selected")
+            && crate::page_view::is_inside(&nodes, option.index, nodes[target].index)
+        {
+            return FieldOutcome {
+                ok: true,
+                message: format!("{label} already shows \"{option_name}\""),
+                value: Some(option_name),
+            };
+        }
         if let Err(message) = self
             .activate_element(&option, &option_label, OPTION_ACTIONS)
             .await
@@ -5641,7 +5713,7 @@ impl ComputerUseLinux {
         let mut searched_back = false;
         let end = loop {
             let end = self
-                .scroll_until_pass(plan, direction, &mut step, &mut last, &mut scrolls)
+                .scroll_until_pass(plan, direction, &mut step, &mut last, &mut scrolls, started)
                 .await?;
             match next_until_pass(direction, plan.direction_given, end) {
                 Some(next) => {
@@ -5655,7 +5727,9 @@ impl ComputerUseLinux {
         let message = match end {
             UntilStep::Found => return self.reveal_until_match(plan, last, scrolls, started).await,
             UntilStep::Cap => format!(
-                "no element matched until within {SCROLL_UNTIL_MAX_STEPS} scrolls; the list goes on"
+                "no element matched until within {scrolls} scrolls ({} s); the list goes on: \
+                 call scroll with the same until to keep searching from here",
+                started.elapsed().as_secs()
             ),
             _ if searched_back => format!(
                 "reached both ends after {scrolls} scroll(s) without an element matching until"
@@ -5668,9 +5742,11 @@ impl ComputerUseLinux {
         Err(message)
     }
 
-    /// Scrolls in one direction until a match is rendered, the end, or
-    /// `SCROLL_UNTIL_MAX_STEPS` steps; `step`, `last` and `scrolls` follow
-    /// along.
+    /// Scrolls in one direction until a match is rendered, the end,
+    /// `SCROLL_UNTIL_MAX_STEPS` steps or `SCROLL_UNTIL_BUDGET` since
+    /// `started`; `step`, `last` and `scrolls` follow along. Vertical steps
+    /// jump with AT-SPI first (`until_jump`) and turn the wheel only when a
+    /// jump cannot move the list.
     async fn scroll_until_pass(
         &self,
         plan: &ScrollUntil,
@@ -5678,28 +5754,52 @@ impl ComputerUseLinux {
         step: &mut UntilStepSize,
         last: &mut Rescan,
         scrolls: &mut u32,
+        started: std::time::Instant,
     ) -> std::result::Result<UntilStep, String> {
         let horizontal = matches!(direction, ScrollDirection::Left | ScrollDirection::Right);
         let mut previous = crate::outline::element_contents(&last.nodes);
         let mut steps = 0;
         let mut unchanged = 0;
         loop {
-            let clicks = step.clicks();
-            let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
-            run_xdotool(
-                &wheel,
-                xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS),
-            )
-            .await?;
+            if started.elapsed() >= SCROLL_UNTIL_BUDGET {
+                return Ok(UntilStep::Cap);
+            }
+            let jumped = if horizontal {
+                None
+            } else {
+                self.until_jump(plan, direction, last, &previous).await
+            };
             steps += 1;
             *scrolls += 1;
-            let (read, settled) = self
-                .read_after_scroll_step(plan.hint_ref.as_deref(), &last.nodes, &previous)
-                .await?;
+            // A jump moves no wheel clicks, so it cannot size the next step.
+            let (read, settled, clicks) = match jumped {
+                Some(read) => (read, false, 0),
+                None => {
+                    let clicks = step.clicks();
+                    let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
+                    run_xdotool(
+                        &wheel,
+                        xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS),
+                    )
+                    .await?;
+                    let (read, settled) = self
+                        .read_after_scroll_step(
+                            plan.hint_ref.as_deref(),
+                            &last.nodes,
+                            &previous,
+                            Some(&plan.query),
+                        )
+                        .await?;
+                    (read, settled, clicks)
+                }
+            };
             let loaded = std::time::Instant::now();
-            let (read, busy) = self
-                .wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
-                .await?;
+            let (read, busy) = if rendered_matches(&read.nodes, &plan.query).is_empty() {
+                self.wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
+                    .await?
+            } else {
+                (read, false)
+            };
             let waited = loaded.elapsed().as_millis();
             let before = std::mem::replace(last, read);
             let rows_before = row_keys(&before.nodes);
@@ -5710,7 +5810,11 @@ impl ComputerUseLinux {
                 step.click_px = bounded_click_px(step.click_px, px);
                 step.measured = true;
             }
-            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each; waited {waited} ms for rows)", step.click_px);
+            if clicks == 0 {
+                eprintln!("scroll until step {scrolls}: +{new_rows} rows (jump {direction:?}; waited {waited} ms for rows)");
+            } else {
+                eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each; waited {waited} ms for rows)", step.click_px);
+            }
             let contents = crate::outline::element_contents(&last.nodes);
             let found = !rendered_matches(&last.nodes, &plan.query).is_empty();
             // A list still loading has not reached its end.
@@ -5728,15 +5832,80 @@ impl ComputerUseLinux {
         }
     }
 
+    /// One `until` step without the wheel: scrolls the lowest element shown
+    /// in the scrolled area (the highest, going up) to its top (bottom) edge
+    /// with AT-SPI `Component.ScrollTo` (`jump_target`), which Chromium does
+    /// at once, with no smooth-scroll animation to wait out. Every element
+    /// rendered before the jump was already searched and the one jumped to
+    /// stays rendered, so no row is skipped. Returns the read once the list
+    /// has moved (`jump_moved`) and two reads agree (or a read renders a
+    /// match); `None` for a `point` without an element, no target, a ScrollTo
+    /// that fails or outlasts `UNTIL_JUMP_LIMIT`, or no move within it, and
+    /// the caller turns the wheel instead.
+    async fn until_jump(
+        &self,
+        plan: &ScrollUntil,
+        direction: ScrollDirection,
+        last: &Rescan,
+        previous: &[crate::outline::ElementContent],
+    ) -> Option<Rescan> {
+        // A point names a place, not an element: the area scrolled there is
+        // not known, so the wheel turns there instead.
+        if plan.container.is_none() && plan.point.is_some() {
+            return None;
+        }
+        let target = jump_target(&last.nodes, plan.container, direction)?;
+        let down = direction == ScrollDirection::Down;
+        let started = std::time::Instant::now();
+        let scrolled = tokio::time::timeout(
+            UNTIL_JUMP_LIMIT,
+            crate::atspi_tree::scroll_to_edge(&target.object_ref, down),
+        )
+        .await;
+        if !matches!(scrolled, Ok(Ok(true))) {
+            return None;
+        }
+        let hint = plan.hint_ref.as_deref();
+        sleep(UNTIL_JUMP_WAIT).await;
+        let mut latest = self.read_page(&last.nodes, hint).await.ok()?;
+        let mut contents = crate::outline::element_contents(&latest.nodes);
+        while contents == previous || !jump_moved(&latest.nodes, &target, direction) {
+            if started.elapsed() >= UNTIL_JUMP_LIMIT {
+                return None;
+            }
+            sleep(UNTIL_JUMP_POLL).await;
+            latest = self.read_page(&latest.nodes, hint).await.ok()?;
+            contents = crate::outline::element_contents(&latest.nodes);
+        }
+        loop {
+            if !rendered_matches(&latest.nodes, &plan.query).is_empty()
+                || started.elapsed() >= SCROLL_UNTIL_SETTLE_LIMIT
+            {
+                return Some(latest);
+            }
+            sleep(UNTIL_JUMP_POLL).await;
+            let next = self.read_page(&latest.nodes, hint).await.ok()?;
+            let next_contents = crate::outline::element_contents(&next.nodes);
+            let stable = next_contents == contents;
+            latest = next;
+            contents = next_contents;
+            if stable {
+                return Some(latest);
+            }
+        }
+    }
+
     /// Reads the page (`read_page`, `base` being the read before the step)
     /// after a scroll step: once after `SCROLL_UNTIL_STEP_WAIT`, and a second
     /// time after `SETTLE_POLL` only when it still equals `previous` (the
-    /// contents of `base`), since a virtual list may not have re-rendered yet.
+    /// contents of `base`), since a virtual list may not have re-rendered yet;
+    /// then until two reads agree, unless a read already renders `wanted`.
     async fn read_after_scroll_step(
         &self,
         hint: Option<&str>,
         base: &[AccessibilityNode],
         previous: &[crate::outline::ElementContent],
+        wanted: Option<&ElementQuery>,
     ) -> Result<(Rescan, bool), String> {
         sleep(SCROLL_UNTIL_STEP_WAIT).await;
         let started = std::time::Instant::now();
@@ -5747,6 +5916,11 @@ impl ComputerUseLinux {
             sleep(SETTLE_POLL).await;
             latest = self.read_page(&latest.nodes, hint).await?;
             contents = crate::outline::element_contents(&latest.nodes);
+        }
+        // The element searched for is rendered: the search is over, and
+        // `reveal_until_match` reads again once it is in view.
+        if wanted.is_some_and(|query| !rendered_matches(&latest.nodes, query).is_empty()) {
+            return Ok((latest, false));
         }
         // Chromium scrolls smoothly, so a read can land mid-animation. Read
         // until two reads agree; only a settled read may size the next step.
@@ -5848,7 +6022,7 @@ impl ComputerUseLinux {
             }
             let previous = crate::outline::element_contents(&last.nodes);
             (last, _) = self
-                .read_after_scroll_step(hint, &last.nodes, &previous)
+                .read_after_scroll_step(hint, &last.nodes, &previous, None)
                 .await?;
         }
         let rendered: Vec<u32> = rendered_matches(&last.nodes, &plan.query)
@@ -6013,7 +6187,18 @@ fn still_busy_after(busy: Option<&crate::page_view::Busy>, quiet_for: Duration) 
 }
 
 /// Most scroll steps one `scroll(until=…)` call makes in one direction.
-const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
+const SCROLL_UNTIL_MAX_STEPS: u32 = 1_500;
+/// Longest one `scroll(until=…)` call keeps searching before it reports that
+/// the list goes on; well under the 120 s tool timeout clients use, and long
+/// enough to scan a list of thousands of rows in one call.
+const SCROLL_UNTIL_BUDGET: Duration = Duration::from_secs(75);
+/// Wait after an `until` jump (`Component.ScrollTo`) before reading.
+const UNTIL_JUMP_WAIT: Duration = Duration::from_millis(30);
+/// Poll interval while a jump's re-render settles.
+const UNTIL_JUMP_POLL: Duration = Duration::from_millis(40);
+/// How long a jump may take to show any change before the step falls back
+/// to the wheel.
+const UNTIL_JUMP_LIMIT: Duration = Duration::from_millis(400);
 /// Wait after a scroll step before reading the tree.
 const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(100);
 /// How long a step's read may wait for Chromium's smooth scroll to settle.
@@ -6259,6 +6444,137 @@ const ROW_ROLES: [&str; 5] = [
     "tree item",
     "tree table row",
 ];
+
+/// What to tell the agent after a drag whose change report (`report`) shows
+/// nothing: the report leaves out geometry and pixels, so the drag may still
+/// have worked; when it did not, it usually pressed beside a thin handle that
+/// has no element of its own, or on selected text, which Chromium then drags
+/// as text, so every later drag from there fails the same way.
+fn idle_drag_note(output: &ActionOutput, report: &str) -> Option<&'static str> {
+    (output.ok && output.action == "drag" && report.starts_with("changes: none")).then_some(
+        "note: the drag changed nothing in the accessibility tree (moves, resizes and canvas \
+         pixels do not show there; a screenshot does). If it had no effect: press on the \
+         handle itself, since resize bars and drag handles are often thin and missing from the \
+         tree; and a press on selected text drags that text instead, so click an empty spot \
+         first to clear it.\n",
+    )
+}
+
+/// The element an `until` jump scrolls to an edge (`until_jump`), with its
+/// top and bottom before the jump: inside the scrolled area (`container`,
+/// else the visible web document), shorter than the area, the element lowest
+/// on the page whose top is below the area's top edge (going down; going up,
+/// the highest whose bottom is above its bottom edge), the shallowest when
+/// several share the edge. Past the visible part only elements that continue
+/// the shown ones count: each must start within `JUMP_COVERAGE_GAP` of the
+/// lowest bottom (highest top) reached so far, so a virtual list's rows
+/// rendered below the fold extend the jump while a footer beyond its spacer,
+/// past rows never rendered, ends the chain. `None` when nothing qualifies.
+fn jump_target(
+    nodes: &[AccessibilityNode],
+    container: Option<u32>,
+    direction: ScrollDirection,
+) -> Option<JumpTarget> {
+    let area = crate::page_view::shown_part(nodes, container)?;
+    let scope =
+        container.or_else(|| crate::page_view::document_parts(nodes).map(|p| p.document))?;
+    let parents: std::collections::HashMap<u32, Option<u32>> = nodes
+        .iter()
+        .map(|node| (node.index, node.parent_index))
+        .collect();
+    let inside = |mut id: u32| {
+        while let Some(Some(parent)) = parents.get(&id) {
+            if *parent == scope {
+                return true;
+            }
+            id = *parent;
+        }
+        false
+    };
+    let down = direction == ScrollDirection::Down;
+    let (top, bottom) = (area.y, area.y + area.height);
+    // Distance along the scroll from the area's leading edge: going down an
+    // element's top below the area's top, going up its bottom above the
+    // area's bottom, so one walk serves both directions.
+    let lead = |b: &Bounds| {
+        if down {
+            b.y - top
+        } else {
+            bottom - (b.y + b.height)
+        }
+    };
+    let mut candidates: Vec<&AccessibilityNode> = nodes
+        .iter()
+        .filter(|node| {
+            node.bounds.as_ref().is_some_and(|b| {
+                b.width > 0 && b.height > 0 && b.height < area.height && lead(b) > 1
+            }) && inside(node.index)
+        })
+        .collect();
+    candidates.sort_by_key(|node| {
+        (
+            node.bounds.as_ref().map_or(i32::MAX, lead),
+            std::cmp::Reverse(node.depth),
+        )
+    });
+    let mut reached = area.height;
+    let mut best = None;
+    for node in candidates {
+        let Some(b) = node.bounds.as_ref() else {
+            continue;
+        };
+        if lead(b) > reached + JUMP_COVERAGE_GAP {
+            break;
+        }
+        reached = reached.max(lead(b) + b.height);
+        best = Some(node);
+    }
+    let node = best?;
+    let b = node.bounds.as_ref()?;
+    Some(JumpTarget {
+        object_ref: node.object_ref.clone(),
+        top: b.y,
+        bottom: b.y + b.height,
+    })
+}
+
+/// Largest gap between rendered elements past the visible part that still
+/// counts as one run of rows for `jump_target` (spacing between cards or
+/// rows), far below the height of a row that was never rendered.
+const JUMP_COVERAGE_GAP: i32 = 48;
+
+/// What `jump_target` picked: the element and where it was before the jump.
+#[derive(Debug, Clone, PartialEq)]
+struct JumpTarget {
+    object_ref: String,
+    top: i32,
+    bottom: i32,
+}
+
+/// Whether a jump to `target` moved the list in `direction` by `nodes` (the
+/// read after it): the target moved toward the edge it was scrolled to, or
+/// left the tree because the list re-rendered its rows. Other changes (a
+/// clock, a live log line) do not count.
+fn jump_moved(
+    nodes: &[AccessibilityNode],
+    target: &JumpTarget,
+    direction: ScrollDirection,
+) -> bool {
+    let Some(node) = nodes
+        .iter()
+        .find(|node| node.object_ref == target.object_ref)
+    else {
+        return true;
+    };
+    let Some(b) = node.bounds.as_ref() else {
+        return true;
+    };
+    if direction == ScrollDirection::Down {
+        b.y < target.top - 1
+    } else {
+        b.y + b.height > target.bottom + 1
+    }
+}
 
 /// How many list, table and tree rows a read has.
 fn row_count(nodes: &[AccessibilityNode]) -> usize {
@@ -6779,7 +7095,24 @@ fn resolve_semantic_node(
         .or(selector.text)
         .map(str::trim)
         .filter(|name| !name.is_empty());
-    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 5] = [
+    // The last open dialog holding a match: a user can only reach what is
+    // in front, so a match inside it beats the same control behind it.
+    let front_dialog = nodes
+        .iter()
+        .rev()
+        .filter(|node| {
+            matches!(
+                node.role.to_ascii_lowercase().as_str(),
+                "dialog" | "alert dialog"
+            ) && node_is_showing(node)
+        })
+        .find(|dialog| {
+            matches
+                .iter()
+                .any(|node| crate::page_view::is_inside(nodes, node.index, dialog.index))
+        })
+        .map(|dialog| dialog.index);
+    let narrowings: [&dyn Fn(&AccessibilityNode) -> bool; 6] = [
         &|node| node_matches_resolve_purpose(node, purpose),
         // A radio group's legend repeats its name as plain text; the group
         // is the field.
@@ -6788,6 +7121,9 @@ fn resolve_semantic_node(
                 || !TEXT_ONLY_ROLES.contains(&node.role.as_str())
         },
         &node_is_actionable,
+        &|node| {
+            front_dialog.is_none_or(|dialog| crate::page_view::is_inside(nodes, node.index, dialog))
+        },
         &|node| wanted_name.is_some_and(|name| node_has_exact_name(node, name)),
         &node_is_showing,
     ];
@@ -9686,6 +10022,96 @@ mod tests {
     }
 
     #[test]
+    fn a_drag_that_moved_nothing_explains_handles_and_selected_text() {
+        let output = |action: &str, ok| ActionOutput {
+            ok,
+            implemented: true,
+            action: action.to_string(),
+            message: String::new(),
+            received: None,
+        };
+        let note = idle_drag_note(
+            &output("drag", true),
+            "changes: none\nfocus: [4] document\n",
+        );
+        assert!(note.is_some_and(|n| n.contains("selected text") && n.contains("handle")));
+        assert!(
+            idle_drag_note(&output("drag", true), "changes (1):\n~ [70] paragraph\n").is_none()
+        );
+        assert!(idle_drag_note(&output("drag", false), "changes: none\n").is_none());
+        assert!(idle_drag_note(&output("click", true), "changes: none\n").is_none());
+    }
+
+    #[test]
+    fn until_jumps_to_the_last_row_rendered_in_one_run_inside_the_scrolled_area() {
+        let b = |y, height| {
+            Some(Bounds {
+                x: 10,
+                y,
+                width: 600,
+                height,
+            })
+        };
+        let child = |index, parent, depth, bounds, role: &str| AccessibilityNode {
+            parent_index: parent,
+            depth,
+            role: role.to_string(),
+            ..node(index, bounds)
+        };
+        let nodes = vec![
+            child(0, None, 0, b(0, 1000), "frame"),
+            child(1, Some(0), 1, b(100, 500), "section"), // the scrolled list, 100..600
+            child(2, Some(1), 2, b(100, 90_000), "section"), // its spacer
+            child(3, Some(2), 3, b(150, 40), "section"),
+            child(4, Some(2), 3, b(560, 40), "section"), // last row shown
+            child(5, Some(4), 4, b(560, 20), "static"),
+            child(6, Some(2), 3, b(640, 40), "section"), // rendered below the fold
+            child(7, Some(1), 2, b(90_100, 40), "section"), // footer past the spacer
+            child(8, Some(0), 1, b(900, 40), "push button"), // outside the list
+        ];
+        let target = |index: usize| {
+            let b = nodes[index].bounds.clone().unwrap();
+            Some(JumpTarget {
+                object_ref: nodes[index].object_ref.clone(),
+                top: b.y,
+                bottom: b.y + b.height,
+            })
+        };
+        // Down: the lowest row rendered in one run from the shown ones (row 6,
+        // just below the fold), not the footer past the spacer (rows between
+        // were never rendered), the spacer, a row's text or the button
+        // outside the list.
+        assert_eq!(
+            jump_target(&nodes, Some(1), ScrollDirection::Down),
+            target(6)
+        );
+        // A gap wider than JUMP_COVERAGE_GAP ends the run at the last row shown.
+        let mut gapped = nodes.clone();
+        gapped[6].bounds = b(700, 40);
+        assert_eq!(
+            jump_target(&gapped, Some(1), ScrollDirection::Down),
+            target(4)
+        );
+        // Up: the highest row shown.
+        assert_eq!(jump_target(&nodes, Some(1), ScrollDirection::Up), target(3));
+        // A list with only its spacer has nothing to jump to.
+        assert_eq!(
+            jump_target(&nodes[..3], Some(1), ScrollDirection::Down),
+            None
+        );
+        // The jump moved the list when its target rose or was re-rendered away;
+        // a change elsewhere with the target in place does not count.
+        let jumped = target(4).unwrap();
+        let mut after = nodes.clone();
+        after[4].bounds = b(110, 40);
+        assert!(jump_moved(&after, &jumped, ScrollDirection::Down));
+        assert!(jump_moved(&nodes[..4], &jumped, ScrollDirection::Down));
+        let mut elsewhere = nodes.clone();
+        elsewhere[8].name = Some("12:01".to_string());
+        assert!(!jump_moved(&elsewhere, &jumped, ScrollDirection::Down));
+    }
+
+    #[test]
     fn scroll_until_steps_stay_within_most_of_the_visible_extent() {
         let size = |extent, click_px, max_clicks| UntilStepSize {
             extent,
@@ -10559,6 +10985,52 @@ mod tests {
         assert!(error.contains("matched 2 elements"), "{error}");
         assert!(error.contains("\n[7] push button \"Close\""), "{error}");
         assert!(error.contains("\n[9] push button \"Close\""), "{error}");
+    }
+
+    #[test]
+    fn semantic_selector_prefers_the_match_in_the_front_dialog() {
+        let showing = |mut node: AccessibilityNode| {
+            node.states = vec!["showing".to_string(), "visible".to_string()];
+            node
+        };
+        let mut page = showing(node_with_actions(51, None, vec![click_action()]));
+        page.name = Some("Próximo mês".to_string());
+        let mut dialog = showing(node(225, None));
+        dialog.role = "dialog".to_string();
+        let mut picker = showing(node(242, None));
+        picker.role = "dialog".to_string();
+        picker.parent_index = Some(225);
+        let mut inside = showing(node_with_actions(246, None, vec![click_action()]));
+        inside.name = Some("Próximo mês".to_string());
+        inside.parent_index = Some(242);
+        let nodes = [page.clone(), dialog, picker, inside];
+        let selector = ElementSelector {
+            name: Some("Próximo mês"),
+            ..Default::default()
+        };
+        let chosen =
+            resolve_semantic_node(&nodes, &selector, ElementResolvePurpose::Click).unwrap();
+        assert_eq!(chosen.index, 246);
+        // An exact name behind the dialog does not beat a longer one in it.
+        let mut save = showing(node_with_actions(60, None, vec![click_action()]));
+        save.name = Some("Salvar".to_string());
+        let mut save_changes = showing(node_with_actions(61, None, vec![click_action()]));
+        save_changes.name = Some("Salvar alterações".to_string());
+        save_changes.parent_index = Some(242);
+        let in_front = [save, nodes[1].clone(), nodes[2].clone(), save_changes];
+        let save_selector = ElementSelector {
+            name: Some("Salvar"),
+            ..Default::default()
+        };
+        let chosen =
+            resolve_semantic_node(&in_front, &save_selector, ElementResolvePurpose::Click).unwrap();
+        assert_eq!(chosen.index, 61);
+        // With no dialog in front, the two stay ambiguous.
+        let mut behind = nodes[3].clone();
+        behind.parent_index = None;
+        let error = resolve_semantic_node(&[page, behind], &selector, ElementResolvePurpose::Click)
+            .unwrap_err();
+        assert!(error.contains("matched 2 elements"), "{error}");
     }
 
     fn named(index: u32, role: &str, name: &str) -> AccessibilityNode {

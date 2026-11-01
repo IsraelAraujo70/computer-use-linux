@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<link rel="stylesheet" href="../style.css">
+<style>body{
+margin:0;
+background:#eef2f6;
+color:#24334a;
+font:16px system-ui
+}header{
+background:#172d49;
+color:white;
+padding:24px 40px
+}main{
+margin:32px 40px;
+background:white;
+padding:28px;
+border-radius:12px
+} .row,.card{
+padding:18px;
+margin:8px 0;
+background:#f6f8fc;
+border:1px solid #d5deea;
+border-radius:7px;
+user-select:none;
+touch-action:none
+}.handle{
+cursor:grab;
+padding:10px
+}.placeholder{
+height:56px;
+border:2px dashed #477bcc;
+background:#edf4ff;
+margin:8px 0
+}.col{
+background:#edf1f7;
+padding:15px;
+flex:1;
+min-height:600px
+}.card{
+cursor:grab
+}.track{
+width:400px;
+height:12px;
+background:#c9d7e8;
+position:relative;
+margin:28px 0;
+touch-action:none;
+cursor:pointer
+}.thumb{
+position:absolute;
+width:24px;
+height:24px;
+border-radius:50%;
+background:#286aca;
+top:-6px;
+transform:translateX(-50%)
+}button{
+padding:12px 25px
+} .file,.folder{
+padding:24px;
+background:#f1f5fa;
+border:1px solid #cad6e4;
+border-radius:8px;
+min-height:65px
+}.folder{
+background:#fff2cc
+}nav{
+padding:18px 40px;
+background:#dce5ef;
+color:#354963
+}small{
+display:block;
+color:#586a80;
+font-size:14px;
+margin:8px 0
+}.row{
+padding:12px;
+margin:6px 0
+}.card{
+padding:14px
+}.file{
+font-size:14px;
+padding:16px
+}.track{
+height:28px;
+margin:20px 0
+}.thumb{
+top:2px;
+width:28px;
+height:28px
+}.handle{
+display:inline-block;
+min-width:28px
+}header{
+font-weight:600
+}main{
+margin-top:20px
+}</style>
+<header>Workspace / Ambiente de desenvolvimento</header>
+<nav>Visão geral　 /　 Meu espaço　 /　 Equipe　 /　 Relatórios</nav>
+<main>
+<h1>Ambiente de desenvolvimento</h1>
+<div id="layout" style="display:grid;height:620px">
+<aside style="background:#edf1f7;padding:15px">Explorador<br>
+<br>📁 portal-cliente<br>　📁 src<br>　　app.js<br>　　clientes.js<br>　　styles.css<br>　📁 tests<br>　package.json<br>　README.md</aside>
+<div data-axis="width" style="background:#a9bacd;cursor:col-resize;touch-action:none">
+</div>
+<div style="display:flex;flex-direction:column">
+<article style="flex:1;padding:20px">editor.js<br>
+<pre>const clientes = carregarClientes();
+
+
+function listarAtivos() {
+
+  return clientes.filter(cliente => cliente.ativo);
+
+
+}
+
+export {
+ listarAtivos
+};
+</pre>
+</article>
+<div data-axis="height" style="height:6px;background:#a9bacd;cursor:row-resize;touch-action:none">
+</div>
+<div id="terminal" style="background:#172d49;color:white;padding:0 15px;box-sizing:border-box">Terminal<br>$ npm run dev<br>Servidor local pronto<br>Compilação concluída sem erros<br>Observando alterações nos arquivos…</div>
+</div>
+</div>
+<p id="status">
+</p>
+</main>
+<script src="../common.js">
+</script>
+<script>const ID="a35-dnd-resize-panel";
+let w=280,hgt=180;
+const layout=document.querySelector('#layout'),terminal=document.querySelector('#terminal'),status=document.querySelector('#status');
+function draw(){
+layout.style.gridTemplateColumns=w+'px 6px 1fr';
+terminal.style.height=hgt+'px';
+status.textContent='Explorador: '+w+' px / Terminal: '+hgt+' px'
+}draw();
+for(const axis of ['width','height']){
+const splitter=document.querySelector('[data-axis='+axis+']');
+splitter.onpointerdown=e=>{
+splitter.setPointerCapture(e.pointerId);
+const x=e.clientX,y=e.clientY,ow=w,oh=hgt;
+splitter.onpointermove=v=>{
+if(axis==='width')w=Math.round(Math.max(180,Math.min(800,ow+v.clientX-x)));
+else hgt=Math.round(Math.max(90,Math.min(450,oh+y-v.clientY)));
+draw()
+};
+splitter.onpointerup=()=>{
+splitter.onpointermove=null;
+postState(ID,{
+width:w,height:hgt
+})
+}
+}
+}</script>
+</html>

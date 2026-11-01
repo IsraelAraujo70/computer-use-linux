@@ -10,6 +10,9 @@ pre-registered in [METRIC.md](METRIC.md); the run log is [results/log.tsv](resul
 bench/agent/run_all.sh /tmp/cu-results <baseline-binary> <candidate-binary> [codex|claude] [reps]
 ```
 
+`MODEL`, `EFFORT` and `MIN_RATIO` (the throughput bar, default 2.0) override the agent and the bar,
+e.g. `MODEL=gpt-6.1-sol EFFORT=low MIN_RATIO=1.5` for the Sol comparison in METRIC.md.
+
 Runs the easy (10 tasks) and hard (12 tasks) suites with the two builds interleaved,
 then prints both summaries with `bar met: True/False`.
 
@@ -20,10 +23,13 @@ then prints both summaries with `bar met: True/False`.
 | `env.sh` | Isolated desktop: Xvfb `:98` + i3 + a private D-Bus/AT-SPI bus. Refuses `:99`. |
 | `server.py`, `apps/`, `apps/hard/` | Local web apps (Gmail/Calendar-like) that POST their state. |
 | `tasks.py`, `tasks_hard.py` | Prompts and checkers. Checkers read posted state or files, never the agent's reply. |
-| `selftest*.mjs`, `check_selftest*.py` | Prove each checker accepts the happy path and rejects wrong outcomes (headless Playwright). |
+| `tasks_long.py`, `long_tasks/`, `apps/long/` | Long suite: 5 tasks of 22-36 UI actions (one module + flow per task). `run.py --suite long --timeout 600`. |
+| `tasks_argo35.py`, `argo35_tasks/`, `apps/argo35/` | argo35: 35 general desktop tasks (drag, canvas, huge virtual lists, menus, shortcuts, windows, dialogs, iframes, files, …), specs in `argo35_tasks/SPECS.md`, seeded train/holdout split. `run.py --suite argo35|argo35-train|argo35-holdout --timeout 300`; `check_selftest_argo35.py` (through `heavy.sh`); `argo35_report.py` per category; `sol_regression.py` for the no-regression check. |
+| `selftest*.mjs`, `check_selftest*.py` (incl. `selftest_long.mjs`) | Prove each checker accepts the happy path and rejects wrong outcomes (headless Playwright). |
 | `run.py` / `run_one.py` | Episode driver: fresh Chrome profile, fresh agent session (`codex exec` or `claude -p` with an isolated config dir), checker, metrics. Episodes run through `heavy.sh`. |
 | `mcp_proxy.py` | Times every MCP call and records payload size and images. |
-| `summarize.py` | Throughput, success rate, per-task table, bar check. |
+| `summarize.py` | Throughput, success rate, per-task table, bar check (`--min-ratio`). |
+| `profile.py` | Splits each episode's wall time into boot, model turns and MCP time from `mcp.jsonl` timestamps. |
 | `interview.py` | Runs a task, then resumes the agent session and asks what slowed it down. |
 | `probe.sh` | Opens one page in a throwaway Chrome and runs MCP calls by hand. |
 

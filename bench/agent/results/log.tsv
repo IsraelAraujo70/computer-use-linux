@@ -14,3 +14,6 @@ date	variant	change	binary_commit	runs	success_rate	tasks_per_min	mean_wall_s	me
 2026-10-30	FINAL v8 (hard, Sonnet 5.5)	same binary	e0d2cda	24	1.00	3.769	16	4.7	0.1	65	interleaved vs baseline (0.75, 1.853): +25pp, 2.03x
 2026-10-30	FINAL v8 (easy, Terra, bots flags WITHOUT a11y)	same binary	e0d2cda	20	1.00	1.464	41	16.2	6.5	598	vs baseline (1.00, 1.419): 1.03x -> gain needs --force-renderer-accessibility
 2026-10-30	v9 (scroll tasks, vs v8)	scroll until sizes steps only from settled reads	446a69a	12	1.00	1.795	33	5.2	0.0	174	interleaved vs v8 on 4 scroll tasks (1.642): 1.09x; virtual-list 59s->28s, contacts-infinite 24s->33s
+2026-11-01	Sol 5x final (easy, Sol low)	act multi-step tool, statusbar notices, front-dialog selectors, native select fix, act-steering instructions	4334fc2	30	1.00	3.909	15	3.2	0.0	145	interleaved vs baseline 45bb968 (1.00, 3.577): 1.09x; bar 1.5x NOT met; model turns 6.5->4.2
+2026-11-01	Sol 5x final (hard, Sol low)	same	4334fc2	36	1.00	2.809	21	3.1	0.0	138	vs baseline (1.00, 2.560): 1.10x; bar NOT met; 28 episodes ran outside heavy.lock (hard-no-heavy-runs.txt)
+2026-11-01	Sol 5x final (long, Sol low, 1 rep)	same	4334fc2	5	1.00	1.512	40	8.8	0.0	328	secondary; vs baseline (1.00, 1.482): 1.02x; calls 22->9 but model time unchanged (baseline Sol already batches parallel calls)

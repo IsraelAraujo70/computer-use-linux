@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Quadro • Fluxo de pedidos</title>
+<link rel="stylesheet" href="../style.css">
+<style>body{font-size:16px}header{padding:24px 40px;
+background:#172554;
+color:white;
+font-size:24px}main{margin:24px 40px}nav{display:flex;
+gap:12px;
+margin-bottom:16px}button{padding:12px 20px;
+border:1px solid #cbd5e1;
+border-radius:8px;
+background:white;
+color:#1e3a8a}canvas{background:white;
+border:1px solid #cbd5e1;
+touch-action:none}#detail{padding:16px;
+font-size:18px}</style>
+<header>Quadro • Fluxo de pedidos</header>
+<aside style="float:right;
+width:210px;
+padding:24px;
+background:#eff6ff;
+height:760px">
+<h2>Workspace</h2>
+<p>Visão geral</p>
+<p>Projetos recentes</p>
+<p>Equipe Aurora</p>
+<hr>
+<p>Campanha primavera</p>
+<p>Atualizado em 28/10/2026</p>
+<p>Responsável: Marina Duarte</p>
+<p>Status: Em revisão</p>
+</aside>
+<main>
+<nav id="tools">
+</nav>
+<canvas width="1200" height="700" role="img" aria-label="Área de trabalho">
+</canvas>
+<div id="detail">Selecione na área de trabalho</div>
+</main>
+<script src="../common.js">
+</script>
+<script>
+const c=document.querySelector('canvas'),ctx=c.getContext('2d'),detail=document.querySelector('#detail');
+const send=s=>postState('a35-canvas-connect',s).then(()=>toast('Salvo'));
+function button(name,fn){const b=document.createElement('button');
+b.textContent=name;
+b.onclick=fn;
+document.querySelector('#tools').append(b)}function pos(e){const r=c.getBoundingClientRect();
+return {x:(e.clientX-r.left)*1200/r.width,y:(e.clientY-r.top)*700/r.height}}function clear(){ctx.clearRect(0,0,1200,700);
+ctx.fillStyle='#334155';
+ctx.strokeStyle='#334155';
+ctx.font='16px Arial'}function text(s,x,y){ctx.fillStyle='#334155';
+ctx.fillText(s,x,y)}
+const boxes=['Pedido recebido','Pagamento aprovado','Enviar pedido','Cancelar pedido','Estornar'].map((name,i)=>({name,x:[70,440,850,190,720][i]+(i*17%23),y:[120,280,110,510,500][i]}));
+let edges=[],active=false,start=null,selected=-1;
+
+function undo(){edges.pop();
+draw();
+send({edges})}
+button('Selecionar',()=>active=false);
+
+button('Desfazer',undo);
+
+document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='z'){e.preventDefault();
+undo()}if(e.key==='Delete'&&selected>=0){edges.splice(selected,1);
+selected=-1;
+draw();
+send({edges})}});
+button('Conector',()=>active=true);
+function hit(q){return boxes.findIndex(b=>q.x>=b.x&&q.x<=b.x+240&&q.y>=b.y&&q.y<=b.y+80)}function draw(){clear();
+for(const [a,b] of edges){const x=boxes[a].x+120,y=boxes[a].y+40,X=boxes[b].x+120,Y=boxes[b].y+40,ang=Math.atan2(Y-y,X-x);
+ctx.beginPath();
+ctx.moveTo(x,y);
+ctx.lineTo(X,Y);
+ctx.stroke();
+ctx.beginPath();
+ctx.moveTo(X,Y);
+ctx.lineTo(X-20*Math.cos(ang-.4),Y-20*Math.sin(ang-.4));
+ctx.lineTo(X-20*Math.cos(ang+.4),Y-20*Math.sin(ang+.4));
+ctx.fill()}for(const b of boxes){ctx.fillStyle='#dbeafe';
+ctx.beginPath();
+ctx.roundRect(b.x,b.y,240,80,12);
+ctx.fill();
+text(b.name,b.x+20,b.y+46)}}c.onpointerdown=e=>{if(!active){const q=pos(e);
+selected=edges.findIndex(([a,b])=>{const A=boxes[a],B=boxes[b],dx=B.x-A.x,dy=B.y-A.y,t=Math.max(0,Math.min(1,((q.x-A.x-120)*dx+(q.y-A.y-40)*dy)/(dx*dx+dy*dy)));
+return Math.hypot(q.x-A.x-120-t*dx,q.y-A.y-40-t*dy)<12});
+return}if(active){start=hit(pos(e));
+c.setPointerCapture(e.pointerId)}};
+c.onpointerup=e=>{const end=hit(pos(e));
+if(start!==null&&start>=0&&end>=0&&start!==end){edges.push([start,end]);
+draw();
+send({edges})}start=null};
+draw();
+</script>
+</html>
