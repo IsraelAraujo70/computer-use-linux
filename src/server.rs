@@ -4545,6 +4545,9 @@ impl ComputerUseLinux {
                     report.push_str(&format!("note: nothing changed and {dialog}\n"));
                 }
             }
+            if let Some(note) = idle_drag_note(&output, &report) {
+                report.push_str(note);
+            }
         }
         let mut target_lines = String::new();
         let mut target_text = None;
@@ -6441,6 +6444,18 @@ const ROW_ROLES: [&str; 5] = [
     "tree item",
     "tree table row",
 ];
+
+/// What to tell the agent after a drag that changed nothing (`report` is its
+/// change report): such drags usually pressed beside a thin handle that has
+/// no element of its own, or pressed on selected text, which Chromium then
+/// drags as text, so every later drag from there fails the same way.
+fn idle_drag_note(output: &ActionOutput, report: &str) -> Option<&'static str> {
+    (output.ok && output.action == "drag" && report.starts_with("changes: none")).then_some(
+        "note: the drag moved nothing. Press on the handle itself: resize bars and drag \
+         handles are often thin and missing from the tree (a screenshot shows them). A press \
+         on selected text drags that text instead: click an empty spot first to clear it.\n",
+    )
+}
 
 /// The element an `until` jump scrolls to an edge (`until_jump`), with its
 /// top and bottom before the jump: inside the scrolled area (`container`,
@@ -10001,6 +10016,27 @@ mod tests {
         assert_eq!(next_until_pass(Down, false, UntilStep::Cap), None);
         assert_eq!(next_until_pass(Down, false, UntilStep::Found), None);
         assert_eq!(next_until_pass(Up, false, UntilStep::End), None);
+    }
+
+    #[test]
+    fn a_drag_that_moved_nothing_explains_handles_and_selected_text() {
+        let output = |action: &str, ok| ActionOutput {
+            ok,
+            implemented: true,
+            action: action.to_string(),
+            message: String::new(),
+            received: None,
+        };
+        let note = idle_drag_note(
+            &output("drag", true),
+            "changes: none\nfocus: [4] document\n",
+        );
+        assert!(note.is_some_and(|n| n.contains("selected text") && n.contains("handle")));
+        assert!(
+            idle_drag_note(&output("drag", true), "changes (1):\n~ [70] paragraph\n").is_none()
+        );
+        assert!(idle_drag_note(&output("drag", false), "changes: none\n").is_none());
+        assert!(idle_drag_note(&output("click", true), "changes: none\n").is_none());
     }
 
     #[test]
