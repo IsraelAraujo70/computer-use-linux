@@ -720,7 +720,7 @@ pub fn change_report(before: &PageView, after: &PageView, targets: &[u32]) -> St
         .map(|(count, kind)| format!("{count} {kind}"))
         .collect();
         out.push_str(&format!(
-            "… and {} more changes ({}); call get_app_state for the whole page\n",
+            "… and {} more changes ({}) not shown\n",
             total - SHOWN_CHANGE_LINES,
             counts.join(", ")
         ));
@@ -2060,7 +2060,7 @@ mod tests {
         );
         assert_eq!(
             lines[31],
-            "… and 13 more changes (13 added); call get_app_state for the whole page"
+            "… and 13 more changes (13 added) not shown"
         );
         assert!(!report.contains("[128] row"), "{report}");
         assert!(!report.contains("--- page ---"), "{report}");

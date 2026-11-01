@@ -139,6 +139,9 @@ impl ComputerUseLinux {
             text.push_str(note);
             text.push('\n');
         }
+        // A step that failed before any settle (its element was never
+        // found) still leaves the read it searched in the cache.
+        let last_settled = last_settled.or_else(|| self.cached_rescan());
         if let Some(settled) = &last_settled {
             // Elements a later step re-rendered or removed are in the change
             // report already; a `target:` line saying so is noise.
@@ -160,14 +163,25 @@ impl ComputerUseLinux {
             ) {
                 text.push_str(&format!("notice: {notice}\n"));
             }
-            let report = self
-                .change_report_since(&start, settled, Some(busy_notes), &shown)
-                .await;
-            text.push_str(&report);
+            // With nothing observed before the call, every element would be
+            // "new": the page itself says more.
+            let observed_before = !start.is_empty();
+            if observed_before {
+                let report = self
+                    .change_report_since(&start, settled, Some(busy_notes), &shown)
+                    .await;
+                text.push_str(&report);
+            }
             for object_ref in &shown {
                 let label = self.label_for_ref(object_ref);
                 let (line, _) = self.target_line(object_ref, &label).await;
                 text.push_str(&format!("target: {line}\n"));
+            }
+            // After a failure the agent needs the page to plan the rest:
+            // print it here instead of costing it a get_app_state turn.
+            if failed || stop_note.is_some() || !observed_before {
+                text.push_str("page now:\n");
+                text.push_str(&crate::page_view::page_view(&settled.nodes, options).outline());
             }
         }
         let mut result = CallToolResult::success(vec![ContentBlock::text(text)]);
@@ -281,6 +295,11 @@ impl ComputerUseLinux {
         let mut echo = Vec::new();
         if let Some(target) = target {
             if let Err(message) = self.find_step_target(target, purpose).await {
+                // The act result shows the page after a failure.
+                let message = message.replace(
+                    " Call get_app_state first or pass element_index.",
+                    " Pick an id from the page below.",
+                );
                 return fail(message);
             }
             echo = self
