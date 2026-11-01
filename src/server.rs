@@ -5710,7 +5710,7 @@ impl ComputerUseLinux {
         let mut searched_back = false;
         let end = loop {
             let end = self
-                .scroll_until_pass(plan, direction, &mut step, &mut last, &mut scrolls)
+                .scroll_until_pass(plan, direction, &mut step, &mut last, &mut scrolls, started)
                 .await?;
             match next_until_pass(direction, plan.direction_given, end) {
                 Some(next) => {
@@ -5724,7 +5724,9 @@ impl ComputerUseLinux {
         let message = match end {
             UntilStep::Found => return self.reveal_until_match(plan, last, scrolls, started).await,
             UntilStep::Cap => format!(
-                "no element matched until within {SCROLL_UNTIL_MAX_STEPS} scrolls; the list goes on"
+                "no element matched until within {scrolls} scrolls ({} s); the list goes on: \
+                 call scroll with the same until to keep searching from here",
+                started.elapsed().as_secs()
             ),
             _ if searched_back => format!(
                 "reached both ends after {scrolls} scroll(s) without an element matching until"
@@ -5737,9 +5739,11 @@ impl ComputerUseLinux {
         Err(message)
     }
 
-    /// Scrolls in one direction until a match is rendered, the end, or
-    /// `SCROLL_UNTIL_MAX_STEPS` steps; `step`, `last` and `scrolls` follow
-    /// along.
+    /// Scrolls in one direction until a match is rendered, the end,
+    /// `SCROLL_UNTIL_MAX_STEPS` steps or `SCROLL_UNTIL_BUDGET` since
+    /// `started`; `step`, `last` and `scrolls` follow along. Vertical steps
+    /// jump with AT-SPI first (`until_jump`) and turn the wheel only when a
+    /// jump cannot move the list.
     async fn scroll_until_pass(
         &self,
         plan: &ScrollUntil,
@@ -5747,29 +5751,45 @@ impl ComputerUseLinux {
         step: &mut UntilStepSize,
         last: &mut Rescan,
         scrolls: &mut u32,
+        started: std::time::Instant,
     ) -> std::result::Result<UntilStep, String> {
         let horizontal = matches!(direction, ScrollDirection::Left | ScrollDirection::Right);
         let mut previous = crate::outline::element_contents(&last.nodes);
         let mut steps = 0;
         let mut unchanged = 0;
         loop {
-            let clicks = step.clicks();
-            let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
-            run_xdotool(
-                &wheel,
-                xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS),
-            )
-            .await?;
+            if started.elapsed() >= SCROLL_UNTIL_BUDGET {
+                return Ok(UntilStep::Cap);
+            }
+            let jumped = if horizontal {
+                None
+            } else {
+                self.until_jump(plan, direction, last, &previous).await
+            };
             steps += 1;
             *scrolls += 1;
-            let (read, settled) = self
-                .read_after_scroll_step(
-                    plan.hint_ref.as_deref(),
-                    &last.nodes,
-                    &previous,
-                    Some(&plan.query),
-                )
-                .await?;
+            // A jump moves no wheel clicks, so it cannot size the next step.
+            let (read, settled, clicks) = match jumped {
+                Some(read) => (read, false, 0),
+                None => {
+                    let clicks = step.clicks();
+                    let wheel = xdotool_pointer_scroll_args(plan.point, clicks, direction);
+                    run_xdotool(
+                        &wheel,
+                        xdotool_scroll_timeout(clicks, XDOTOOL_SCROLL_CLICK_DELAY_MS),
+                    )
+                    .await?;
+                    let (read, settled) = self
+                        .read_after_scroll_step(
+                            plan.hint_ref.as_deref(),
+                            &last.nodes,
+                            &previous,
+                            Some(&plan.query),
+                        )
+                        .await?;
+                    (read, settled, clicks)
+                }
+            };
             let loaded = std::time::Instant::now();
             let (read, busy) = if rendered_matches(&read.nodes, &plan.query).is_empty() {
                 self.wait_for_rows(plan.hint_ref.as_deref(), &last.nodes, read)
@@ -5787,7 +5807,11 @@ impl ComputerUseLinux {
                 step.click_px = bounded_click_px(step.click_px, px);
                 step.measured = true;
             }
-            eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each; waited {waited} ms for rows)", step.click_px);
+            if clicks == 0 {
+                eprintln!("scroll until step {scrolls}: +{new_rows} rows (jump {direction:?}; waited {waited} ms for rows)");
+            } else {
+                eprintln!("scroll until step {scrolls}: +{new_rows} rows ({clicks} wheel clicks {direction:?}, {:.0} px each; waited {waited} ms for rows)", step.click_px);
+            }
             let contents = crate::outline::element_contents(&last.nodes);
             let found = !rendered_matches(&last.nodes, &plan.query).is_empty();
             // A list still loading has not reached its end.
@@ -5801,6 +5825,61 @@ impl ComputerUseLinux {
                     sleep(SCROLL_UNTIL_END_WAIT).await;
                 }
                 end => return Ok(end),
+            }
+        }
+    }
+
+    /// One `until` step without the wheel: scrolls the last element rendered
+    /// in the scrolled area (the first, going up) to its top (bottom) edge
+    /// with AT-SPI `Component.ScrollTo` (`jump_target`), which Chromium does
+    /// at once, with no smooth-scroll animation to wait out. Every element
+    /// rendered before the jump was already searched and the one jumped to
+    /// stays rendered, so no row is skipped. Returns the read once the page
+    /// has changed and two reads agree (or a read renders a match); `None`
+    /// when there is no target, ScrollTo fails, or nothing changes within
+    /// `UNTIL_JUMP_LIMIT`, and the caller turns the wheel instead.
+    async fn until_jump(
+        &self,
+        plan: &ScrollUntil,
+        direction: ScrollDirection,
+        last: &Rescan,
+        previous: &[crate::outline::ElementContent],
+    ) -> Option<Rescan> {
+        let target = jump_target(&last.nodes, plan.container, direction)?;
+        let down = direction == ScrollDirection::Down;
+        if !matches!(
+            crate::atspi_tree::scroll_to_edge(&target, down).await,
+            Ok(true)
+        ) {
+            return None;
+        }
+        let hint = plan.hint_ref.as_deref();
+        let started = std::time::Instant::now();
+        sleep(UNTIL_JUMP_WAIT).await;
+        let mut latest = self.read_page(&last.nodes, hint).await.ok()?;
+        let mut contents = crate::outline::element_contents(&latest.nodes);
+        while contents == previous {
+            if started.elapsed() >= UNTIL_JUMP_LIMIT {
+                return None;
+            }
+            sleep(UNTIL_JUMP_POLL).await;
+            latest = self.read_page(&latest.nodes, hint).await.ok()?;
+            contents = crate::outline::element_contents(&latest.nodes);
+        }
+        loop {
+            if !rendered_matches(&latest.nodes, &plan.query).is_empty()
+                || started.elapsed() >= SCROLL_UNTIL_SETTLE_LIMIT
+            {
+                return Some(latest);
+            }
+            sleep(UNTIL_JUMP_POLL).await;
+            let next = self.read_page(&latest.nodes, hint).await.ok()?;
+            let next_contents = crate::outline::element_contents(&next.nodes);
+            let stable = next_contents == contents;
+            latest = next;
+            contents = next_contents;
+            if stable {
+                return Some(latest);
             }
         }
     }
@@ -6097,7 +6176,18 @@ fn still_busy_after(busy: Option<&crate::page_view::Busy>, quiet_for: Duration) 
 }
 
 /// Most scroll steps one `scroll(until=…)` call makes in one direction.
-const SCROLL_UNTIL_MAX_STEPS: u32 = 80;
+const SCROLL_UNTIL_MAX_STEPS: u32 = 1_500;
+/// Longest one `scroll(until=…)` call keeps searching before it reports that
+/// the list goes on; well under the 120 s tool timeout clients use, and long
+/// enough to scan a list of thousands of rows in one call.
+const SCROLL_UNTIL_BUDGET: Duration = Duration::from_secs(75);
+/// Wait after an `until` jump (`Component.ScrollTo`) before reading.
+const UNTIL_JUMP_WAIT: Duration = Duration::from_millis(30);
+/// Poll interval while a jump's re-render settles.
+const UNTIL_JUMP_POLL: Duration = Duration::from_millis(40);
+/// How long a jump may take to show any change before the step falls back
+/// to the wheel.
+const UNTIL_JUMP_LIMIT: Duration = Duration::from_millis(400);
 /// Wait after a scroll step before reading the tree.
 const SCROLL_UNTIL_STEP_WAIT: Duration = Duration::from_millis(100);
 /// How long a step's read may wait for Chromium's smooth scroll to settle.
@@ -6345,6 +6435,64 @@ const ROW_ROLES: [&str; 5] = [
 ];
 
 /// How many list, table and tree rows a read has.
+/// The element an `until` jump scrolls to an edge (`until_jump`): inside the
+/// scrolled area (`container`, else the visible web document), the rendered
+/// element lowest on the page whose top is below the area's top (going down;
+/// going up, the highest whose bottom is above the area's bottom), shorter
+/// than the area so a list's spacer or the area itself never counts; the
+/// shallowest such element when several share the edge. `None` when nothing
+/// qualifies (an empty or horizontal-only area).
+fn jump_target(
+    nodes: &[AccessibilityNode],
+    container: Option<u32>,
+    direction: ScrollDirection,
+) -> Option<String> {
+    let area = crate::page_view::shown_part(nodes, container)?;
+    let scope =
+        container.or_else(|| crate::page_view::document_parts(nodes).map(|p| p.document))?;
+    let parents: std::collections::HashMap<u32, Option<u32>> = nodes
+        .iter()
+        .map(|node| (node.index, node.parent_index))
+        .collect();
+    let inside = |mut id: u32| {
+        while let Some(Some(parent)) = parents.get(&id) {
+            if *parent == scope {
+                return true;
+            }
+            id = *parent;
+        }
+        false
+    };
+    let down = direction == ScrollDirection::Down;
+    let candidates = nodes.iter().filter(|node| {
+        let Some(b) = node.bounds.as_ref() else {
+            return false;
+        };
+        let toward = if down {
+            b.y > area.y + 1
+        } else {
+            b.y + b.height < area.y + area.height - 1
+        };
+        b.width > 0 && b.height > 0 && b.height < area.height && toward && inside(node.index)
+    });
+    let best = if down {
+        candidates.max_by_key(|node| {
+            (
+                node.bounds.as_ref().map_or(i32::MIN, |b| b.y),
+                std::cmp::Reverse(node.depth),
+            )
+        })
+    } else {
+        candidates.min_by_key(|node| {
+            (
+                node.bounds.as_ref().map_or(i32::MAX, |b| b.y + b.height),
+                node.depth,
+            )
+        })
+    };
+    best.map(|node| node.object_ref.clone())
+}
+
 fn row_count(nodes: &[AccessibilityNode]) -> usize {
     nodes
         .iter()
@@ -9787,6 +9935,51 @@ mod tests {
         assert_eq!(next_until_pass(Down, false, UntilStep::Cap), None);
         assert_eq!(next_until_pass(Down, false, UntilStep::Found), None);
         assert_eq!(next_until_pass(Up, false, UntilStep::End), None);
+    }
+
+    #[test]
+    fn until_jumps_to_the_last_rendered_row_inside_the_scrolled_area() {
+        let b = |y, height| {
+            Some(Bounds {
+                x: 10,
+                y,
+                width: 600,
+                height,
+            })
+        };
+        let child = |index, parent, depth, bounds, role: &str| AccessibilityNode {
+            parent_index: parent,
+            depth,
+            role: role.to_string(),
+            ..node(index, bounds)
+        };
+        let nodes = vec![
+            child(0, None, 0, b(0, 1000), "frame"),
+            child(1, Some(0), 1, b(100, 500), "section"), // the scrolled list
+            child(2, Some(1), 2, b(100, 90_000), "section"), // its spacer
+            child(3, Some(2), 3, b(150, 40), "section"),
+            child(4, Some(2), 3, b(400, 40), "section"),
+            child(5, Some(2), 3, b(640, 40), "section"), // rendered below the fold
+            child(6, Some(5), 4, b(640, 20), "static"),
+            child(7, Some(0), 1, b(900, 40), "push button"), // outside the list
+        ];
+        let reference = |index: u32| nodes[index as usize].object_ref.clone();
+        // Down: the lowest rendered row of the list, not its text, the spacer
+        // or the button outside it.
+        assert_eq!(
+            jump_target(&nodes, Some(1), ScrollDirection::Down),
+            Some(reference(5))
+        );
+        // Up: the highest row.
+        assert_eq!(
+            jump_target(&nodes, Some(1), ScrollDirection::Up),
+            Some(reference(3))
+        );
+        // A list with only its spacer has nothing to jump to.
+        assert_eq!(
+            jump_target(&nodes[..3], Some(1), ScrollDirection::Down),
+            None
+        );
     }
 
     #[test]

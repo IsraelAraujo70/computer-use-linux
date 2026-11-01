@@ -815,6 +815,22 @@ pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
 
 /// Asks the toolkit to scroll the element into view (`Component.ScrollTo`).
 pub(crate) async fn scroll_into_view(object_ref_id: &str) -> Result<bool> {
+    scroll_to(object_ref_id, atspi::ScrollType::Anywhere).await
+}
+
+/// Asks the toolkit to scroll the element to the top (`top`) or bottom edge
+/// of its scrolled area (`Component.ScrollTo`); Chromium does this at once,
+/// with no smooth-scroll animation.
+pub(crate) async fn scroll_to_edge(object_ref_id: &str, top: bool) -> Result<bool> {
+    let edge = if top {
+        atspi::ScrollType::TopEdge
+    } else {
+        atspi::ScrollType::BottomEdge
+    };
+    scroll_to(object_ref_id, edge).await
+}
+
+async fn scroll_to(object_ref_id: &str, kind: atspi::ScrollType) -> Result<bool> {
     let conn = connect().await?;
     let object_ref = object_ref_from_id(object_ref_id)?;
     let proxy = open_accessible(&conn, &object_ref).await?;
@@ -824,7 +840,7 @@ pub(crate) async fn scroll_into_view(object_ref_id: &str) -> Result<bool> {
         .component()
         .await
         .context("element does not expose the AT-SPI Component interface")?;
-    Ok(component.scroll_to(atspi::ScrollType::Anywhere).await?)
+    Ok(component.scroll_to(kind).await?)
 }
 
 /// Invokes the first action whose name appears in `preferred` (in that
