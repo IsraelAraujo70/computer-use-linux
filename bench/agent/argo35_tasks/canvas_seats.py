@@ -2,7 +2,7 @@ import math
 ID='a35-canvas-seats'
 CATEGORY='canvas'
 PAGE='argo35/canvas_seats.html'
-PROMPT='Choose seats F7 and F8, then click Confirmar assentos.'
+PROMPT="In Cinema • Reserva de assentos, choose F7 and F8. Then click 'Confirmar assentos'."
 WRONG=[{'seats': ['F7']}, {'seats': ['F7', 'F9']}, {'seats': ['F7', 'F8', 'F9']}]
 def check(state, root):
     if not isinstance(state,dict): return False, 'invalid state'

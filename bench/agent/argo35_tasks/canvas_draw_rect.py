@@ -2,7 +2,7 @@ import math
 ID='a35-canvas-draw-rect'
 CATEGORY='canvas'
 PAGE='argo35/canvas_draw_rect.html'
-PROMPT='Draw one rectangle covering the dashed Área do logo using Retângulo, then click Salvar.'
+PROMPT="In Estúdio • Identidade visual, use 'Retângulo' to draw exactly one rectangle covering 'Área do logo'. Then click 'Salvar'."
 WRONG=[{'shapes': []}, {'shapes': [{'type': 'ellipse', 'x': 320, 'y': 180, 'w': 420, 'h': 240}]}, {'shapes': [{'type': 'rect', 'x': 0, 'y': 0, 'w': 40, 'h': 20}]}]
 def check(state, root):
     if not isinstance(state,dict): return False, 'invalid state'
