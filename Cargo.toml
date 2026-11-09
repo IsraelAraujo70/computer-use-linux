@@ -47,11 +47,11 @@ zbus = "5.14.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSEnumerator", "NSString"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSData", "NSDate", "NSEnumerator", "NSGeometry", "NSObjCRuntime", "NSRunLoop", "NSString"] }
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFArray", "CFBase", "CFCGTypes", "CFDictionary", "CFNumber", "CFString"] }
 objc2-application-services = { version = "0.3.2", default-features = false, features = ["std", "libc", "objc2", "HIServices", "AXError", "AXUIElement", "AXValue", "AXValueConstants"] }
 objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "libc", "CGDirectDisplay", "CGEvent", "CGError", "CGEventTypes", "CGGeometry", "CGRemoteOperation", "CGWindow"] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "NSRunningApplication", "NSWorkspace"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "NSApplication", "NSColor", "NSControl", "NSEvent", "NSGraphics", "NSImage", "NSImageView", "NSResponder", "NSRunningApplication", "NSView", "NSWindow", "NSWorkspace"] }
 
 [profile.dev]
 # Keep file and line numbers in backtraces without full variable/type debug info.

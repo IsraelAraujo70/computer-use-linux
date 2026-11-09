@@ -111,6 +111,12 @@ fn click(x: f64, y: f64, button: u32, options: Options) -> Result<(), String> {
         }
         Ok(())
     };
+    let kind = if button <= 3 {
+        crate::macos::cursor::Kind::Click
+    } else {
+        crate::macos::cursor::Kind::Move
+    };
+    crate::macos::cursor::show(x, y, kind);
     match button {
         4 => wheel(0.0, -PIXELS_PER_WHEEL_CLICK),
         5 => wheel(0.0, PIXELS_PER_WHEEL_CLICK),

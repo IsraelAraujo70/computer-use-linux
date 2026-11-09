@@ -10,6 +10,8 @@ pub(crate) async fn run_from_env() -> Result<()> {
     diagnostics::hydrate_session_bus_env();
 
     match std::env::args().nth(1).as_deref() {
+        #[cfg(target_os = "macos")]
+        Some("cursor-overlay") => crate::macos::cursor::run_overlay(),
         Some("mcp") => server::serve_mcp().await,
         Some("doctor") => {
             let report = diagnostics::doctor_report();

@@ -4,6 +4,7 @@
 
 pub(crate) mod ax_tree;
 pub(crate) mod clipboard;
+pub(crate) mod cursor;
 pub(crate) mod diagnostics;
 pub(crate) mod display;
 pub(crate) mod dnd;

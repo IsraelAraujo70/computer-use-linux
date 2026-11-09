@@ -58,6 +58,29 @@ cat > "$PLIST" <<EOF
 </plist>
 EOF
 
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+# The agent's visible cursor: a click-through overlay that never takes
+# focus (background mode moves no real pointer, so this is how the user sees
+# where the agent works).
+CURSOR_LABEL=$LABEL.cursor
+CURSOR_PLIST=$HOME/Library/LaunchAgents/$CURSOR_LABEL.plist
+cat > "$CURSOR_PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$CURSOR_LABEL</string>
+  <key>ProgramArguments</key><array><string>$BIN</string><string>cursor-overlay</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardErrorPath</key><string>$SOCK_DIR/cursor.log</string>
+</dict>
+</plist>
+EOF
+
+for label in "$LABEL" "$CURSOR_LABEL"; do
+  launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
+done
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
+launchctl bootstrap "gui/$(id -u)" "$CURSOR_PLIST"
 echo "listening on $SOCK (grant Accessibility + Screen Recording to $BIN once)"

@@ -690,6 +690,7 @@ pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
         set_target(pid_of_ref(&object_ref).unwrap_or_default());
+        point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
         let error = unsafe {
             element.0.set_attribute_value(
                 &CFString::from_str("AXFocused"),
@@ -763,6 +764,7 @@ async fn perform_action_inner(
             None => actions.iter().position(|ax| ax == "AXPress").unwrap_or(0),
         };
         let ax = &actions[index];
+        point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
         perform(&element.0, ax)?;
         Ok(ActionInvocation {
             action_index: index as i32,
@@ -791,6 +793,7 @@ pub(crate) async fn invoke_preferred_action(
             return Ok(None);
         };
         let ax = &actions[index];
+        point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
         perform(&element.0, ax)?;
         Ok(Some(ActionInvocation {
             action_index: index as i32,
@@ -813,6 +816,23 @@ fn find_action(actions: &[String], wanted: &str) -> Option<usize> {
                     .iter()
                     .any(|alias| alias.eq_ignore_ascii_case(wanted)))
     })
+}
+
+/// Shows the agent's cursor at an element's center (best effort).
+fn point_cursor_at(element: &AXUIElement, kind: crate::macos::cursor::Kind) {
+    let position = ax_value(
+        &copy_attribute(element, "AXPosition"),
+        AXValueType::CGPoint,
+        CGPoint::ZERO,
+    );
+    let size = ax_value(
+        &copy_attribute(element, "AXSize"),
+        AXValueType::CGSize,
+        CGSize::ZERO,
+    );
+    if let (Some(p), Some(s)) = (position, size) {
+        crate::macos::cursor::show(p.x + s.width / 2.0, p.y + s.height / 2.0, kind);
+    }
 }
 
 fn perform(element: &AXUIElement, ax_action: &str) -> Result<()> {
