@@ -3396,7 +3396,7 @@ impl GetAppStateParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ScreenshotParams {
-    /// Draw a box and the element id [n] over each actionable element of the
+    /// Draw a box and the element id `[n]` over each actionable element of the
     /// last get_app_state, to act by id on what the image shows.
     #[serde(default)]
     annotate: Option<bool>,
