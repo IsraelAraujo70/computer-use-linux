@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "879b5c5461d5f488a077d1897c17583ee07f48ad69f6f39144c4bfff5eeb567d";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "ee295413793d552914c9ca55fff2b27d15cad991f5e6ffa0cbef54819f0c167b";
+export const GENERATED_TOOL_CATALOG_HASH = "4bf2b239f85b459d8756483c314ca0b7b0cccc117d42f82acd0d5f974fbf8886";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "c1c057e644a5091c82090ce84056e9bb4a149669e2dfc029984227dc13dc0de7";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -1142,7 +1142,7 @@ export const GENERATED_MCP_TOOLS =
       "properties": {
         "annotate": {
           "default": null,
-          "description": "Draw a box and the element id [n] over each actionable element of the\nlast get_app_state, to act by id on what the image shows.",
+          "description": "Draw a box and the element id `[n]` over each actionable element of the\nlast get_app_state, to act by id on what the image shows.",
           "type": [
             "boolean",
             "null"
