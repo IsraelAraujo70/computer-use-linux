@@ -5,12 +5,27 @@
 ignore = [
     # RUSTSEC-2026-0194 / RUSTSEC-2026-0195: quick-xml 0.39.x DoS issues
     # (quadratic dup-attribute check, unbounded namespace allocation).
-    # quick-xml is reachable only through wayland-scanner, a proc-macro that
-    # parses the *vendored* Wayland protocol XML at build time; it never
-    # touches attacker-controlled input and is absent from the shipped binary.
-    # Unignore when wayland-scanner releases with quick-xml >= 0.41
-    # (https://github.com/Smithay/wayland-rs — check `cargo update -p
-    # wayland-scanner && cargo tree -i quick-xml`).
+    # quick-xml is reachable only through zbus_xml, which zbus-lockstep (a
+    # dependency of atspi-common) uses to read the AT-SPI interface XML that
+    # ships inside the atspi crates. It never parses data from the D-Bus bus,
+    # the network or the user. (It used to come from wayland-scanner, removed
+    # with the X11-only refactor.)
+    # Unignore once no affected quick-xml (< 0.41) remains in the tree, e.g.
+    # after an atspi/zbus_xml upgrade (`cargo update -p atspi && cargo tree
+    # -i quick-xml --target x86_64-unknown-linux-gnu`; on macOS the target
+    # flag is needed, the crates are Linux-only).
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
+    # RUSTSEC-2026-0370 / RUSTSEC-2026-0371 / RUSTSEC-2026-0372: zvariant,
+    # zbus_names and zvariant_derive are unmaintained as standalone crates;
+    # zbus 6 absorbed them. Informational, no vulnerability. They come only
+    # through atspi / atspi-common / atspi-connection, whose newest release
+    # (atspi 0.30, atspi-common 0.14) still depends on zbus 5, so no upgrade
+    # removes them yet.
+    # Unignore when atspi releases on zbus >= 6 (`cargo search atspi`, then
+    # `cargo tree -i zvariant --target x86_64-unknown-linux-gnu` should be
+    # empty after the upgrade).
+    "RUSTSEC-2026-0370",
+    "RUSTSEC-2026-0371",
+    "RUSTSEC-2026-0372",
 ]

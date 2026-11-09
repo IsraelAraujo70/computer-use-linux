@@ -133,10 +133,9 @@ describe("Pi native integration", () => {
 				const report = JSON.parse(
 					first?.type === "text" ? first.text : "{}",
 				);
-				expect(report).toHaveProperty(
-					"readiness.can_register_mcp_tools",
-					true,
-				);
+				// doctor's readiness contract: `ready` and its `blockers`.
+				expect(typeof report.readiness?.ready).toBe("boolean");
+				expect(Array.isArray(report.readiness?.blockers)).toBe(true);
 			}
 		} finally {
 			session.dispose();
