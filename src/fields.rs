@@ -3,7 +3,7 @@
 //! read back from a field is the text that was asked for. The AT-SPI and
 //! keyboard work that uses them lives in the server.
 
-use crate::atspi_tree::AccessibilityNode;
+use crate::a11y::AccessibilityNode;
 use crate::outline::clean;
 
 /// How `set_value` changes an element.
@@ -568,7 +568,7 @@ pub(crate) fn option_candidates(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::atspi_tree::AccessibilityText;
+    use crate::a11y::AccessibilityText;
 
     fn tree_node(
         index: u32,

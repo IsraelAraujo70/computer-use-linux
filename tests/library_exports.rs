@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 use computer_use_linux::{
     atspi_tree::{snapshot_tree, AccessibilityNode},
     diagnostics::{doctor_report, hydrate_session_bus_env, Check, DoctorReport},

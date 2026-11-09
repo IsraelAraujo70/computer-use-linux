@@ -31,63 +31,10 @@ pub struct AccessibleAppSummary {
     pub bounds: Option<Bounds>,
 }
 
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct AccessibilityNode {
-    pub index: u32,
-    pub parent_index: Option<u32>,
-    pub depth: u32,
-    pub object_ref: String,
-    pub role: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub child_count: i32,
-    pub bounds: Option<Bounds>,
-    pub states: Vec<String>,
-    pub actions: Vec<AccessibilityAction>,
-    pub value: Option<AccessibilityValue>,
-    pub text: Option<AccessibilityText>,
-    pub supports_editable_text: bool,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct Bounds {
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct AccessibilityAction {
-    pub index: i32,
-    pub name: String,
-    pub description: String,
-    pub keybinding: String,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct AccessibilityValue {
-    pub current: f64,
-    pub minimum: f64,
-    pub maximum: f64,
-    pub minimum_increment: f64,
-    pub text: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct AccessibilityText {
-    pub character_count: i32,
-    pub caret_offset: Option<i32>,
-    pub content: Option<String>,
-    pub truncated: bool,
-    pub selections: Vec<AccessibilityTextSelection>,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct AccessibilityTextSelection {
-    pub start_offset: i32,
-    pub end_offset: i32,
-}
+pub use crate::a11y::{
+    AccessibilityAction, AccessibilityNode, AccessibilityText, AccessibilityTextSelection,
+    AccessibilityValue, Bounds,
+};
 
 #[derive(Debug, Clone)]
 pub struct ActionInvocation {

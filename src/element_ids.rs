@@ -2,7 +2,7 @@
 //! the server's lifetime, so an `[n]` printed by any earlier result still names
 //! the same element after the page changes and the tree is read again.
 
-use crate::atspi_tree::AccessibilityNode;
+use crate::a11y::AccessibilityNode;
 use std::collections::HashMap;
 
 /// Ids keyed by AT-SPI object ref (`:bus/path`), from a counter that never

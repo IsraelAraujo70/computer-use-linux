@@ -2,7 +2,7 @@
 //! and result uses, and the query matcher of `find_elements` and `wait_for`.
 //! `[n]` in a line is the element's stable id, what `click` and friends take.
 
-use crate::atspi_tree::{AccessibilityAction, AccessibilityNode};
+use crate::a11y::{AccessibilityAction, AccessibilityNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write as _;

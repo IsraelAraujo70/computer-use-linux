@@ -1,4 +1,6 @@
+#[cfg(target_os = "linux")]
 use crate::diagnostics::hydrate_session_bus_env;
+#[cfg(target_os = "linux")]
 use crate::x11_display::{is_native_x11_session, with_x11_display, X11_CAPTURE_TIMEOUT};
 use anyhow::{bail, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -123,12 +125,14 @@ impl ScreenshotPayloadOptions {
     }
 }
 
+#[cfg(target_os = "linux")]
 /// Capture the root window of the X display named by `DISPLAY`.
 pub async fn capture_screenshot_raw() -> Result<RawScreenshotCapture> {
     hydrate_session_bus_env();
     capture_with_x11().await
 }
 
+#[cfg(target_os = "linux")]
 /// `GetImage` on the root window of a native X11 session. Pixels are device
 /// pixels, the space xdotool/XTEST input and X11 window origins use.
 async fn capture_with_x11() -> Result<RawScreenshotCapture> {
@@ -150,6 +154,7 @@ async fn capture_with_x11() -> Result<RawScreenshotCapture> {
     })
 }
 
+#[cfg(target_os = "linux")]
 fn encode_rgb_png(width: u32, height: u32, rgb: Vec<u8>) -> Result<Vec<u8>> {
     let buffer = image::RgbImage::from_raw(width, height, rgb)
         .context("X11 root image did not match its dimensions")?;
@@ -160,6 +165,7 @@ fn encode_rgb_png(width: u32, height: u32, rgb: Vec<u8>) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+#[cfg(target_os = "linux")]
 pub async fn capture_screenshot() -> Result<ScreenshotCapture> {
     let _pipeline = screenshot_pipeline_permit().await?;
     let raw = capture_screenshot_raw().await?;

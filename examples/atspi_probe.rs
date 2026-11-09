@@ -1,6 +1,12 @@
 // Scratch probe: surface the real AT-SPI connection error chain.
+#[cfg(target_os = "linux")]
 use atspi_connection::AccessibilityConnection;
 
+// AT-SPI exists only on Linux.
+#[cfg(not(target_os = "linux"))]
+fn main() {}
+
+#[cfg(target_os = "linux")]
 #[tokio::main]
 async fn main() {
     println!(

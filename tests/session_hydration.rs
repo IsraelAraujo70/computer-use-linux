@@ -1,3 +1,4 @@
+#![cfg(target_os = "linux")]
 use computer_use_linux::diagnostics::hydrate_session_bus_env;
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 

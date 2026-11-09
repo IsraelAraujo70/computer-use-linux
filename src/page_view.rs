@@ -8,7 +8,7 @@
 //! stays within `OUTLINE_MAX_LINES` and `OUTLINE_MAX_BYTES`; their lines say
 //! `(below)`, `(above)` or `(off-screen)` instead of a position.
 
-use crate::atspi_tree::{AccessibilityNode, Bounds};
+use crate::a11y::{AccessibilityNode, Bounds};
 use crate::outline::{clean, element_label, render_line, render_line_placed, truncate};
 use std::collections::{HashMap, HashSet};
 
@@ -1213,7 +1213,7 @@ fn content_key(node: &AccessibilityNode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::atspi_tree::AccessibilityText;
+    use crate::a11y::AccessibilityText;
 
     fn node(id: u32, parent: Option<u32>, role: &str, name: &str) -> AccessibilityNode {
         AccessibilityNode {
