@@ -112,6 +112,15 @@ def element(outline, role, name):
     return int(match.group(1))
 
 
+# Safety first, before any target exists: input must never fall back to the
+# user's frontmost app, and an unknown app name must not either.
+text, error = call("type_text", {"text": "x"})
+check("type_text without a target app is refused", error and "no target app" in text, text)
+text, error = call("get_app_state", {"app_name_or_bundle_identifier": "NoSuchApp-cul-smoke"})
+check("an unknown app name is an error, not the frontmost app", "no running app matches" in text, text)
+text, error = call("type_text", {"text": "x"})
+check("still no target after the failed read", error and "no target app" in text, text)
+
 state, _ = call("get_app_state", {"app_name_or_bundle_identifier": browser})
 check("outline has url and page rule", "cul-smoke/form.html" in state and "--- page ---" in state, state)
 check("off-page element is marked below", 'static "Fim da página" (below)' in state, state)

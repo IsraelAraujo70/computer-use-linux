@@ -41,7 +41,9 @@ async fn launch(name: &str) -> Result<String> {
                 .into_iter()
                 .find(|app| app.pid == pid)
         });
-        if let Some(app) = found {
+        // Running is not ready: wait for a window AX can read, so the next
+        // get_app_state finds the app instead of failing.
+        if let Some(app) = found.filter(|app| crate::macos::ax_tree::has_windows(app.pid)) {
             crate::macos::ax_tree::set_target(app.pid);
             return Ok(format!(
                 "opened {} (pid {}) in the background; it is now the agent's app",

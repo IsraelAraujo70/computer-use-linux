@@ -319,10 +319,12 @@ pub(crate) fn set_target(pid: u32) {
     }
 }
 
-/// The agent's target app, else the frontmost app.
+/// The agent's target app: the last app it named or acted on. Never a
+/// guess: without one, input is refused rather than sent to the user's
+/// frontmost app.
 pub(crate) fn target_pid() -> Option<u32> {
     match TARGET_PID.load(Ordering::Relaxed) {
-        0 => frontmost_pid(),
+        0 => None,
         pid => Some(pid),
     }
 }
@@ -420,28 +422,61 @@ fn all_apps() -> Vec<RunningApp> {
     apps_with(|_| true)
 }
 
+/// Running apps, read so they stay current in this run-loop-less server:
+/// NSWorkspace's list only updates on a run loop, so dead pids are dropped
+/// from it and apps owning on-screen windows (read live from the window
+/// server) are added. An app launched or relaunched after the server
+/// started is found once it shows a window.
 fn apps_with(keep: impl Fn(NSApplicationActivationPolicy) -> bool) -> Vec<RunningApp> {
     let frontmost = frontmost_pid();
-    let mut apps: Vec<RunningApp> = NSWorkspace::sharedWorkspace()
-        .runningApplications()
-        .iter()
-        .filter(|app| keep(app.activationPolicy()))
-        .map(|app| RunningApp {
+    let describe = |app: &NSRunningApplication| {
+        let pid = app.processIdentifier() as u32;
+        RunningApp {
             name: app
                 .localizedName()
                 .map(|name| name.to_string())
                 .unwrap_or_default(),
             bundle_id: app.bundleIdentifier().map(|id| id.to_string()),
-            pid: app.processIdentifier() as u32,
-            active: Some(app.processIdentifier() as u32) == frontmost,
+            pid,
+            active: Some(pid) == frontmost,
             bundle_name: app
                 .bundleURL()
                 .and_then(|url| url.lastPathComponent())
                 .map(|name| name.to_string().trim_end_matches(".app").to_string()),
-        })
+        }
+    };
+    let mut apps: Vec<RunningApp> = NSWorkspace::sharedWorkspace()
+        .runningApplications()
+        .iter()
+        .filter(|app| process_alive(app.processIdentifier() as u32))
+        .filter(|app| keep(app.activationPolicy()))
+        .map(|app| describe(&app))
         .collect();
+    let mut owners: Vec<u32> = crate::windowing::backends::mac::on_screen_windows()
+        .into_iter()
+        .map(|window| window.pid)
+        .collect();
+    owners.dedup();
+    for pid in owners {
+        if apps.iter().any(|app| app.pid == pid) {
+            continue;
+        }
+        if let Some(app) =
+            NSRunningApplication::runningApplicationWithProcessIdentifier(pid as libc::pid_t)
+        {
+            if keep(app.activationPolicy()) {
+                apps.push(describe(&app));
+            }
+        }
+    }
     apps.sort_by_key(|app| !app.active);
     apps
+}
+
+fn process_alive(pid: u32) -> bool {
+    // Signal 0 checks existence; EPERM still means it exists.
+    let alive = unsafe { libc::kill(pid as libc::pid_t, 0) } == 0;
+    alive || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
 /// Name and bundle id of the app owning `pid`.
@@ -547,18 +582,25 @@ pub(crate) async fn snapshot_accessibility_tree(
     let filter = app_name_or_bundle_identifier.map(str::to_string);
     blocking(move || {
         ensure_ready()?;
-        let (pid, scoped) = match (target_pid, filter.as_deref().and_then(match_app)) {
+        // A name that matches nothing is an error, never "the frontmost app
+        // instead": in background mode the read app becomes the agent's input
+        // target, and the frontmost app is the user's.
+        let filter = filter.as_deref().map(str::trim).filter(|name| !name.is_empty());
+        let (pid, scoped) = match (target_pid, filter) {
             (Some(pid), _) => (pid, true),
-            (None, Some(pid)) => (pid, true),
-            (None, None) => (
-                running_apps()
-                    .first()
-                    .map(|app| app.pid)
-                    .context("no running apps")?,
-                false,
+            (None, Some(name)) => (
+                match_app(name).with_context(|| {
+                    format!("no running app matches {name:?}; list_apps shows what runs, app mode=launch opens one")
+                })?,
+                true,
             ),
+            (None, None) => (frontmost_pid().context("no frontmost app")?, false),
         };
-        set_target(pid);
+        // Only a named app becomes the agent's target; an unscoped read of the
+        // user's frontmost app is for looking only.
+        if scoped {
+            set_target(pid);
+        }
         let app = app_element(pid);
         let (nodes, truncated) = traverse(pid, vec![(app, 0)], max_nodes, max_depth);
         if nodes.is_empty() {
@@ -1175,6 +1217,11 @@ fn find_window(
         .find(|window| matches(window))
         .or(windows.first())
         .cloned()
+}
+
+/// Whether the app has a window AX can read (it finished launching).
+pub(crate) fn has_windows(pid: u32) -> bool {
+    !app_windows(pid).is_empty()
 }
 
 fn app_windows(pid: u32) -> Vec<CFRetained<AXUIElement>> {
