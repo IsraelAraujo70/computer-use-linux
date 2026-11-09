@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- macOS backend: the same server and tools over AX, CGEvent and the window server, always in the background: keys to the agent's app by pid, clicks as accessibility actions, scrolling by scroll bar, a focus guard that hands the front back, and a visible agent cursor overlay. It is installed as a LaunchAgent behind a Unix socket (`scripts/macos-launchagent.sh`) so TCC grants belong to the signed binary. `get_app_state` warns about other apps' dialogs, and actions on password and permission prompts are refused.
+- Tools `app` (launch, switch, resize), `wait`, `notification` and `scrape` (public pages only, SSRF-guarded), and `screenshot` `annotate`, which labels elements with their ids.
 - Servers that share a display take turns with its pointer, focus and keyboard: `click`, `drag`, `scroll`, `type_text`, `press_key`, `activate_window`, `drop_files`, the focus step of window-targeted `screenshot`/`ocr`, and `set_value`/`fill_form` when they fall back to clicks or typing hold an `flock` on `$XDG_RUNTIME_DIR/computer-use-linux/input-<display>.lock`. A call that waits longer than `COMPUTER_USE_LINUX_INPUT_LOCK_TIMEOUT_MS` (default 10000) fails with a retry message and sends nothing. The lock goes away with a killed server, after any `xdotool` it started has finished sending input.
 
 ### Changed
