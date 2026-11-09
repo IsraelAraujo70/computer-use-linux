@@ -1,7 +1,7 @@
 use crate::command_runner;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
-use crate::windowing::types::{WindowBounds, WindowInfo};
+use crate::windowing::types::{WindowBounds, WindowGeometry, WindowInfo};
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::{env, fs, os::unix::fs::FileTypeExt, path::PathBuf, process::Command};
@@ -77,7 +77,27 @@ pub(crate) fn parse_i3_tree(json: &str) -> Result<Vec<WindowInfo>> {
 }
 
 pub async fn activate_window(window_id: u64) -> Result<()> {
-    let selector = format!(r#"[id="0x{window_id:x}"] focus"#);
+    run_window_command(window_id, "focus").await
+}
+
+/// Floats the window and moves and/or resizes it.
+pub async fn resize_window(window_id: u64, geometry: WindowGeometry) -> Result<()> {
+    run_window_command(window_id, &resize_command(geometry)).await
+}
+
+pub(crate) fn resize_command(geometry: WindowGeometry) -> String {
+    let mut parts = vec!["floating enable".to_string()];
+    if let (Some(x), Some(y)) = (geometry.x, geometry.y) {
+        parts.push(format!("move position {x} px {y} px"));
+    }
+    if let (Some(width), Some(height)) = (geometry.width, geometry.height) {
+        parts.push(format!("resize set {width} px {height} px"));
+    }
+    parts.join(", ")
+}
+
+async fn run_window_command(window_id: u64, action: &str) -> Result<()> {
+    let selector = format!(r#"[id="0x{window_id:x}"] {action}"#);
     let mut command = i3_msg_command_async();
     command.arg(&selector);
     let output = command_runner::output(command, &format!("run i3-msg {selector}")).await?;
@@ -89,7 +109,7 @@ pub async fn activate_window(window_id: u64) -> Result<()> {
     }
 
     let replies: Vec<I3CommandReply> =
-        serde_json::from_slice(&output.stdout).context("failed to parse i3-msg focus reply")?;
+        serde_json::from_slice(&output.stdout).context("failed to parse i3-msg reply")?;
     if replies.iter().all(|reply| reply.success) {
         Ok(())
     } else {

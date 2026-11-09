@@ -282,6 +282,10 @@ pub(crate) struct RunningApp {
     pub bundle_id: Option<String>,
     pub pid: u32,
     pub active: bool,
+    /// The bundle's file name without `.app` (`Calculator` while the
+    /// localized name is `Calculadora`), so English names match on any
+    /// system language.
+    pub bundle_name: Option<String>,
 }
 
 /// Pid of the frontmost app, read live through AX. NSWorkspace's
@@ -323,6 +327,10 @@ fn apps_with(keep: impl Fn(NSApplicationActivationPolicy) -> bool) -> Vec<Runnin
             bundle_id: app.bundleIdentifier().map(|id| id.to_string()),
             pid: app.processIdentifier() as u32,
             active: Some(app.processIdentifier() as u32) == frontmost,
+            bundle_name: app
+                .bundleURL()
+                .and_then(|url| url.lastPathComponent())
+                .map(|name| name.to_string().trim_end_matches(".app").to_string()),
         })
         .collect();
     apps.sort_by_key(|app| !app.active);
@@ -343,7 +351,7 @@ pub(crate) fn app_identity(pid: u32) -> Option<(String, Option<String>)> {
 /// The app an `app_name_or_bundle_identifier` names: exact bundle id, exact
 /// name, then name or bundle id substring, case-insensitive; Dock apps
 /// first, then any other running app (Dock, menu bar extras).
-fn match_app(filter: &str) -> Option<u32> {
+pub(crate) fn match_app(filter: &str) -> Option<u32> {
     match_app_in(filter, &running_apps(), true).or_else(|| match_app_in(filter, &all_apps(), false))
 }
 
@@ -358,7 +366,12 @@ fn match_app_in(filter: &str, apps: &[RunningApp], substrings: bool) -> Option<u
     let lower = |value: &Option<String>| value.as_deref().map(str::to_lowercase);
     apps.iter()
         .find(|app| lower(&app.bundle_id).as_deref() == Some(needle.as_str()))
-        .or_else(|| apps.iter().find(|app| app.name.to_lowercase() == needle))
+        .or_else(|| {
+            apps.iter().find(|app| {
+                app.name.to_lowercase() == needle
+                    || lower(&app.bundle_name).as_deref() == Some(needle.as_str())
+            })
+        })
         .or_else(|| {
             apps.iter().filter(|_| substrings).find(|app| {
                 app.name.to_lowercase().contains(&needle)
@@ -958,6 +971,66 @@ pub(crate) fn select_window(
 ) -> Result<bool> {
     ensure_ready()?;
     set_target(pid);
+    let Some(window) = find_window(pid, title, frame) else {
+        return Ok(false);
+    };
+    let _ = unsafe {
+        window.set_attribute_value(
+            &CFString::from_str("AXMain"),
+            AsRef::<CFType>::as_ref(CFBoolean::new(true)),
+        )
+    };
+    Ok(true)
+}
+
+/// Moves and/or resizes the matching window of `pid` (AXPosition/AXSize).
+pub(crate) fn set_window_frame(
+    pid: u32,
+    title: Option<&str>,
+    frame: Option<(i32, i32, u32, u32)>,
+    geometry: crate::windowing::types::WindowGeometry,
+) -> Result<()> {
+    ensure_ready()?;
+    let window = find_window(pid, title, frame).context("the app has no accessible window")?;
+    let set = |name: &str, kind: AXValueType, value: NonNull<std::ffi::c_void>| -> Result<()> {
+        let value = unsafe { AXValue::new(kind, value) }.context("AXValueCreate failed")?;
+        let error = unsafe {
+            window.set_attribute_value(&CFString::from_str(name), AsRef::<CFType>::as_ref(&*value))
+        };
+        if error != AXError::Success {
+            bail!(
+                "setting {name} failed (AXError {}); the window may not be resizable",
+                error.0
+            );
+        }
+        Ok(())
+    };
+    if let (Some(x), Some(y)) = (geometry.x, geometry.y) {
+        let mut point = CGPoint::new(f64::from(x), f64::from(y));
+        set(
+            "AXPosition",
+            AXValueType::CGPoint,
+            NonNull::from(&mut point).cast(),
+        )?;
+    }
+    if let (Some(width), Some(height)) = (geometry.width, geometry.height) {
+        let mut size = CGSize::new(f64::from(width), f64::from(height));
+        set(
+            "AXSize",
+            AXValueType::CGSize,
+            NonNull::from(&mut size).cast(),
+        )?;
+    }
+    Ok(())
+}
+
+/// The AX window of `pid` matching a frame (from the window server), else
+/// a title, else its first window.
+fn find_window(
+    pid: u32,
+    title: Option<&str>,
+    frame: Option<(i32, i32, u32, u32)>,
+) -> Option<CFRetained<AXUIElement>> {
     let windows = app_windows(pid);
     let names = attribute_names();
     let matches = |window: &AXUIElement| {
@@ -983,20 +1056,11 @@ pub(crate) fn select_window(
         };
         same_frame || (title.is_some() && string(&values[Attr::Title as usize]).as_deref() == title)
     };
-    let Some(window) = windows
+    windows
         .iter()
         .find(|window| matches(window))
         .or(windows.first())
-    else {
-        return Ok(false);
-    };
-    let _ = unsafe {
-        window.set_attribute_value(
-            &CFString::from_str("AXMain"),
-            AsRef::<CFType>::as_ref(CFBoolean::new(true)),
-        )
-    };
-    Ok(true)
+        .cloned()
 }
 
 fn app_windows(pid: u32) -> Vec<CFRetained<AXUIElement>> {

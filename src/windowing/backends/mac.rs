@@ -3,7 +3,7 @@
 //! activation plus `AXRaise` on the matching AX window.
 
 use crate::windowing::registry::BackendProbe;
-use crate::windowing::types::{WindowBounds, WindowInfo};
+use crate::windowing::types::{WindowBounds, WindowGeometry, WindowInfo};
 use anyhow::{bail, Result};
 use objc2_core_foundation::{
     CFArray, CFDictionary, CFNumber, CFRetained, CFString, CFType, CGRect,
@@ -197,6 +197,22 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
     })
     .await
     .map_err(Into::into)
+}
+
+/// Moves and/or resizes the window through AX, in the background.
+pub async fn resize_window(window: &WindowInfo, geometry: WindowGeometry) -> Result<()> {
+    let Some(pid) = window.pid else {
+        bail!("window {} names no process", window.window_id);
+    };
+    let title = window.title.clone();
+    let frame = window
+        .bounds
+        .as_ref()
+        .and_then(|b| Some((b.x?, b.y?, b.width, b.height)));
+    tokio::task::spawn_blocking(move || {
+        crate::macos::ax_tree::set_window_frame(pid, title.as_deref(), frame, geometry)
+    })
+    .await?
 }
 
 /// Selects the window the agent works in, in the background: its app

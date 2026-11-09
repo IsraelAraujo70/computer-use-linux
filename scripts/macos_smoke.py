@@ -146,6 +146,27 @@ check("a click outside the target app is refused, not sent elsewhere", error, te
 text, error = call("screenshot", {"format": "jpeg", "max_width": 800})
 check("screenshot caption in points", '"coordinate_width"' in text, text)
 
+# A native app, opened in the background by its English name on any
+# system language, driven by a click and by keys sent to its process.
+text, error = call("app", {"mode": "launch", "name": "Calculator"})
+check("app launch opens Calculator in the background", not error and '"ok":true' in text, text)
+calc_pid = subprocess.run(["pgrep", "-x", "Calculator"], capture_output=True, text=True).stdout.split()
+safari_pid = calc_pid[0] if calc_pid else safari_pid  # Calculator must not come to the front either
+call("get_app_state", {"app_name_or_bundle_identifier": "calculator"})
+call("press_key", {"key": "Escape"})
+text, error = call("click", {"role": "push button", "name": "4"})
+check("click a native button by name", not error, text)
+text, error = call("type_text", {"text": "+5="})
+state, _ = call("get_app_state", {"app_name_or_bundle_identifier": "calculator"})
+check("keys reach the background native app (4+5=9)", re.search(r'static "\W*9\W*"', state) is not None, text + "\n" + state)
+text, error = call("app", {"mode": "resize", "name": "Calculator", "x": 120, "y": 140})
+check("app resize moves the window", '"ok":true' in text, text)
+
+text, error = call("scrape", {"url": "http://127.0.0.1/"})
+check("scrape refuses local addresses", error and "private or local" in text, text)
+text, error = call("wait", {"seconds": 0.2})
+check("wait", '"ok":true' in text, text)
+
 proc.stdin.close()
 print(f"\n{len(failures)} failed" if failures else "\nall passed")
 sys.exit(1 if failures else 0)

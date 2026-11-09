@@ -146,6 +146,22 @@ pub async fn activate_window(window: &WindowInfo) -> Result<()> {
     }
 }
 
+/// Moves and/or resizes a window through its backend.
+pub async fn resize_window(
+    window: &WindowInfo,
+    geometry: crate::windowing::types::WindowGeometry,
+) -> Result<()> {
+    match window.backend.as_str() {
+        #[cfg(target_os = "linux")]
+        I3_BACKEND => i3::resize_window(window.window_id, geometry).await,
+        #[cfg(target_os = "linux")]
+        X11_BACKEND => x11::resize_window(window.window_id, geometry).await,
+        #[cfg(target_os = "macos")]
+        MAC_BACKEND => mac::resize_window(window, geometry).await,
+        backend => Err(anyhow!("Unsupported window backend for resize: {backend}")),
+    }
+}
+
 pub async fn focused_window_for_backend(backend: &str) -> Result<Option<WindowInfo>> {
     let windows = match backend {
         #[cfg(target_os = "linux")]

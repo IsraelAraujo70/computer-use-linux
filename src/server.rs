@@ -2217,6 +2217,110 @@ impl ComputerUseLinux {
     }
 
     #[tool(
+        name = "app",
+        description = "Open, switch to, or move/resize an app window. mode=launch opens an app by name (Safari, Firefox; a bundle id on macOS, a desktop entry or program on Linux); on macOS it opens in the background and becomes the agent's app. mode=switch makes the app's window the one actions go to (macOS: without bringing it to the front). mode=resize sets x/y and/or width/height of window_id, of name's window, or of the focused window.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn app(&self, Parameters(params): Parameters<AppParams>) -> Json<ActionOutput> {
+        let received = Some(serde_json::json!(params.clone()));
+        let result = self.app_action(&params).await;
+        Json(ActionOutput {
+            ok: result.is_ok(),
+            implemented: true,
+            action: format!("app {}", params.mode.trim()),
+            message: result.unwrap_or_else(|error| error),
+            received,
+        })
+    }
+
+    #[tool(
+        name = "wait",
+        description = "Wait a number of seconds (0.1 to 60), e.g. for a page or app to finish loading. To wait for something specific, use wait_for.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn wait(&self, Parameters(params): Parameters<WaitParams>) -> Json<ActionOutput> {
+        let seconds = if params.seconds.is_finite() {
+            params.seconds.clamp(0.1, 60.0)
+        } else {
+            1.0
+        };
+        sleep(Duration::from_secs_f64(seconds)).await;
+        Json(ActionOutput {
+            ok: true,
+            implemented: true,
+            action: "wait".to_string(),
+            message: format!("waited {seconds} s"),
+            received: None,
+        })
+    }
+
+    #[tool(
+        name = "notification",
+        description = "Show a desktop notification to the user (title, message, optional subtitle and sound), e.g. to say a long task finished or needs them.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn notification(
+        &self,
+        Parameters(params): Parameters<NotificationParams>,
+    ) -> Json<ActionOutput> {
+        let result = crate::apps::notify(
+            &params.title,
+            &params.message,
+            params.subtitle.as_deref(),
+            params.sound.unwrap_or(false),
+        )
+        .await;
+        Json(ActionOutput {
+            ok: result.is_ok(),
+            implemented: true,
+            action: "notification".to_string(),
+            message: match result {
+                Ok(()) => "notification shown".to_string(),
+                Err(error) => format!("{error:#}"),
+            },
+            received: None,
+        })
+    }
+
+    #[tool(
+        name = "scrape",
+        description = "Fetch a public web page (http/https) and return its readable text: title, headings, paragraphs, list items and links as [text](href). No browser, no cookies or logins; private, local and tailnet addresses are refused. Use get_app_state for pages that need the user's session.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn scrape(&self, Parameters(params): Parameters<ScrapeParams>) -> CallToolResult {
+        let max_chars = params
+            .max_chars
+            .unwrap_or(crate::scrape::DEFAULT_MAX_CHARS)
+            .clamp(500, 200_000);
+        match crate::scrape::scrape(&params.url, max_chars).await {
+            Ok(text) => CallToolResult::success(vec![ContentBlock::text(text)]),
+            Err(error) => {
+                CallToolResult::error(vec![ContentBlock::text(format!("error: {error:#}"))])
+            }
+        }
+    }
+
+    #[tool(
         name = "run_shell",
         description = "Execute one explicitly approved /bin/sh command with same-user host authority. This tool is absent unless the server operator starts computer-use-linux with COMPUTER_USE_LINUX_ENABLE_SHELL=1. It is not sandboxed: the command can read or modify files and use the network with the server user's permissions. The inherited environment is cleared to a small desktop/runtime allowlist; pass any additional variables explicitly. Execution time and output are bounded: returned streams are truncated to 512 KiB, while a stream exceeding the 8 MiB collection ceiling fails the call without returning partial output. An audit digest is written to server stderr.",
         annotations(
@@ -2774,6 +2878,165 @@ struct ActivateWindowOutput {
     // response (serde) but omit it from the generated schema.
     #[schemars(skip)]
     received: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct AppParams {
+    /// launch, switch or resize.
+    mode: String,
+    /// App name (Safari, Firefox); a bundle id on macOS or a desktop entry
+    /// on Linux. Needed by launch and switch.
+    #[serde(default)]
+    name: Option<String>,
+    /// Window to resize (list_windows); default: name's window, else the
+    /// focused window.
+    #[serde(default)]
+    window_id: Option<u64>,
+    /// New left edge (resize), in screen pixels (points on macOS).
+    #[serde(default)]
+    x: Option<i32>,
+    /// New top edge (resize).
+    #[serde(default)]
+    y: Option<i32>,
+    /// New width (resize).
+    #[serde(default)]
+    width: Option<u32>,
+    /// New height (resize).
+    #[serde(default)]
+    height: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct WaitParams {
+    /// Seconds to wait, 0.1 to 60.
+    seconds: f64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct NotificationParams {
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    message: String,
+    #[serde(default)]
+    subtitle: Option<String>,
+    /// Play the default sound (macOS).
+    #[serde(default)]
+    sound: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct ScrapeParams {
+    /// http(s) URL of a public page.
+    url: String,
+    /// Characters of text to return (default 20000).
+    #[serde(default)]
+    max_chars: Option<usize>,
+}
+
+impl ComputerUseLinux {
+    /// The `app` tool's work; `Err` carries the message for the agent.
+    async fn app_action(&self, params: &AppParams) -> std::result::Result<String, String> {
+        let name = params
+            .name
+            .as_deref()
+            .map(str::trim)
+            .filter(|name| !name.is_empty());
+        let _guard = self.lock_input().await?;
+        match params.mode.trim().to_ascii_lowercase().as_str() {
+            "launch" => {
+                let name = name.ok_or("mode=launch needs name")?;
+                crate::apps::launch_app(name)
+                    .await
+                    .map_err(|error| format!("{error:#}"))
+            }
+            "switch" => {
+                let name = name.ok_or("mode=switch needs name")?;
+                let mut last_error = String::new();
+                for target in app_window_targets(name) {
+                    match focus_window_target(&target).await {
+                        Ok(focus) => {
+                            let window = focus
+                                .focused_window
+                                .as_ref()
+                                .unwrap_or(&focus.requested_window);
+                            return Ok(format!(
+                                "switched to {} window {} \"{}\" ({})",
+                                window.wm_class.as_deref().unwrap_or(name),
+                                window.window_id,
+                                window.title.as_deref().unwrap_or_default(),
+                                focus.note
+                            ));
+                        }
+                        Err(error) => last_error = format!("{error:#}"),
+                    }
+                }
+                Err(format!("no window of {name}: {last_error}"))
+            }
+            "resize" => {
+                let geometry = crate::windowing::WindowGeometry {
+                    x: params.x,
+                    y: params.y,
+                    width: params.width,
+                    height: params.height,
+                };
+                let moves = geometry.x.is_some() && geometry.y.is_some();
+                let sizes = geometry.width.is_some() && geometry.height.is_some();
+                if !moves && !sizes {
+                    return Err("mode=resize needs x and y, width and height, or both".to_string());
+                }
+                let windows = list_windows().await.map_err(|error| format!("{error:#}"))?;
+                let window = match (params.window_id, name) {
+                    (Some(id), _) => windows
+                        .iter()
+                        .find(|window| window.window_id == id)
+                        .cloned(),
+                    (None, Some(name)) => app_window_targets(name)
+                        .iter()
+                        .find_map(|target| resolve_window_target(&windows, target).ok().cloned()),
+                    (None, None) => windows.iter().find(|window| window.focused).cloned(),
+                }
+                .ok_or("no such window; check list_windows")?;
+                registry::resize_window(&window, geometry)
+                    .await
+                    .map_err(|error| format!("{error:#}"))?;
+                Ok(format!(
+                    "moved/resized window {} \"{}\"",
+                    window.window_id,
+                    window.title.as_deref().unwrap_or_default()
+                ))
+            }
+            other => Err(format!(
+                "unknown mode {other:?}: use launch, switch or resize"
+            )),
+        }
+    }
+}
+
+/// Window targets that may name an app: its class/app name, then its app
+/// id, then its title.
+fn app_window_targets(name: &str) -> Vec<WindowTarget> {
+    let by_pid = crate::apps::app_pid(name).map(|pid| WindowTarget {
+        pid: Some(pid),
+        ..WindowTarget::default()
+    });
+    by_pid
+        .into_iter()
+        .chain([
+            WindowTarget {
+                wm_class: Some(name.to_string()),
+                ..WindowTarget::default()
+            },
+            WindowTarget {
+                app_id: Some(name.to_string()),
+                ..WindowTarget::default()
+            },
+            WindowTarget {
+                title: Some(name.to_string()),
+                ..WindowTarget::default()
+            },
+        ])
+        .collect()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]

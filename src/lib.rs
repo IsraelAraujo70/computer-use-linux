@@ -1,4 +1,5 @@
 mod a11y;
+mod apps;
 #[cfg(target_os = "linux")]
 #[path = "atspi_tree.rs"]
 mod atspi_tree_impl;
@@ -18,6 +19,7 @@ mod macos;
 mod ocr;
 mod outline;
 mod page_view;
+mod scrape;
 #[path = "screenshot.rs"]
 mod screenshot_impl;
 mod server;

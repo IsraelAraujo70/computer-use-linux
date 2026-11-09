@@ -14,7 +14,7 @@ pub use target::{
     window_permission_hint,
 };
 #[allow(unused_imports)]
-pub use types::{WindowBounds, WindowFocusResult, WindowInfo, WindowTarget};
+pub use types::{WindowBounds, WindowFocusResult, WindowGeometry, WindowInfo, WindowTarget};
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {

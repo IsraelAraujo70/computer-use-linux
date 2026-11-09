@@ -140,10 +140,20 @@ fn type_text(pid: u32, text: &str, delay_ms: u64) -> Result<(), String> {
             other => {
                 let mut units = [0u16; 2];
                 let units = other.encode_utf16(&mut units);
+                // The ANSI key (and Shift) for characters that have one, so
+                // apps reading key codes (Calculator, games, shortcuts) get
+                // the key too; the Unicode string carries the character for
+                // text fields on any layout.
+                let (code, shift) = ansi_character(other).unwrap_or((0, false));
+                let flags = if shift {
+                    CGEventFlags::MaskShift
+                } else {
+                    CGEventFlags(0)
+                };
                 for down in [true, false] {
-                    let event = CGEvent::new_keyboard_event(None, 0, down)
+                    let event = CGEvent::new_keyboard_event(None, code, down)
                         .ok_or("CGEventCreateKeyboardEvent failed")?;
-                    CGEvent::set_flags(Some(&event), CGEventFlags(0));
+                    CGEvent::set_flags(Some(&event), flags);
                     unsafe {
                         CGEvent::keyboard_set_unicode_string(
                             Some(&event),
@@ -249,6 +259,57 @@ fn key_code(keysym: &str) -> Option<(CGKeyCode, bool)> {
     Some((named, false))
 }
 
+/// US ANSI key and Shift for a printable ASCII character.
+fn ansi_character(character: char) -> Option<(CGKeyCode, bool)> {
+    if character.is_ascii_alphanumeric() {
+        return ansi_code(character.to_ascii_lowercase())
+            .map(|code| (code, character.is_ascii_uppercase()));
+    }
+    let shifted = |base: char| ansi_symbol(base).map(|code| (code, true));
+    match character {
+        ' ' => Some((49, false)),
+        '!' => ansi_code('1').map(|code| (code, true)),
+        '@' => ansi_code('2').map(|code| (code, true)),
+        '#' => ansi_code('3').map(|code| (code, true)),
+        '$' => ansi_code('4').map(|code| (code, true)),
+        '%' => ansi_code('5').map(|code| (code, true)),
+        '^' => ansi_code('6').map(|code| (code, true)),
+        '&' => ansi_code('7').map(|code| (code, true)),
+        '*' => ansi_code('8').map(|code| (code, true)),
+        '(' => ansi_code('9').map(|code| (code, true)),
+        ')' => ansi_code('0').map(|code| (code, true)),
+        '_' => shifted('-'),
+        '+' => shifted('='),
+        '{' => shifted('['),
+        '}' => shifted(']'),
+        '|' => shifted('\\'),
+        ':' => shifted(';'),
+        '"' => shifted('\''),
+        '<' => shifted(','),
+        '>' => shifted('.'),
+        '?' => shifted('/'),
+        '~' => shifted('`'),
+        other => ansi_symbol(other).map(|code| (code, false)),
+    }
+}
+
+fn ansi_symbol(character: char) -> Option<CGKeyCode> {
+    Some(match character {
+        '=' => 24,
+        '-' => 27,
+        ']' => 30,
+        '[' => 33,
+        '\'' => 39,
+        ';' => 41,
+        '\\' => 42,
+        ',' => 43,
+        '/' => 44,
+        '.' => 47,
+        '`' => 50,
+        _ => return None,
+    })
+}
+
 fn ansi_code(character: char) -> Option<CGKeyCode> {
     Some(match character {
         'a' => 0,
@@ -304,5 +365,10 @@ mod tests {
         assert_eq!(key_code("Page_Down"), Some((121, false)));
         assert_eq!(key_code("NotAKey"), None);
         assert_eq!(modifier_key("super").map(|(code, _)| code), Some(55));
+        assert_eq!(ansi_character('+'), Some((24, true)));
+        assert_eq!(ansi_character('='), Some((24, false)));
+        assert_eq!(ansi_character('Q'), Some((12, true)));
+        assert_eq!(ansi_character(' '), Some((49, false)));
+        assert_eq!(ansi_character('ç'), None);
     }
 }
