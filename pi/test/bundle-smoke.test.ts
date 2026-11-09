@@ -48,7 +48,11 @@ describe.runIf(binary)("generated MCP client bundle", () => {
 			const result = await client.callTool("doctor", {});
 			expect(result.content?.[0]).toMatchObject({ type: "text" });
 			const report = JSON.parse(result.content?.[0]?.text ?? "{}");
-			expect(report).toHaveProperty("readiness.can_register_mcp_tools", true);
+			// doctor's readiness contract (src/diagnostics.rs): `ready` and
+			// the `blockers` that explain it. CI has no X display, so the
+			// value of `ready` is not asserted, only that the report is real.
+			expect(typeof report.readiness?.ready).toBe("boolean");
+			expect(Array.isArray(report.readiness?.blockers)).toBe(true);
 		} finally {
 			await client.close();
 		}
