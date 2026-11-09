@@ -857,8 +857,8 @@ fn parent_frame(element: &AXUIElement) -> Option<Bounds> {
 
 /// Whether an AXWebArea encloses `element` (bounded walk up AXParent).
 fn inside_web_area(element: &AXUIElement) -> bool {
-    let mut current = copy_attribute(element, "AXParent")
-        .and_then(|value| value.downcast::<AXUIElement>().ok());
+    let mut current =
+        copy_attribute(element, "AXParent").and_then(|value| value.downcast::<AXUIElement>().ok());
     for _ in 0..64 {
         let Some(node) = current else {
             return false;
