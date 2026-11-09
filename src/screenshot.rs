@@ -154,6 +154,66 @@ async fn capture_with_x11() -> Result<RawScreenshotCapture> {
     })
 }
 
+/// The desktop of every display through `screencapture -R`, from (0, 0) to
+/// the far display edge, at one pixel per point: pixels are the global
+/// point coordinates CGEvent input and AX bounds use, as on X11.
+#[cfg(target_os = "macos")]
+pub async fn capture_screenshot_raw() -> Result<RawScreenshotCapture> {
+    let (width, height) = crate::windowing::backends::mac::desktop_size();
+    if width == 0 || height == 0 {
+        bail!("no active display");
+    }
+    if !objc2_core_graphics::CGPreflightScreenCaptureAccess() {
+        bail!("Screen Recording permission missing for this binary (System Settings → Privacy & Security → Screen Recording)");
+    }
+    let path = std::env::temp_dir().join(format!(
+        "cul-shot-{}-{}.png",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_nanos())
+            .unwrap_or_default()
+    ));
+    let output = tokio::process::Command::new("/usr/sbin/screencapture")
+        .args(["-x", "-t", "png", &format!("-R0,0,{width},{height}")])
+        .arg(&path)
+        .output()
+        .await
+        .context("failed to run screencapture")?;
+    let bytes = std::fs::read(&path);
+    let _ = std::fs::remove_file(&path);
+    if !output.status.success() {
+        bail!(
+            "screencapture failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let bytes = bytes.context("screencapture wrote no image")?;
+    let (png_width, png_height) = png_dimensions(&bytes)?;
+    // A Retina-only capture comes back at 2x; keep pixels equal to points.
+    let bytes = if (png_width, png_height) == (width, height) {
+        bytes
+    } else {
+        run_image_task(move || {
+            let image = image::load_from_memory(&bytes).context("screencapture PNG is invalid")?;
+            let resized = image.resize_exact(width, height, FilterType::Triangle);
+            let mut out = Vec::new();
+            resized
+                .write_to(&mut Cursor::new(&mut out), image::ImageFormat::Png)
+                .context("failed to encode screenshot PNG")?;
+            Ok(out)
+        })
+        .await?
+    };
+    Ok(RawScreenshotCapture {
+        mime_type: "image/png".to_string(),
+        bytes,
+        source: "screencapture".to_string(),
+        width,
+        height,
+    })
+}
+
 #[cfg(target_os = "linux")]
 fn encode_rgb_png(width: u32, height: u32, rgb: Vec<u8>) -> Result<Vec<u8>> {
     let buffer = image::RgbImage::from_raw(width, height, rgb)
@@ -165,7 +225,6 @@ fn encode_rgb_png(width: u32, height: u32, rgb: Vec<u8>) -> Result<Vec<u8>> {
     Ok(out)
 }
 
-#[cfg(target_os = "linux")]
 pub async fn capture_screenshot() -> Result<ScreenshotCapture> {
     let _pipeline = screenshot_pipeline_permit().await?;
     let raw = capture_screenshot_raw().await?;

@@ -1,6 +1,11 @@
 use crate::{atspi_tree, diagnostics, screenshot, server, windows};
 use anyhow::{Context, Result};
 
+#[cfg(target_os = "linux")]
+const DEFAULT_WINDOW_BACKEND: &str = windows::I3_BACKEND;
+#[cfg(target_os = "macos")]
+const DEFAULT_WINDOW_BACKEND: &str = crate::windowing::registry::MAC_BACKEND;
+
 pub(crate) async fn run_from_env() -> Result<()> {
     diagnostics::hydrate_session_bus_env();
 
@@ -71,7 +76,7 @@ pub(crate) async fn run_from_env() -> Result<()> {
                     let backend = windows
                         .first()
                         .map(|window| window.backend.as_str())
-                        .unwrap_or(windows::I3_BACKEND);
+                        .unwrap_or(DEFAULT_WINDOW_BACKEND);
                     serde_json::json!({
                         "backend": backend,
                         "windows": windows,

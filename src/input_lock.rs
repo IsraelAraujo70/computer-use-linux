@@ -212,8 +212,11 @@ async fn lock_with_timeout(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
     use std::io::{BufRead, BufReader};
-    use std::process::{Command, Stdio};
+    use std::process::Command;
+    #[cfg(target_os = "linux")]
+    use std::process::Stdio;
 
     /// Whether the lock at `path` can be taken within a second. A child that
     /// another test forks keeps every descriptor until its `exec`, so a
@@ -261,6 +264,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(path.parent().unwrap());
     }
 
+    // Needs Linux: util-linux flock(1) / ETXTBSY on exec.
+    #[cfg(target_os = "linux")]
     #[test]
     fn a_killed_holder_process_releases_the_lock() {
         let path = temp_lock("killed");

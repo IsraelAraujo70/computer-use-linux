@@ -51,6 +51,8 @@ cat > "$PLIST" <<EOF
     </dict>
   </dict>
   <key>inetdCompatibility</key><dict><key>Wait</key><false/></dict>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
   <key>StandardErrorPath</key><string>$SOCK_DIR/stderr.log</string>
 </dict>
 </plist>
