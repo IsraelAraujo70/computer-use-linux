@@ -40,6 +40,10 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
         args.first().map(String::as_str).unwrap_or_default(),
         ax_tree::frontmost_pid()
     );
+    ax_tree::keep_user_focus(target, || run_commands(args, target))
+}
+
+fn run_commands(args: &[String], target: u32) -> Result<(), String> {
     let mut at: Option<(f64, f64)> = None;
     let mut tokens = args.iter().map(String::as_str).peekable();
     while let Some(command) = tokens.next() {

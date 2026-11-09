@@ -279,6 +279,39 @@ pub(crate) async fn floating_dialog_notes(target: Option<u32>) -> Vec<String> {
     .unwrap_or_default()
 }
 
+/// Runs an action on `target` and, if the front app changed meanwhile,
+/// gives the front straight back to the user's app. Some apps activate
+/// themselves or another app on certain actions (Chrome opening a `<select>`
+/// popup or a window, a Dock item opening its app); background mode must
+/// never leave the user typing into something else. The check spans about
+/// 270 ms after the action, when such activations land; a switch the user
+/// makes in exactly that span is undone too (rare, and logged).
+pub(crate) fn keep_user_focus<T>(target: u32, action: impl FnOnce() -> T) -> T {
+    let _ = target;
+    let user = frontmost_pid();
+    let result = action();
+    if let Some(user) = user {
+        for pause in [0, 40, 80, 150] {
+            std::thread::sleep(Duration::from_millis(pause));
+            let now = frontmost_pid();
+            if now.is_some() && now != Some(user) {
+                let _ = unsafe {
+                    app_element(user).set_attribute_value(
+                        &CFString::from_str("AXFrontmost"),
+                        AsRef::<CFType>::as_ref(CFBoolean::new(true)),
+                    )
+                };
+                eprintln!(
+                    "focus guard: pid {:?} took the front during an agent action; gave it back to pid {user}",
+                    now
+                );
+                break;
+            }
+        }
+    }
+    result
+}
+
 /// Makes `pid` the app the agent's input goes to.
 pub(crate) fn set_target(pid: u32) {
     if pid != 0 {
@@ -780,12 +813,12 @@ pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
         ensure_actionable(pid)?;
         set_target(pid);
         point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
-        let error = unsafe {
+        let error = keep_user_focus(pid, || unsafe {
             element.0.set_attribute_value(
                 &CFString::from_str("AXFocused"),
                 AsRef::<CFType>::as_ref(CFBoolean::new(true)),
             )
-        };
+        });
         Ok(error == AXError::Success)
     })
     .await
@@ -856,7 +889,7 @@ async fn perform_action_inner(
         };
         let ax = &actions[index];
         point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
-        perform(&element.0, ax)?;
+        keep_user_focus(pid, || perform(&element.0, ax))?;
         Ok(ActionInvocation {
             action_index: index as i32,
             action_name: Some(atspi_action(ax).unwrap_or(ax).to_string()),
@@ -887,7 +920,7 @@ pub(crate) async fn invoke_preferred_action(
         };
         let ax = &actions[index];
         point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
-        perform(&element.0, ax)?;
+        keep_user_focus(pid, || perform(&element.0, ax))?;
         Ok(Some(ActionInvocation {
             action_index: index as i32,
             action_name: Some(atspi_action(ax).unwrap_or(ax).to_string()),
@@ -1540,6 +1573,11 @@ fn read_node(
     // the first in AXValue and the second in AXDescription when untitled.
     let name = match ax_role.as_str() {
         "AXStaticText" => value_text.clone().or(title.clone()),
+        // Chrome's <select> options: empty AXTitle, the text in AXValue.
+        "AXMenuItem" => title
+            .clone()
+            .or(ax_description.clone())
+            .or(value_text.clone()),
         _ => title.clone().or(ax_description.clone()),
     }
     .or_else(|| {
@@ -1613,14 +1651,14 @@ fn read_node(
         states.push("checkable".into());
         if value_number == Some(1.0) {
             // The shown tab is the selected one, as AT-SPI page tabs say.
-            states.push(
-                if role == "page tab" {
-                    "selected"
-                } else {
-                    "checked"
-                }
-                .into(),
-            );
+            let state = if role == "page tab" {
+                "selected"
+            } else {
+                "checked"
+            };
+            if !states.iter().any(|existing| existing == state) {
+                states.push(state.into());
+            }
         }
         if value_number == Some(2.0) {
             states.push("indeterminate".into());

@@ -8,7 +8,7 @@ asserts what the page shows afterwards, read back through the tree, and
 that Safari never became the frontmost app (background mode). Exit status
 0 means all steps passed.
 
-Usage: scripts/macos_smoke.py [--sock PATH]
+Usage: scripts/macos_smoke.py [--sock PATH] [--app Safari|"Google Chrome"]
 """
 import argparse
 import json
@@ -33,15 +33,27 @@ FORM = """<!doctype html><html><head><meta charset="utf-8"><title>Teste CUL</tit
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--sock", default=os.path.expanduser("~/.local/state/computer-use-mac/mcp.sock"))
+parser.add_argument("--app", default="Safari", help="browser to drive: Safari or Google Chrome")
+parser.add_argument("--mac-idle", action="store_true", help="the Mac is not in use (needed for Chrome)")
 opts = parser.parse_args()
+if opts.app != "Safari" and not opts.mac_idle:
+    # Chrome brings itself to the front when it opens a window, which the
+    # harness has to do; run it only while nobody is using the Mac.
+    raise SystemExit("Chrome needs --mac-idle: opening its test window takes the front")
 
 # A fixed path, so Safari reuses its tab instead of opening one per run.
 page = os.path.join(tempfile.gettempdir(), "cul-smoke", "form.html")
 os.makedirs(os.path.dirname(page), exist_ok=True)
 open(page, "w").write(FORM)
-subprocess.run(["open", "-g", "-a", "Safari", page], check=True)
-time.sleep(2)
-safari_pid = subprocess.run(["pgrep", "-x", "Safari"], capture_output=True, text=True).stdout.split()[0]
+if opts.app == "Safari":
+    subprocess.run(["open", "-g", "-a", "Safari", page], check=True)
+else:
+    # A new window, so the user's own tabs stay as they are.
+    subprocess.run(["open", "-g", "-n", "-a", opts.app, "--args", "--new-window", "file://" + page], check=True)
+time.sleep(3)
+# The browser's main process (Chrome's helpers share its name prefix only).
+safari_pid = subprocess.run(["pgrep", "-x", opts.app], capture_output=True, text=True).stdout.split()[0]
+browser = opts.app.lower()
 
 
 def frontmost_pid():
@@ -86,7 +98,7 @@ def check(name, condition, detail):
     front = frontmost_pid()
     if front == safari_pid:
         condition = False
-        detail = f"Safari (pid {safari_pid}) became the frontmost app: background mode broken\n" + detail
+        detail = f"{opts.app} (pid {safari_pid}) became the frontmost app: background mode broken\n" + detail
     print(("PASS " if condition else "FAIL ") + name)
     if not condition:
         failures.append(name)
@@ -100,8 +112,8 @@ def element(outline, role, name):
     return int(match.group(1))
 
 
-state, _ = call("get_app_state", {"app_name_or_bundle_identifier": "safari"})
-check("outline has url and page rule", "url=file://" in state and "--- page ---" in state, state)
+state, _ = call("get_app_state", {"app_name_or_bundle_identifier": browser})
+check("outline has url and page rule", "cul-smoke/form.html" in state and "--- page ---" in state, state)
 check("off-page element is marked below", 'static "Fim da página" (below)' in state, state)
 nome = element(state, "entry", "Nome")
 obs = element(state, "entry", "Observação")
@@ -133,10 +145,10 @@ check("the page saw typing (input events), not a silent value write", bool(event
 text, error = call("scroll", {"element_index": document, "direction": "down", "until": {"name": "Fim da página"}})
 check("scroll until reaches the page end", not error and "Fim da página" in text, text)
 
-text, error = call("find_elements", {"app_name_or_bundle_identifier": "safari", "role": "push button", "name": "Enviar"})
+text, error = call("find_elements", {"app_name_or_bundle_identifier": browser, "role": "push button", "name": "Enviar"})
 check("find_elements finds the button", 'push button \\"Enviar\\"' in text, text)
 
-text, error = call("press_key", {"key": "Cmd+Up", "app_id": "com.apple.Safari"})
+text, error = call("press_key", {"key": "Cmd+Up"})
 check("press_key chord in the target app", not error, text)
 
 # The Dock edge of the main display: never a Safari window.
@@ -146,7 +158,7 @@ check("a click outside the target app is refused, not sent elsewhere", error, te
 text, error = call("screenshot", {"format": "jpeg", "max_width": 800})
 check("screenshot caption in points", '"coordinate_width"' in text, text)
 
-call("get_app_state", {"app_name_or_bundle_identifier": "safari"})
+call("get_app_state", {"app_name_or_bundle_identifier": browser})
 text, error = call("screenshot", {"pid": int(safari_pid), "annotate": True, "max_width": 900})
 labels = re.search(r'"annotated_elements":(\d+)', text)
 check("annotated screenshot of the background window labels its elements", '"cropped_to_window":true' in text and bool(labels) and int(labels.group(1)) >= 5, text)
