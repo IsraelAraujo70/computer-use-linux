@@ -603,6 +603,8 @@ impl ComputerUseLinux {
             truncated_accessibility_tree_note(accessibility_tree_truncated).map(str::to_string),
         );
         notes.extend(shell_only_note.map(str::to_string));
+        #[cfg(target_os = "macos")]
+        notes.extend(crate::macos::ax_tree::floating_dialog_notes(tree_root_pid).await);
         notes.extend(
             diagnostics
                 .readiness

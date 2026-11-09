@@ -34,6 +34,7 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
     }
     let target = ax_tree::target_pid()
         .ok_or("no target app: call get_app_state or act on an element first")?;
+    ax_tree::ensure_actionable(target).map_err(|error| format!("{error:#}"))?;
     eprintln!(
         "input: {} -> target pid {target}, frontmost pid {:?}",
         args.first().map(String::as_str).unwrap_or_default(),

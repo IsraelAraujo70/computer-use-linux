@@ -205,6 +205,80 @@ fn pid_of_ref(object_ref: &str) -> Option<u32> {
 
 static TARGET_PID: AtomicU32 = AtomicU32::new(0);
 
+/// System processes that ask the user for a password, a fingerprint or a
+/// privacy permission. The agent may read them but never act on them: an
+/// agent that could answer them could grant itself access.
+const PROTECTED_BUNDLES: [&str; 6] = [
+    "com.apple.SecurityAgent",
+    "com.apple.UserNotificationCenter",
+    "com.apple.universalaccessAuthWarn",
+    "com.apple.LocalAuthentication.UIAgent",
+    "com.apple.coreservices.uiagent",
+    "com.apple.CoreLocationAgent",
+];
+
+fn protected_bundle(bundle: &str) -> bool {
+    PROTECTED_BUNDLES.contains(&bundle)
+}
+
+/// Refuses input to a protected system prompt (`PROTECTED_BUNDLES`).
+pub(crate) fn ensure_actionable(pid: u32) -> Result<()> {
+    if let Some((name, Some(bundle))) = app_identity(pid) {
+        if protected_bundle(&bundle) {
+            bail!("{name} ({bundle}) is a system security prompt; only the user can answer it");
+        }
+    }
+    Ok(())
+}
+
+/// Notes for dialogs of other apps floating over the screen (alerts,
+/// permission and password prompts): they may block what the agent does,
+/// and security prompts are the user's to answer.
+pub(crate) async fn floating_dialog_notes(target: Option<u32>) -> Vec<String> {
+    blocking(move || {
+        let windows = crate::windowing::backends::mac::on_screen_windows();
+        let mut notes = Vec::new();
+        let mut seen = HashSet::new();
+        // Above normal windows (layer 0), below the Dock/menu bar/overlays.
+        for window in windows.iter().filter(|w| (1..20).contains(&w.layer)) {
+            if Some(window.pid) == target || !seen.insert(window.pid) {
+                continue;
+            }
+            let protected = ensure_actionable(window.pid).is_err();
+            let modal = protected || {
+                let app = app_element(window.pid);
+                let _ = unsafe { app.set_messaging_timeout(0.5) };
+                app_windows(window.pid).iter().any(|ax| {
+                    boolean(&copy_attribute(ax, "AXModal")) == Some(true)
+                        || string(&copy_attribute(ax, "AXSubrole")).as_deref() == Some("AXSystemDialog")
+                })
+            };
+            if !modal {
+                continue;
+            }
+            let title = window
+                .title
+                .clone()
+                .map(|title| format!(" \"{title}\""))
+                .unwrap_or_default();
+            notes.push(if protected {
+                format!(
+                    "a system security prompt from {}{title} is on screen; only the user can answer it (ask them)",
+                    window.owner
+                )
+            } else {
+                format!(
+                    "a dialog from {}{title} floats over the screen and may block input; read it with get_app_state app_name_or_bundle_identifier=\"{}\"",
+                    window.owner, window.owner
+                )
+            });
+        }
+        Ok(notes)
+    })
+    .await
+    .unwrap_or_default()
+}
+
 /// Makes `pid` the app the agent's input goes to.
 pub(crate) fn set_target(pid: u32) {
     if pid != 0 {
@@ -702,7 +776,9 @@ pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
-        set_target(pid_of_ref(&object_ref).unwrap_or_default());
+        let pid = pid_of_ref(&object_ref).unwrap_or_default();
+        ensure_actionable(pid)?;
+        set_target(pid);
         point_cursor_at(&element.0, crate::macos::cursor::Kind::Click);
         let error = unsafe {
             element.0.set_attribute_value(
@@ -757,7 +833,9 @@ async fn perform_action_inner(
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
-        set_target(pid_of_ref(&object_ref).unwrap_or_default());
+        let pid = pid_of_ref(&object_ref).unwrap_or_default();
+        ensure_actionable(pid)?;
+        set_target(pid);
         let actions = action_names(&element.0);
         if actions.is_empty() {
             bail!("element exposes no AX actions");
@@ -797,7 +875,9 @@ pub(crate) async fn invoke_preferred_action(
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
-        set_target(pid_of_ref(&object_ref).unwrap_or_default());
+        let pid = pid_of_ref(&object_ref).unwrap_or_default();
+        ensure_actionable(pid)?;
+        set_target(pid);
         let actions = action_names(&element.0);
         let Some(index) = preferred
             .iter()
@@ -862,6 +942,7 @@ pub async fn set_element_value(object_ref_id: &str, value: &str) -> Result<Value
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
+        ensure_actionable(pid_of_ref(&object_ref).unwrap_or_default())?;
         let key = CFString::from_str("AXValue");
         let mut settable: u8 = 0;
         let error = unsafe {
@@ -1104,6 +1185,7 @@ const CLICK_TARGET_ROLES: [&str; 16] = [
 pub(crate) fn click_at(x: f64, y: f64, button: u32, count: u32) -> Result<String, String> {
     ensure_ready().map_err(|error| format!("{error:#}"))?;
     let pid = target_pid().ok_or("no target app: call get_app_state first")?;
+    ensure_actionable(pid).map_err(|error| format!("{error:#}"))?;
     let hit = element_at(pid, x, y)?;
     let chain = ancestors(&hit, 12);
     let role_of =
@@ -1723,6 +1805,14 @@ mod tests {
             keybinding: String::new(),
         }));
         assert_eq!(atspi_action("AXScrollToVisible"), None);
+    }
+
+    #[test]
+    fn password_and_permission_prompts_are_protected() {
+        assert!(protected_bundle("com.apple.SecurityAgent"));
+        assert!(protected_bundle("com.apple.UserNotificationCenter"));
+        assert!(!protected_bundle("com.apple.Safari"));
+        assert!(!protected_bundle("com.apple.systempreferences"));
     }
 
     #[test]
