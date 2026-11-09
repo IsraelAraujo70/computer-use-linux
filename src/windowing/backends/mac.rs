@@ -5,7 +5,6 @@
 use crate::windowing::registry::BackendProbe;
 use crate::windowing::types::{WindowBounds, WindowInfo};
 use anyhow::{bail, Result};
-use objc2_app_kit::{NSApplicationActivationOptions, NSRunningApplication};
 use objc2_core_foundation::{
     CFArray, CFDictionary, CFNumber, CFRetained, CFString, CFType, CGRect,
 };
@@ -16,6 +15,10 @@ use objc2_core_graphics::{
 };
 
 pub const MAC_BACKEND: &str = "macos";
+
+/// The window `activate_window` selected for the agent (0: none). In
+/// background mode "focused" means the agent's window, not the user's.
+static TARGET_WINDOW: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// One on-screen window as the window server reports it.
 #[derive(Debug, Clone)]
@@ -113,6 +116,25 @@ pub(crate) fn desktop_size() -> (u32, u32) {
         })
 }
 
+/// The agent's window: the one `activate_window` selected while it still
+/// belongs to the target app, else the target app's frontmost window.
+pub(crate) fn agent_window() -> Option<CgWindow> {
+    let windows: Vec<CgWindow> = on_screen_windows()
+        .into_iter()
+        .filter(|window| window.layer == 0)
+        .collect();
+    agent_window_in(&windows).cloned()
+}
+
+fn agent_window_in(windows: &[CgWindow]) -> Option<&CgWindow> {
+    let target = crate::macos::ax_tree::target_pid();
+    let selected = TARGET_WINDOW.load(std::sync::atomic::Ordering::Relaxed);
+    windows
+        .iter()
+        .find(|window| u64::from(window.id) == selected && Some(window.pid) == target)
+        .or_else(|| windows.iter().find(|window| Some(window.pid) == target))
+}
+
 pub fn probe() -> BackendProbe {
     let windows = on_screen_windows();
     let ok = !windows.is_empty();
@@ -129,19 +151,22 @@ pub fn probe() -> BackendProbe {
     }
 }
 
-/// App windows (layer 0), frontmost first; the frontmost app's first window
-/// is the focused one.
+/// App windows (layer 0), frontmost first. `focused` is the agent's
+/// window: the one `activate_window` selected while it exists in the target
+/// app, else the target app's first window (background mode never moves the
+/// user's focus, so the agent tracks its own).
 pub async fn list_windows() -> Result<Vec<WindowInfo>> {
     tokio::task::spawn_blocking(|| {
-        let frontmost = crate::macos::ax_tree::frontmost_pid();
-        let mut focused_seen = false;
-        on_screen_windows()
+        let windows: Vec<CgWindow> = on_screen_windows()
             .into_iter()
             .filter(|window| window.layer == 0)
+            .collect();
+        let focused_id = agent_window_in(&windows).map(|window| window.id);
+        windows
+            .into_iter()
             .map(|window| {
                 let identity = crate::macos::ax_tree::app_identity(window.pid);
-                let focused = !focused_seen && Some(window.pid) == frontmost;
-                focused_seen |= focused;
+                let focused = Some(window.id) == focused_id;
                 let (x, y, width, height) = window.bounds;
                 WindowInfo {
                     window_id: u64::from(window.id),
@@ -174,8 +199,9 @@ pub async fn list_windows() -> Result<Vec<WindowInfo>> {
     .map_err(Into::into)
 }
 
-/// Activates the window's app and raises that window above the app's
-/// others.
+/// Selects the window the agent works in, in the background: its app
+/// becomes the input target and the window its main window. Nothing comes
+/// to the front.
 pub async fn activate_window(window: &WindowInfo) -> Result<()> {
     let Some(pid) = window.pid else {
         bail!("window {} names no process", window.window_id);
@@ -185,17 +211,12 @@ pub async fn activate_window(window: &WindowInfo) -> Result<()> {
         .bounds
         .as_ref()
         .and_then(|b| Some((b.x?, b.y?, b.width, b.height)));
+    let window_id = window.window_id;
     tokio::task::spawn_blocking(move || {
-        let Some(app) =
-            NSRunningApplication::runningApplicationWithProcessIdentifier(pid as libc::pid_t)
-        else {
-            bail!("no running app with pid {pid}");
-        };
-        crate::macos::ax_tree::raise_window(pid, title.as_deref(), frame)?;
-        // Also ask AppKit; refused for background callers on macOS 14+,
-        // honored on older systems.
-        #[allow(deprecated)]
-        app.activateWithOptions(NSApplicationActivationOptions::ActivateIgnoringOtherApps);
+        if !crate::macos::ax_tree::select_window(pid, title.as_deref(), frame)? {
+            bail!("pid {pid} has no accessible window");
+        }
+        TARGET_WINDOW.store(window_id, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     })
     .await?

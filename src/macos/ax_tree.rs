@@ -22,7 +22,10 @@ use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     ptr::NonNull,
-    sync::{LazyLock, Mutex, Once},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        LazyLock, Mutex, Once,
+    },
     time::Duration,
 };
 
@@ -193,6 +196,31 @@ fn pid_of_ref(object_ref: &str) -> Option<u32> {
 }
 
 // ---------------------------------------------------------------------------
+// Background mode: the agent's target app
+//
+// On macOS the agent never takes the user's mouse, keyboard or frontmost
+// app. Keys go to the target app's process (CGEventPostToPid), clicks and
+// scrolls become AX actions, and focus is that app's own focused element.
+// The target is the app the agent last read (get_app_state) or acted on.
+
+static TARGET_PID: AtomicU32 = AtomicU32::new(0);
+
+/// Makes `pid` the app the agent's input goes to.
+pub(crate) fn set_target(pid: u32) {
+    if pid != 0 {
+        TARGET_PID.store(pid, Ordering::Relaxed);
+    }
+}
+
+/// The agent's target app, else the frontmost app.
+pub(crate) fn target_pid() -> Option<u32> {
+    match TARGET_PID.load(Ordering::Relaxed) {
+        0 => frontmost_pid(),
+        pid => Some(pid),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Process-level setup
 
 static INIT: Once = Once::new();
@@ -272,11 +300,21 @@ pub(crate) fn frontmost_pid() -> Option<u32> {
 
 /// Regular (Dock) apps, frontmost first.
 pub(crate) fn running_apps() -> Vec<RunningApp> {
+    apps_with(|policy| policy == NSApplicationActivationPolicy::Regular)
+}
+
+/// Every running app with a bundle, regular or not: the Dock, menu bar
+/// extras (Tailscale, Raycast), system agents that raise dialogs.
+fn all_apps() -> Vec<RunningApp> {
+    apps_with(|_| true)
+}
+
+fn apps_with(keep: impl Fn(NSApplicationActivationPolicy) -> bool) -> Vec<RunningApp> {
     let frontmost = frontmost_pid();
     let mut apps: Vec<RunningApp> = NSWorkspace::sharedWorkspace()
         .runningApplications()
         .iter()
-        .filter(|app| app.activationPolicy() == NSApplicationActivationPolicy::Regular)
+        .filter(|app| keep(app.activationPolicy()))
         .map(|app| RunningApp {
             name: app
                 .localizedName()
@@ -303,19 +341,26 @@ pub(crate) fn app_identity(pid: u32) -> Option<(String, Option<String>)> {
 }
 
 /// The app an `app_name_or_bundle_identifier` names: exact bundle id, exact
-/// name, then name or bundle id substring, case-insensitive.
+/// name, then name or bundle id substring, case-insensitive; Dock apps
+/// first, then any other running app (Dock, menu bar extras).
 fn match_app(filter: &str) -> Option<u32> {
+    match_app_in(filter, &running_apps(), true).or_else(|| match_app_in(filter, &all_apps(), false))
+}
+
+/// Substrings match only Dock apps: background helpers have names like
+/// `com.apple.SafariPlatformSupport.Helper` that must not stand in for an
+/// app that is not running.
+fn match_app_in(filter: &str, apps: &[RunningApp], substrings: bool) -> Option<u32> {
     let needle = filter.trim().to_lowercase();
     if needle.is_empty() {
         return None;
     }
-    let apps = running_apps();
     let lower = |value: &Option<String>| value.as_deref().map(str::to_lowercase);
     apps.iter()
         .find(|app| lower(&app.bundle_id).as_deref() == Some(needle.as_str()))
         .or_else(|| apps.iter().find(|app| app.name.to_lowercase() == needle))
         .or_else(|| {
-            apps.iter().find(|app| {
+            apps.iter().filter(|_| substrings).find(|app| {
                 app.name.to_lowercase().contains(&needle)
                     || lower(&app.bundle_id).is_some_and(|id| id.contains(&needle))
             })
@@ -393,6 +438,7 @@ pub(crate) async fn snapshot_accessibility_tree(
                 false,
             ),
         };
+        set_target(pid);
         let app = app_element(pid);
         let (nodes, truncated) = traverse(pid, vec![(app, 0)], max_nodes, max_depth);
         if nodes.is_empty() {
@@ -448,7 +494,7 @@ pub(crate) async fn read_element(object_ref_id: &str) -> Result<AccessibilityNod
         let names = attribute_names();
         let values = copy_values(&element.0, &names)
             .with_context(|| format!("AX object {object_ref} no longer exists"))?;
-        let focused = keyboard_focus();
+        let focused = app_focus(pid_of_ref(&object_ref).unwrap_or_default());
         let child_count = children_of(&values).len();
         Ok(read_node(
             &element.0,
@@ -502,7 +548,7 @@ fn traverse(
     max_depth: u32,
 ) -> (Vec<AccessibilityNode>, bool) {
     let names = attribute_names();
-    let focused = keyboard_focus();
+    let focused = app_focus(pid);
     let mut queue: VecDeque<(CFRetained<AXUIElement>, u32, Option<u32>)> = roots
         .into_iter()
         .map(|(element, depth)| (element, depth, None))
@@ -517,7 +563,16 @@ fn traverse(
         let Some(values) = copy_values(&element, &names) else {
             continue;
         };
-        let children = children_of(&values);
+        let mut children = children_of(&values);
+        // Status items (Wi-Fi, Tailscale, an app's menu bar extra) hang off
+        // AXExtrasMenuBar, not AXChildren.
+        if string(&values[Attr::Role as usize]).as_deref() == Some("AXApplication") {
+            if let Some(extras) = copy_attribute(&element, "AXExtrasMenuBar")
+                .and_then(|value| value.downcast::<AXUIElement>().ok())
+            {
+                children.push(extras);
+            }
+        }
         let index = nodes.len() as u32;
         let object_ref = register(pid, &element);
         nodes.push(read_node(
@@ -563,18 +618,13 @@ fn children_of(values: &[Option<CFRetained<CFType>>]) -> Vec<CFRetained<AXUIElem
         .unwrap_or_default()
 }
 
-/// The element holding the system's keyboard focus: the system-wide
-/// AXFocusedUIElement, inside the frontmost app. An app in the background
-/// keeps its own focused element, but keys do not reach it, so only this
-/// one is `focused` (AXFocused is also true on every cell of a focused
-/// outline). The server's "type only into verified focus" checks rely on
-/// this.
-fn keyboard_focus() -> Option<CFRetained<AXUIElement>> {
-    copy_attribute(
-        &*unsafe { AXUIElement::new_system_wide() },
-        "AXFocusedUIElement",
-    )
-    .and_then(|value| value.downcast::<AXUIElement>().ok())
+/// The app's own focused element. Keys reach it because they are posted
+/// to that app's process, not to the frontmost app, so this is the element
+/// the server's "type only into verified focus" checks must see. (AXFocused
+/// itself is true on every cell of a focused outline.)
+fn app_focus(pid: u32) -> Option<CFRetained<AXUIElement>> {
+    copy_attribute(&app_element(pid), "AXFocusedUIElement")
+        .and_then(|value| value.downcast::<AXUIElement>().ok())
 }
 
 fn is_same(a: Option<&CFRetained<AXUIElement>>, b: &AXUIElement) -> bool {
@@ -587,11 +637,10 @@ fn is_same(a: Option<&CFRetained<AXUIElement>>, b: &AXUIElement) -> bool {
 pub(crate) async fn probe_focused_element(target_pid: Option<u32>) -> Result<FocusProbe> {
     blocking(move || {
         ensure_ready()?;
-        if let Some(pid) = target_pid {
-            // A first touch turns on Chromium/Electron trees.
-            let _ = app_element(pid);
-        }
-        let source = unsafe { AXUIElement::new_system_wide() };
+        let Some(app_pid) = target_pid.or_else(self::target_pid) else {
+            return Ok(FocusProbe::NoAccessibleApp);
+        };
+        let source = app_element(app_pid);
         let mut out: *const CFType = std::ptr::null();
         let error = unsafe {
             source.copy_attribute_value(
@@ -614,8 +663,7 @@ pub(crate) async fn probe_focused_element(target_pid: Option<u32>) -> Result<Foc
             AXError::Success => raw_pid as u32,
             _ => return Ok(FocusProbe::NoneFocused),
         };
-        // Keys go to the frontmost app; focus elsewhere is not the target's.
-        if target_pid.is_some_and(|target| target != pid) {
+        if pid != app_pid {
             return Ok(FocusProbe::NoneFocused);
         }
         let names = attribute_names();
@@ -641,6 +689,7 @@ pub(crate) async fn grab_focus(object_ref_id: &str) -> Result<bool> {
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
+        set_target(pid_of_ref(&object_ref).unwrap_or_default());
         let error = unsafe {
             element.0.set_attribute_value(
                 &CFString::from_str("AXFocused"),
@@ -694,6 +743,7 @@ async fn perform_action_inner(
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
+        set_target(pid_of_ref(&object_ref).unwrap_or_default());
         let actions = action_names(&element.0);
         if actions.is_empty() {
             bail!("element exposes no AX actions");
@@ -732,6 +782,7 @@ pub(crate) async fn invoke_preferred_action(
     blocking(move || {
         ensure_ready()?;
         let element = lookup(&object_ref)?;
+        set_target(pid_of_ref(&object_ref).unwrap_or_default());
         let actions = action_names(&element.0);
         let Some(index) = preferred
             .iter()
@@ -876,32 +927,18 @@ fn inside_web_area(element: &AXUIElement) -> bool {
     false
 }
 
-/// Raises the AX window of `pid` whose frame or title matches (else its
-/// first window) and makes it main. Used by the macOS window backend.
-pub(crate) fn raise_window(
+/// Makes the matching window of `pid` (by frame, else title, else its
+/// first) the agent's target: its app becomes the input target and the
+/// window its main window. Nothing comes to the front; the user's frontmost
+/// app and pointer are untouched. Used by the macOS window backend.
+pub(crate) fn select_window(
     pid: u32,
     title: Option<&str>,
     frame: Option<(i32, i32, u32, u32)>,
 ) -> Result<bool> {
     ensure_ready()?;
-    let app = app_element(pid);
-    // AppKit activation from a background process is refused since macOS
-    // 14 (cooperative activation); the AX attribute still brings it front.
-    let _ = unsafe {
-        app.set_attribute_value(
-            &CFString::from_str("AXFrontmost"),
-            AsRef::<CFType>::as_ref(CFBoolean::new(true)),
-        )
-    };
-    let windows: Vec<CFRetained<AXUIElement>> = copy_attribute(&app, "AXWindows")
-        .and_then(|value| value.downcast::<CFArray>().ok())
-        .map(|array| {
-            as_typed(&array)
-                .iter()
-                .filter_map(|window| window.downcast::<AXUIElement>().ok())
-                .collect()
-        })
-        .unwrap_or_default();
+    set_target(pid);
+    let windows = app_windows(pid);
     let names = attribute_names();
     let matches = |window: &AXUIElement| {
         let Some(values) = copy_values(window, &names) else {
@@ -933,7 +970,6 @@ pub(crate) fn raise_window(
     else {
         return Ok(false);
     };
-    let _ = perform(window, "AXRaise");
     let _ = unsafe {
         window.set_attribute_value(
             &CFString::from_str("AXMain"),
@@ -943,12 +979,217 @@ pub(crate) fn raise_window(
     Ok(true)
 }
 
+fn app_windows(pid: u32) -> Vec<CFRetained<AXUIElement>> {
+    copy_attribute(&app_element(pid), "AXWindows")
+        .and_then(|value| value.downcast::<CFArray>().ok())
+        .map(|array| {
+            as_typed(&array)
+                .iter()
+                .filter_map(|window| window.downcast::<AXUIElement>().ok())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Roles a pointer click means to activate; a click on a label's text or
+/// an image inside one of these acts on the control.
+const CLICK_TARGET_ROLES: [&str; 16] = [
+    "AXButton",
+    "AXLink",
+    "AXCheckBox",
+    "AXRadioButton",
+    "AXPopUpButton",
+    "AXMenuButton",
+    "AXMenuItem",
+    "AXMenuBarItem",
+    "AXDisclosureTriangle",
+    "AXComboBox",
+    "AXCell",
+    "AXRow",
+    "AXDockItem",
+    "AXTabGroup",
+    "AXIncrementor",
+    "AXSlider",
+];
+
+/// A pointer click at a screen point, done in the background as an AX
+/// action on the target app's element under the point (its own windows,
+/// even when another app covers them): text inputs get focus, `button` 3
+/// opens the context menu, double clicks open, others press. Returns what
+/// was done.
+pub(crate) fn click_at(x: f64, y: f64, button: u32, count: u32) -> Result<String, String> {
+    ensure_ready().map_err(|error| format!("{error:#}"))?;
+    let pid = target_pid().ok_or("no target app: call get_app_state first")?;
+    let hit = element_at(pid, x, y)?;
+    let chain = ancestors(&hit, 12);
+    let role_of =
+        |element: &AXUIElement| string(&copy_attribute(element, "AXRole")).unwrap_or_default();
+    if let Some(input) = chain.iter().find(|element| {
+        matches!(
+            role_of(element).as_str(),
+            "AXTextField" | "AXTextArea" | "AXSearchField" | "AXComboBox"
+        )
+    }) {
+        let error = unsafe {
+            input.set_attribute_value(
+                &CFString::from_str("AXFocused"),
+                AsRef::<CFType>::as_ref(CFBoolean::new(true)),
+            )
+        };
+        return match error {
+            AXError::Success => Ok(format!("focused the {} at {x},{y}", role_of(input))),
+            error => Err(format!(
+                "could not focus the field at {x},{y} (AXError {})",
+                error.0
+            )),
+        };
+    }
+    let wanted = match (button, count) {
+        (3, _) => "AXShowMenu",
+        (1, 2..) => "AXOpen",
+        (1, _) => "AXPress",
+        _ => {
+            return Err(format!(
+                "button {button} cannot be clicked in the background"
+            ))
+        }
+    };
+    // The nearest control under the point, else anything that takes the
+    // action (a clickable web element is often a plain group).
+    let has =
+        |element: &AXUIElement, action: &str| action_names(element).iter().any(|a| a == action);
+    let pick = |action: &str| {
+        chain
+            .iter()
+            .find(|element| {
+                CLICK_TARGET_ROLES.contains(&role_of(element).as_str()) && has(element, action)
+            })
+            .or_else(|| chain.iter().find(|element| has(element, action)))
+    };
+    let (target, action) = match pick(wanted) {
+        Some(target) => (target, wanted),
+        // No AXOpen: a double click presses twice.
+        None if wanted == "AXOpen" => (pick("AXPress").ok_or_else(|| nothing_at(x, y))?, "AXPress"),
+        None => return Err(nothing_at(x, y)),
+    };
+    let presses = if wanted == "AXOpen" && action == "AXPress" {
+        count
+    } else {
+        1
+    };
+    for _ in 0..presses {
+        perform(target, action).map_err(|error| format!("{error:#}"))?;
+    }
+    let label = string(&copy_attribute(target, "AXTitle"))
+        .or_else(|| string(&copy_attribute(target, "AXDescription")))
+        .map(|name| format!(" \"{name}\""))
+        .unwrap_or_default();
+    Ok(format!(
+        "{action} on the {}{label} at {x},{y}",
+        role_of(target)
+    ))
+}
+
+fn nothing_at(x: f64, y: f64) -> String {
+    format!(
+        "nothing clickable at {x},{y} in the target app; click the element by element_index instead"
+    )
+}
+
+/// Scrolls the scroll area under a point by pixels (positive `down` and
+/// `right`), by moving its scroll bar: no wheel event, no pointer.
+pub(crate) fn scroll_at(x: f64, y: f64, right: f64, down: f64) -> Result<(), String> {
+    ensure_ready().map_err(|error| format!("{error:#}"))?;
+    let pid = target_pid().ok_or("no target app: call get_app_state first")?;
+    let hit = element_at(pid, x, y)?;
+    let area = ancestors(&hit, 24)
+        .into_iter()
+        .find(|element| {
+            string(&copy_attribute(element, "AXRole")).as_deref() == Some("AXScrollArea")
+        })
+        .ok_or_else(|| format!("no scrollable area at {x},{y} in the target app"))?;
+    let size_of = |element: &AXUIElement| {
+        ax_value(
+            &copy_attribute(element, "AXSize"),
+            AXValueType::CGSize,
+            CGSize::ZERO,
+        )
+    };
+    let viewport = size_of(&area).unwrap_or(CGSize::ZERO);
+    let content = copy_attribute(&area, "AXContents")
+        .and_then(|value| value.downcast::<CFArray>().ok())
+        .and_then(|array| as_typed(&array).iter().next())
+        .and_then(|first| first.downcast::<AXUIElement>().ok())
+        .and_then(|first| size_of(&first))
+        .unwrap_or(viewport);
+    for (pixels, bar, extent, window) in [
+        (down, "AXVerticalScrollBar", content.height, viewport.height),
+        (
+            right,
+            "AXHorizontalScrollBar",
+            content.width,
+            viewport.width,
+        ),
+    ] {
+        if pixels == 0.0 {
+            continue;
+        }
+        let bar = copy_attribute(&area, bar)
+            .and_then(|value| value.downcast::<AXUIElement>().ok())
+            .ok_or_else(|| format!("the area at {x},{y} does not scroll that way"))?;
+        let current = number(&copy_attribute(&bar, "AXValue")).unwrap_or(0.0);
+        let range = (extent - window).max(1.0);
+        let next = (current + pixels / range).clamp(0.0, 1.0);
+        let error = unsafe {
+            bar.set_attribute_value(
+                &CFString::from_str("AXValue"),
+                AsRef::<CFType>::as_ref(&*CFNumber::new_f64(next)),
+            )
+        };
+        if error != AXError::Success {
+            return Err(format!("scrolling failed (AXError {})", error.0));
+        }
+    }
+    Ok(())
+}
+
+/// The target app's element at a point, hit-tested in that app only.
+fn element_at(pid: u32, x: f64, y: f64) -> Result<CFRetained<AXUIElement>, String> {
+    let app = app_element(pid);
+    let mut out: *const AXUIElement = std::ptr::null();
+    let error =
+        unsafe { app.copy_element_at_position(x as f32, y as f32, NonNull::from(&mut out)) };
+    if error != AXError::Success || out.is_null() {
+        return Err(format!(
+            "the target app has nothing at {x},{y}; check the point against its window"
+        ));
+    }
+    Ok(unsafe { CFRetained::from_raw(NonNull::new_unchecked(out as *mut AXUIElement)) })
+}
+
+/// `element` and up to `limit` ancestors, nearest first.
+fn ancestors(element: &CFRetained<AXUIElement>, limit: usize) -> Vec<CFRetained<AXUIElement>> {
+    let mut chain = vec![element.clone()];
+    while chain.len() <= limit {
+        let Some(parent) = copy_attribute(chain.last().expect("non-empty"), "AXParent")
+            .and_then(|value| value.downcast::<AXUIElement>().ok())
+        else {
+            break;
+        };
+        if string(&copy_attribute(&parent, "AXRole")).as_deref() == Some("AXApplication") {
+            break;
+        }
+        chain.push(parent);
+    }
+    chain
+}
+
 // ---------------------------------------------------------------------------
 // Raw AX reads
 
 /// Attributes read per element in one `AXUIElementCopyMultipleAttributeValues`
 /// IPC; the order is the index into the returned array (`Attr`).
-const ATTRIBUTES: [&str; 16] = [
+const ATTRIBUTES: [&str; 17] = [
     "AXRole",
     "AXSubrole",
     "AXTitle",
@@ -965,6 +1206,7 @@ const ATTRIBUTES: [&str; 16] = [
     "AXMinValue",
     "AXMaxValue",
     "AXSelectedTextRange",
+    "AXFocused",
 ];
 
 #[derive(Clone, Copy)]
@@ -985,6 +1227,7 @@ enum Attr {
     MinValue,
     MaxValue,
     SelectedTextRange,
+    Focused,
 }
 
 fn attribute_names() -> CFRetained<CFArray<CFString>> {
@@ -1100,24 +1343,52 @@ fn read_node(
     let v = |attr: Attr| &values[attr as usize];
     let ax_role = string(v(Attr::Role)).unwrap_or_else(|| "AXUnknown".into());
     let subrole = string(v(Attr::Subrole));
-    let role = atspi_role(&ax_role, subrole.as_deref()).to_string();
+    let modal = boolean(v(Attr::Modal)) == Some(true);
+    // Chrome gives its ordinary browser window subrole AXDialog, so a window
+    // is a dialog only when modal or a system dialog (privacy prompts).
+    let role = match (ax_role.as_str(), subrole.as_deref()) {
+        ("AXWindow", Some("AXSystemDialog")) => "dialog",
+        ("AXWindow", _) if modal => "dialog",
+        ("AXWindow", _) => "frame",
+        (role, subrole) => atspi_role(role, subrole),
+    }
+    .to_string();
     let title = string(v(Attr::Title));
     let ax_description = string(v(Attr::Description));
     let help = string(v(Attr::Help));
     let value_text = string(v(Attr::Value));
-    let value_number = number(v(Attr::Value));
+    // Toggles and tabs report AXValue as a number (0/1/2) or a CFBoolean.
+    let value_number = number(v(Attr::Value))
+        .or_else(|| boolean(v(Attr::Value)).map(|on| f64::from(u8::from(on))));
     let is_text_input = matches!(
         ax_role.as_str(),
         "AXTextField" | "AXTextArea" | "AXComboBox" | "AXSearchField"
     );
     let is_toggle = matches!(ax_role.as_str(), "AXCheckBox" | "AXRadioButton");
+    // A background app does not update its AXFocusedUIElement when a field
+    // takes focus, but the field's own AXFocused does. Only text inputs
+    // trust it: outline cells report AXFocused on every row.
+    let is_focused = is_focused || (is_text_input && boolean(v(Attr::Focused)) == Some(true));
 
     // AT-SPI names a label by its text and a button by its label; AX puts
     // the first in AXValue and the second in AXDescription when untitled.
     let name = match ax_role.as_str() {
         "AXStaticText" => value_text.clone().or(title.clone()),
         _ => title.clone().or(ax_description.clone()),
-    };
+    }
+    .or_else(|| {
+        // The traffic lights carry no label, only a subrole.
+        Some(
+            match subrole.as_deref()? {
+                "AXCloseButton" => "Close",
+                "AXMinimizeButton" => "Minimize",
+                "AXZoomButton" => "Zoom",
+                "AXFullScreenButton" => "Full Screen",
+                _ => return None,
+            }
+            .to_string(),
+        )
+    });
     let description = match title {
         Some(_) => ax_description.or(help),
         None => help,
@@ -1156,7 +1427,7 @@ fn read_node(
     if boolean(v(Attr::Selected)) == Some(true) {
         states.push("selected".into());
     }
-    if boolean(v(Attr::Modal)) == Some(true) {
+    if modal {
         states.push("modal".into());
     }
     if is_focused {
@@ -1175,7 +1446,15 @@ fn read_node(
     if is_toggle {
         states.push("checkable".into());
         if value_number == Some(1.0) {
-            states.push("checked".into());
+            // The shown tab is the selected one, as AT-SPI page tabs say.
+            states.push(
+                if role == "page tab" {
+                    "selected"
+                } else {
+                    "checked"
+                }
+                .into(),
+            );
         }
         if value_number == Some(2.0) {
             states.push("indeterminate".into());
@@ -1270,7 +1549,7 @@ fn read_node(
 /// view key on (`document web`, `frame`, `entry`, `push button`, ...).
 fn atspi_role(role: &str, subrole: Option<&str>) -> &'static str {
     match (role, subrole) {
-        ("AXWindow", Some("AXDialog" | "AXSystemDialog")) | ("AXSheet", _) => "dialog",
+        ("AXWindow", Some("AXSystemDialog")) | ("AXSheet", _) => "dialog",
         ("AXWindow", _) => "frame",
         ("AXApplication", _) => "application",
         ("AXWebArea", _) => "document web",
@@ -1341,7 +1620,10 @@ mod tests {
     #[test]
     fn ax_roles_map_to_the_atspi_names_the_page_view_keys_on() {
         assert_eq!(atspi_role("AXWindow", Some("AXStandardWindow")), "frame");
-        assert_eq!(atspi_role("AXWindow", Some("AXDialog")), "dialog");
+        // Chrome's browser window has subrole AXDialog; only modality or a
+        // system dialog makes a window a dialog (decided in read_node).
+        assert_eq!(atspi_role("AXWindow", Some("AXDialog")), "frame");
+        assert_eq!(atspi_role("AXWindow", Some("AXSystemDialog")), "dialog");
         assert_eq!(atspi_role("AXWebArea", None), "document web");
         assert_eq!(atspi_role("AXTextField", None), "entry");
         assert_eq!(

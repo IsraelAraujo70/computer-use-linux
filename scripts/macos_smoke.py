@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """macOS end-to-end smoke test over the LaunchAgent socket.
 
-Opens a local test form in Safari, puts another app in front, and drives
-the form through the MCP tools the way an agent would: element ids come
-from get_app_state, never hard-coded. Every step asserts what the page
-shows afterwards, read back through the tree. Exit status 0 means all
-steps passed.
+Opens a local test form in Safari *in the background* (open -g) and drives
+it through the MCP tools the way an agent would, while the user keeps
+working: element ids come from get_app_state, never hard-coded. Every step
+asserts what the page shows afterwards, read back through the tree, and
+that Safari never became the frontmost app (background mode). Exit status
+0 means all steps passed.
 
-Usage: scripts/macos_smoke.py [--sock PATH] [--front APP]
+Usage: scripts/macos_smoke.py [--sock PATH]
 """
 import argparse
 import json
@@ -32,15 +33,20 @@ FORM = """<!doctype html><html><head><meta charset="utf-8"><title>Teste CUL</tit
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--sock", default=os.path.expanduser("~/.local/state/computer-use-mac/mcp.sock"))
-parser.add_argument("--front", default="Finder", help="app to put in front of Safari first")
 opts = parser.parse_args()
 
-page = os.path.join(tempfile.mkdtemp(prefix="cul-smoke-"), "form.html")
+# A fixed path, so Safari reuses its tab instead of opening one per run.
+page = os.path.join(tempfile.gettempdir(), "cul-smoke", "form.html")
+os.makedirs(os.path.dirname(page), exist_ok=True)
 open(page, "w").write(FORM)
-subprocess.run(["open", "-a", "Safari", page], check=True)
+subprocess.run(["open", "-g", "-a", "Safari", page], check=True)
 time.sleep(2)
-subprocess.run(["open", "-a", opts.front], check=True)
-time.sleep(1)
+safari_pid = subprocess.run(["pgrep", "-x", "Safari"], capture_output=True, text=True).stdout.split()[0]
+
+
+def frontmost_pid():
+    script = 'tell application "System Events" to get unix id of first process whose frontmost is true'
+    return subprocess.run(["osascript", "-e", script], capture_output=True, text=True).stdout.strip()
 
 proc = subprocess.Popen(["nc", "-U", opts.sock], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
 next_id = 0
@@ -77,6 +83,10 @@ failures = []
 
 
 def check(name, condition, detail):
+    front = frontmost_pid()
+    if front == safari_pid:
+        condition = False
+        detail = f"Safari (pid {safari_pid}) became the frontmost app: background mode broken\n" + detail
     print(("PASS " if condition else "FAIL ") + name)
     if not condition:
         failures.append(name)
@@ -107,6 +117,10 @@ text, error = call("fill_form", {"fields": [
 ]})
 check("fill_form sets text, select and checkbox in a background app", not error, text)
 
+text, error = call("click", {"element_index": aceito})
+text, error = call("click", {"element_index": aceito})
+check("click by id toggles the checkbox twice in the background", not error, text)
+
 text, error = call("type_text", {"element_index": obs, "text": "linha ✓ ünïcode"})
 check("type_text enters Unicode without the clipboard", not error and "ünïcode" in text, text)
 
@@ -124,6 +138,10 @@ check("find_elements finds the button", 'push button \\"Enviar\\"' in text, text
 
 text, error = call("press_key", {"key": "Cmd+Up", "app_id": "com.apple.Safari"})
 check("press_key chord in the target app", not error, text)
+
+# The Dock edge of the main display: never a Safari window.
+text, error = call("click", {"x": 1469, "y": 955})
+check("a click outside the target app is refused, not sent elsewhere", error, text)
 
 text, error = call("screenshot", {"format": "jpeg", "max_width": 800})
 check("screenshot caption in points", '"coordinate_width"' in text, text)

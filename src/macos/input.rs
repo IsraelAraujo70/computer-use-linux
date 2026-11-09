@@ -1,26 +1,28 @@
-//! Input on macOS: runs the exact `xdotool` command lines `server.rs` builds
-//! (`mousemove`, `click`, `mousedown`, `mouseup`, `sleep`, `type`, `key`)
-//! as CGEvents, so every pointer and keyboard path of the server works
-//! unchanged. Coordinates are global screen points (top-left origin), the
-//! space AX bounds and screenshots use.
+//! Input on macOS, always in the background: runs the exact `xdotool`
+//! command lines `server.rs` builds without touching the user's pointer,
+//! keyboard focus or frontmost app.
 //!
-//! Text goes in as Unicode keyboard events, independent of the keyboard
-//! layout, so non-ASCII typed text never needs the clipboard. Key chords map
-//! xdotool keysyms to ANSI virtual key codes; `super` is Command.
+//! - `type` / `key`: CGEvents posted to the agent's target app process
+//!   (`CGEventPostToPid`), so they reach that app while another one is in
+//!   front. Text goes in as Unicode key events, independent of the keyboard
+//!   layout; chords map xdotool keysyms to ANSI key codes (`super` is
+//!   Command).
+//! - `click` 1/3 at the last `mousemove` point: an AX action on the target
+//!   app's element under that point (`ax_tree::click_at`).
+//! - `click` 4-7 (wheel): moves the scroll bar of the area under the point.
+//! - `mousedown` / `mouseup` (drags) cannot be done without the pointer and
+//!   are refused.
+//!
+//! Coordinates are global screen points (top-left origin), the space AX
+//! bounds and screenshots use.
 
+use crate::macos::ax_tree;
 use objc2_application_services::AXIsProcessTrusted;
-use objc2_core_foundation::CGPoint;
-use objc2_core_graphics::{
-    CGEvent, CGEventField, CGEventFlags, CGEventTapLocation, CGEventType, CGKeyCode, CGMouseButton,
-    CGScrollEventUnit,
-};
+use objc2_core_graphics::{CGEvent, CGEventFlags, CGKeyCode};
 use std::{thread::sleep, time::Duration};
 
 /// Pixels one wheel "click" scrolls; xdotool's 5 clicks are one page step.
-const PIXELS_PER_WHEEL_CLICK: i32 = 100;
-/// Gap between the presses of a multi-click when no `--delay` is given;
-/// short enough for the system to count a double click.
-const MULTI_CLICK_GAP: Duration = Duration::from_millis(40);
+const PIXELS_PER_WHEEL_CLICK: f64 = 100.0;
 
 /// Runs one xdotool argument vector. Errors name the token that failed.
 pub(crate) fn run(args: &[String]) -> Result<(), String> {
@@ -30,12 +32,14 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
                 .to_string(),
         );
     }
+    let target = ax_tree::target_pid()
+        .ok_or("no target app: call get_app_state or act on an element first")?;
     eprintln!(
-        "input: {} -> frontmost pid {:?}",
+        "input: {} -> target pid {target}, frontmost pid {:?}",
         args.first().map(String::as_str).unwrap_or_default(),
-        crate::macos::ax_tree::frontmost_pid()
+        ax_tree::frontmost_pid()
     );
-    let mut input = Input::default();
+    let mut at: Option<(f64, f64)> = None;
     let mut tokens = args.iter().map(String::as_str).peekable();
     while let Some(command) = tokens.next() {
         let mut options = Options::default();
@@ -53,15 +57,18 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
             "mousemove" => {
                 let x: f64 = number(tokens.next(), "mousemove x")?;
                 let y: f64 = number(tokens.next(), "mousemove y")?;
-                input.move_to(CGPoint { x, y })?;
+                at = Some((x, y));
             }
             "click" => {
                 let button: u32 = number(tokens.next(), "click button")?;
-                input.click(button, options)?;
+                let (x, y) = at.ok_or("a background click needs a point (x and y)")?;
+                click(x, y, button, options)?;
             }
             "mousedown" | "mouseup" => {
-                let button: u32 = number(tokens.next(), command)?;
-                input.button(button, command == "mousedown")?;
+                return Err(
+                    "drag needs the real pointer, which background mode never takes on macOS; use element actions instead"
+                        .to_string(),
+                );
             }
             "sleep" => {
                 let seconds: f64 = number(tokens.next(), "sleep")?;
@@ -69,11 +76,11 @@ pub(crate) fn run(args: &[String]) -> Result<(), String> {
             }
             "type" => {
                 let text = tokens.next().ok_or("type needs text")?;
-                type_text(text, options.delay_ms)?;
+                type_text(target, text, options.delay_ms)?;
             }
             "key" => {
                 let spec = tokens.next().ok_or("key needs a key")?;
-                key_chord(spec)?;
+                key_chord(target, spec)?;
             }
             other => return Err(format!("unsupported xdotool command {other}")),
         }
@@ -93,136 +100,37 @@ fn number<T: std::str::FromStr>(token: Option<&str>, what: &str) -> Result<T, St
         .ok_or_else(|| format!("{what} needs a number"))
 }
 
-/// Pointer state across one command line: where it is and which button is
-/// held, so moves while held become drags.
-#[derive(Default)]
-struct Input {
-    at: Option<CGPoint>,
-    held: Option<u32>,
-}
-
-impl Input {
-    fn position(&mut self) -> CGPoint {
-        *self.at.get_or_insert_with(|| {
-            CGEvent::new(None)
-                .map(|event| CGEvent::location(Some(&event)))
-                .unwrap_or_default()
-        })
-    }
-
-    fn move_to(&mut self, point: CGPoint) -> Result<(), String> {
-        self.at = Some(point);
-        let (kind, button) = match self.held {
-            Some(1) => (CGEventType::LeftMouseDragged, CGMouseButton::Left),
-            Some(3) => (CGEventType::RightMouseDragged, CGMouseButton::Right),
-            Some(_) => (CGEventType::OtherMouseDragged, CGMouseButton::Center),
-            None => (CGEventType::MouseMoved, CGMouseButton::Left),
-        };
-        post_mouse(kind, point, button, 0)
-    }
-
-    fn button(&mut self, button: u32, down: bool) -> Result<(), String> {
-        let (down_kind, up_kind, mouse) = mouse_button(button)?;
-        let at = self.position();
-        self.held = down.then_some(button);
-        post_mouse(if down { down_kind } else { up_kind }, at, mouse, 1)
-    }
-
-    fn click(&mut self, button: u32, options: Options) -> Result<(), String> {
-        let repeat = options.repeat.max(1);
-        if (4..=7).contains(&button) {
-            for _ in 0..repeat {
-                scroll(button)?;
-                sleep(Duration::from_millis(options.delay_ms));
-            }
-            return Ok(());
-        }
-        let (down, up, mouse) = mouse_button(button)?;
-        let at = self.position();
-        for state in 1..=repeat {
-            post_mouse(down, at, mouse, state)?;
-            post_mouse(up, at, mouse, state)?;
-            if state < repeat {
-                sleep(match options.delay_ms {
-                    0 => MULTI_CLICK_GAP,
-                    ms => Duration::from_millis(ms),
-                });
-            }
+/// X11 buttons: 1 left, 3 right as AX actions; 4 up, 5 down, 6 left,
+/// 7 right as scroll-bar moves.
+fn click(x: f64, y: f64, button: u32, options: Options) -> Result<(), String> {
+    let repeat = options.repeat.max(1);
+    let wheel = |right: f64, down: f64| -> Result<(), String> {
+        for _ in 0..repeat {
+            ax_tree::scroll_at(x, y, right, down)?;
+            sleep(Duration::from_millis(options.delay_ms));
         }
         Ok(())
-    }
-}
-
-fn mouse_button(button: u32) -> Result<(CGEventType, CGEventType, CGMouseButton), String> {
-    Ok(match button {
-        1 => (
-            CGEventType::LeftMouseDown,
-            CGEventType::LeftMouseUp,
-            CGMouseButton::Left,
-        ),
-        2 => (
-            CGEventType::OtherMouseDown,
-            CGEventType::OtherMouseUp,
-            CGMouseButton::Center,
-        ),
-        3 => (
-            CGEventType::RightMouseDown,
-            CGEventType::RightMouseUp,
-            CGMouseButton::Right,
-        ),
-        other => return Err(format!("unsupported mouse button {other}")),
-    })
-}
-
-fn post_mouse(
-    kind: CGEventType,
-    at: CGPoint,
-    button: CGMouseButton,
-    click_state: u32,
-) -> Result<(), String> {
-    let event =
-        CGEvent::new_mouse_event(None, kind, at, button).ok_or("CGEventCreateMouseEvent failed")?;
-    if click_state > 0 {
-        CGEvent::set_integer_value_field(
-            Some(&event),
-            CGEventField::MouseEventClickState,
-            i64::from(click_state),
-        );
-    }
-    CGEvent::set_flags(Some(&event), CGEventFlags(0));
-    CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
-    Ok(())
-}
-
-/// X11 wheel buttons: 4 up, 5 down, 6 left, 7 right.
-fn scroll(button: u32) -> Result<(), String> {
-    let step = PIXELS_PER_WHEEL_CLICK;
-    let (vertical, horizontal) = match button {
-        4 => (step, 0),
-        5 => (-step, 0),
-        6 => (0, step),
-        _ => (0, -step),
     };
-    let event = CGEvent::new_scroll_wheel_event2(
-        None,
-        CGScrollEventUnit::Pixel,
-        2,
-        vertical,
-        horizontal,
-        0,
-    )
-    .ok_or("CGEventCreateScrollWheelEvent failed")?;
-    CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
-    Ok(())
+    match button {
+        4 => wheel(0.0, -PIXELS_PER_WHEEL_CLICK),
+        5 => wheel(0.0, PIXELS_PER_WHEEL_CLICK),
+        6 => wheel(-PIXELS_PER_WHEEL_CLICK, 0.0),
+        7 => wheel(PIXELS_PER_WHEEL_CLICK, 0.0),
+        _ => {
+            let done = ax_tree::click_at(x, y, button, repeat)?;
+            eprintln!("input: {done}");
+            Ok(())
+        }
+    }
 }
 
 /// Types `text` as Unicode key events; CR is the Return key and tab the Tab
 /// key, as `xdotool type` sends them.
-fn type_text(text: &str, delay_ms: u64) -> Result<(), String> {
+fn type_text(pid: u32, text: &str, delay_ms: u64) -> Result<(), String> {
     for character in text.chars() {
         match character {
-            '\r' | '\n' => tap(KEY_RETURN, CGEventFlags(0))?,
-            '\t' => tap(KEY_TAB, CGEventFlags(0))?,
+            '\r' | '\n' => tap(pid, KEY_RETURN, CGEventFlags(0))?,
+            '\t' => tap(pid, KEY_TAB, CGEventFlags(0))?,
             other => {
                 let mut units = [0u16; 2];
                 let units = other.encode_utf16(&mut units);
@@ -237,7 +145,7 @@ fn type_text(text: &str, delay_ms: u64) -> Result<(), String> {
                             units.as_ptr(),
                         )
                     };
-                    CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
+                    CGEvent::post_to_pid(pid as libc::pid_t, Some(&event));
                 }
             }
         }
@@ -248,7 +156,7 @@ fn type_text(text: &str, delay_ms: u64) -> Result<(), String> {
 
 /// One `xdotool key` spec such as `ctrl+a`, `super+v`, `Return` or a bare
 /// modifier.
-fn key_chord(spec: &str) -> Result<(), String> {
+fn key_chord(pid: u32, spec: &str) -> Result<(), String> {
     let parts: Vec<&str> = spec.split('+').collect();
     let (key, modifiers) = parts.split_last().ok_or("empty key")?;
     let mut flags = 0u64;
@@ -259,21 +167,21 @@ fn key_chord(spec: &str) -> Result<(), String> {
              .0;
     }
     if let Some((code, _)) = modifier_key(key).filter(|_| modifiers.is_empty()) {
-        return tap(code, CGEventFlags(0));
+        return tap(pid, code, CGEventFlags(0));
     }
     let (code, shifted) = key_code(key).ok_or_else(|| format!("unsupported key {key}"))?;
     if shifted {
         flags |= CGEventFlags::MaskShift.0;
     }
-    tap(code, CGEventFlags(flags))
+    tap(pid, code, CGEventFlags(flags))
 }
 
-fn tap(code: CGKeyCode, flags: CGEventFlags) -> Result<(), String> {
+fn tap(pid: u32, code: CGKeyCode, flags: CGEventFlags) -> Result<(), String> {
     for down in [true, false] {
         let event = CGEvent::new_keyboard_event(None, code, down)
             .ok_or("CGEventCreateKeyboardEvent failed")?;
         CGEvent::set_flags(Some(&event), flags);
-        CGEvent::post(CGEventTapLocation::HIDEventTap, Some(&event));
+        CGEvent::post_to_pid(pid as libc::pid_t, Some(&event));
     }
     Ok(())
 }

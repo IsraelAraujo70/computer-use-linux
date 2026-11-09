@@ -189,22 +189,39 @@ pub async fn capture_screenshot_raw() -> Result<RawScreenshotCapture> {
         );
     }
     let bytes = bytes.context("screencapture wrote no image")?;
-    let (png_width, png_height) = png_dimensions(&bytes)?;
-    // A Retina-only capture comes back at 2x; keep pixels equal to points.
-    let bytes = if (png_width, png_height) == (width, height) {
-        bytes
-    } else {
-        run_image_task(move || {
-            let image = image::load_from_memory(&bytes).context("screencapture PNG is invalid")?;
-            let resized = image.resize_exact(width, height, FilterType::Triangle);
-            let mut out = Vec::new();
-            resized
-                .write_to(&mut Cursor::new(&mut out), image::ImageFormat::Png)
-                .context("failed to encode screenshot PNG")?;
-            Ok(out)
-        })
-        .await?
+    let agent_window = tokio::task::spawn_blocking(crate::windowing::backends::mac::agent_window)
+        .await
+        .ok()
+        .flatten();
+    let window_png = match &agent_window {
+        Some(window) => capture_window_png(window.id).await,
+        None => None,
     };
+    let bytes = run_image_task(move || {
+        let mut desktop = image::load_from_memory(&bytes)
+            .context("screencapture PNG is invalid")?
+            .to_rgba8();
+        // A Retina-only capture comes back at 2x; keep pixels equal to points.
+        if desktop.dimensions() != (width, height) {
+            desktop = image::imageops::resize(&desktop, width, height, FilterType::Triangle);
+        }
+        // Background mode: the agent's window may sit behind the user's
+        // windows. Draw it on top, as the agent sees it, so window crops and
+        // clicks by screenshot pixel match what the agent acts on.
+        if let (Some(window), Some(png)) = (agent_window, window_png) {
+            if let Ok(shot) = image::load_from_memory(&png) {
+                let (x, y, w, h) = window.bounds;
+                let shot = image::imageops::resize(&shot.to_rgba8(), w, h, FilterType::Triangle);
+                image::imageops::overlay(&mut desktop, &shot, i64::from(x), i64::from(y));
+            }
+        }
+        let mut out = Vec::new();
+        image::DynamicImage::ImageRgba8(desktop)
+            .write_to(&mut Cursor::new(&mut out), image::ImageFormat::Png)
+            .context("failed to encode screenshot PNG")?;
+        Ok(out)
+    })
+    .await?;
     Ok(RawScreenshotCapture {
         mime_type: "image/png".to_string(),
         bytes,
@@ -212,6 +229,23 @@ pub async fn capture_screenshot_raw() -> Result<RawScreenshotCapture> {
         width,
         height,
     })
+}
+
+/// One window's own pixels (`screencapture -l`), even while covered by
+/// other windows; no shadow.
+#[cfg(target_os = "macos")]
+async fn capture_window_png(window_id: u32) -> Option<Vec<u8>> {
+    let path =
+        std::env::temp_dir().join(format!("cul-window-{}-{window_id}.png", std::process::id()));
+    let status = tokio::process::Command::new("/usr/sbin/screencapture")
+        .args(["-x", "-o", "-t", "png", &format!("-l{window_id}")])
+        .arg(&path)
+        .status()
+        .await
+        .ok()?;
+    let bytes = std::fs::read(&path).ok();
+    let _ = std::fs::remove_file(&path);
+    status.success().then_some(bytes).flatten()
 }
 
 #[cfg(target_os = "linux")]

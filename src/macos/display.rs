@@ -9,10 +9,12 @@ use std::time::Duration;
 
 pub(crate) const X11_QUERY_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// The window server sees every window, so the window-under-point check
-/// is meaningful (the X11 counterpart is false off native X11).
+/// False: in background mode pointer input never travels through the
+/// screen. Clicks act on the target app's own element under the point (AX
+/// hit-test inside that app), so a window covering it cannot take the click
+/// and the server's window-under-point check does not apply.
 pub(crate) fn is_native_x11_session() -> bool {
-    true
+    false
 }
 
 /// The frontmost window at a point.
