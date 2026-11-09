@@ -146,6 +146,11 @@ check("a click outside the target app is refused, not sent elsewhere", error, te
 text, error = call("screenshot", {"format": "jpeg", "max_width": 800})
 check("screenshot caption in points", '"coordinate_width"' in text, text)
 
+call("get_app_state", {"app_name_or_bundle_identifier": "safari"})
+text, error = call("screenshot", {"pid": int(safari_pid), "annotate": True, "max_width": 900})
+labels = re.search(r'"annotated_elements":(\d+)', text)
+check("annotated screenshot of the background window labels its elements", '"cropped_to_window":true' in text and bool(labels) and int(labels.group(1)) >= 5, text)
+
 # A native app, opened in the background by its English name on any
 # system language, driven by a click and by keys sent to its process.
 text, error = call("app", {"mode": "launch", "name": "Calculator"})

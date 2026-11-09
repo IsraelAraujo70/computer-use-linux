@@ -1,4 +1,5 @@
 mod a11y;
+mod annotate;
 mod apps;
 #[cfg(target_os = "linux")]
 #[path = "atspi_tree.rs"]

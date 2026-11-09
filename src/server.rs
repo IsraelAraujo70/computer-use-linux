@@ -881,8 +881,27 @@ impl ComputerUseLinux {
 
         let raw_capture = capture_screenshot_raw().await;
         self.record_screenshot_result(raw_capture.is_ok());
-        let raw_capture = raw_capture.context("screenshot failed")?;
+        let mut raw_capture = raw_capture.context("screenshot failed")?;
         self.cache_desktop_size(raw_capture.width, raw_capture.height);
+        // Ids of the last get_app_state drawn on the raw pixels, which are
+        // the coordinate space element bounds use, before crop and resize.
+        let annotated = match params.annotate {
+            Some(true) => {
+                let elements = self
+                    .last_snapshot
+                    .lock()
+                    .map(|cached| crate::annotate::actionable(&cached.nodes))
+                    .unwrap_or_default();
+                let count = elements.len();
+                let bytes = std::mem::take(&mut raw_capture.bytes);
+                raw_capture.bytes = crate::screenshot_impl::run_image_task(move || {
+                    crate::annotate::annotate_png(&bytes, &elements)
+                })
+                .await?;
+                Some(count)
+            }
+            _ => None,
+        };
 
         // Warn when the target window extends past the root window: the crop
         // silently loses the off-screen region.
@@ -941,6 +960,13 @@ impl ComputerUseLinux {
             "cropped_to_window": cropped,
             "window_title": window_label,
         });
+        if let Some(count) = annotated {
+            caption["annotated_elements"] = serde_json::json!(count);
+            if count == 0 {
+                caption["annotate_note"] =
+                    serde_json::json!("no elements to label: call get_app_state first");
+            }
+        }
         if let Some(note) = off_screen_note {
             caption["window_off_screen"] = serde_json::json!(true);
             caption["off_screen_note"] = serde_json::json!(note);
@@ -3370,6 +3396,10 @@ impl GetAppStateParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ScreenshotParams {
+    /// Draw a box and the element id [n] over each actionable element of the
+    /// last get_app_state, to act by id on what the image shows.
+    #[serde(default)]
+    annotate: Option<bool>,
     #[serde(default)]
     window_id: Option<u64>,
     #[serde(default)]
