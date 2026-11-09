@@ -1,10 +1,18 @@
+#[cfg(target_os = "macos")]
+use crate::windowing::backends::mac;
+#[cfg(target_os = "linux")]
 use crate::windowing::backends::{i3, x11};
 use crate::windowing::types::WindowInfo;
 use anyhow::{anyhow, Result};
+#[cfg(target_os = "macos")]
+pub use mac::MAC_BACKEND;
 
+#[cfg(target_os = "linux")]
 pub use i3::I3_BACKEND;
+#[cfg(target_os = "linux")]
 pub use x11::X11_BACKEND;
 
+#[cfg(target_os = "linux")]
 pub const WINDOW_PERMISSION_HINT: &str = "Computer Use could not list windows. Window targeting needs i3-msg reaching the i3 IPC socket (I3SOCK), or wmctrl and xprop on another X11 window manager.";
 
 #[derive(Debug, Clone, Copy)]
@@ -14,6 +22,9 @@ pub struct BackendDescriptor {
     pub list_note: &'static str,
     pub can_exact_focus: bool,
 }
+
+#[cfg(target_os = "macos")]
+pub const WINDOW_PERMISSION_HINT: &str = "Computer Use could not list windows. Window targeting needs the window server's window list; grant Screen Recording to this binary so window titles are readable.";
 
 #[derive(Debug, Clone)]
 pub struct BackendProbe {
@@ -26,13 +37,21 @@ pub struct BackendProbe {
 
 #[derive(Debug, Clone, Copy)]
 enum BackendKind {
+    #[cfg(target_os = "linux")]
     I3,
+    #[cfg(target_os = "linux")]
     X11,
+    #[cfg(target_os = "macos")]
+    Mac,
 }
 
 /// i3 first; the generic X11/EWMH backend answers only when i3 does not.
+#[cfg(target_os = "linux")]
 const BACKEND_ORDER: &[BackendKind] = &[BackendKind::I3, BackendKind::X11];
+#[cfg(target_os = "macos")]
+const BACKEND_ORDER: &[BackendKind] = &[BackendKind::Mac];
 
+#[cfg(target_os = "linux")]
 const DESCRIPTORS: &[BackendDescriptor] = &[
     BackendDescriptor {
         id: I3_BACKEND,
@@ -48,6 +67,14 @@ const DESCRIPTORS: &[BackendDescriptor] = &[
     },
 ];
 
+#[cfg(target_os = "macos")]
+const DESCRIPTORS: &[BackendDescriptor] = &[BackendDescriptor {
+    id: MAC_BACKEND,
+    failure_label: "macOS window server",
+    list_note: "Window list came from the macOS window server (CGWindowList), frontmost first; window_id is the CGWindowID. Titles need Screen Recording.",
+    can_exact_focus: true,
+}];
+
 pub fn descriptor(id: &str) -> Option<&'static BackendDescriptor> {
     DESCRIPTORS.iter().find(|descriptor| descriptor.id == id)
 }
@@ -57,11 +84,11 @@ pub fn list_note(id: &str) -> &'static str {
 }
 
 pub fn backend_can_exact_focus(id: &str) -> bool {
+    #[cfg(target_os = "linux")]
     if id == X11_BACKEND {
-        x11::can_exact_focus()
-    } else {
-        descriptor(id).is_some_and(|descriptor| descriptor.can_exact_focus)
+        return x11::can_exact_focus();
     }
+    descriptor(id).is_some_and(|descriptor| descriptor.can_exact_focus)
 }
 
 pub async fn list_windows() -> Result<Vec<WindowInfo>> {
@@ -96,25 +123,53 @@ fn usable_backend_windows(
 
 async fn list_windows_for(backend: BackendKind) -> Result<Vec<WindowInfo>> {
     match backend {
+        #[cfg(target_os = "linux")]
         BackendKind::I3 => i3::list_windows().await,
+        #[cfg(target_os = "linux")]
         BackendKind::X11 => x11::list_windows().await,
+        #[cfg(target_os = "macos")]
+        BackendKind::Mac => mac::list_windows().await,
     }
 }
 
 pub async fn activate_window(window: &WindowInfo) -> Result<()> {
     match window.backend.as_str() {
+        #[cfg(target_os = "linux")]
         I3_BACKEND => i3::activate_window(window.window_id).await,
+        #[cfg(target_os = "linux")]
         X11_BACKEND => x11::activate_window(window.window_id).await,
+        #[cfg(target_os = "macos")]
+        MAC_BACKEND => mac::activate_window(window).await,
         backend => Err(anyhow!(
             "Unsupported window backend for activation: {backend}"
         )),
     }
 }
 
+/// Moves and/or resizes a window through its backend.
+pub async fn resize_window(
+    window: &WindowInfo,
+    geometry: crate::windowing::types::WindowGeometry,
+) -> Result<()> {
+    match window.backend.as_str() {
+        #[cfg(target_os = "linux")]
+        I3_BACKEND => i3::resize_window(window.window_id, geometry).await,
+        #[cfg(target_os = "linux")]
+        X11_BACKEND => x11::resize_window(window.window_id, geometry).await,
+        #[cfg(target_os = "macos")]
+        MAC_BACKEND => mac::resize_window(window, geometry).await,
+        backend => Err(anyhow!("Unsupported window backend for resize: {backend}")),
+    }
+}
+
 pub async fn focused_window_for_backend(backend: &str) -> Result<Option<WindowInfo>> {
     let windows = match backend {
+        #[cfg(target_os = "linux")]
         I3_BACKEND => i3::list_windows().await?,
+        #[cfg(target_os = "linux")]
         X11_BACKEND => x11::list_windows_for_exact_focus().await?,
+        #[cfg(target_os = "macos")]
+        MAC_BACKEND => mac::list_windows().await?,
         backend => {
             return Err(anyhow!(
                 "Unsupported window backend for focus query: {backend}"
@@ -125,14 +180,21 @@ pub async fn focused_window_for_backend(backend: &str) -> Result<Option<WindowIn
 }
 
 pub fn probe_backends() -> Vec<BackendProbe> {
-    vec![i3::probe(), x11::probe()]
+    #[cfg(target_os = "linux")]
+    return vec![i3::probe(), x11::probe()];
+    #[cfg(target_os = "macos")]
+    return vec![mac::probe()];
 }
 
 impl BackendKind {
     fn id(self) -> &'static str {
         match self {
+            #[cfg(target_os = "linux")]
             BackendKind::I3 => I3_BACKEND,
+            #[cfg(target_os = "linux")]
             BackendKind::X11 => X11_BACKEND,
+            #[cfg(target_os = "macos")]
+            BackendKind::Mac => MAC_BACKEND,
         }
     }
 
@@ -143,7 +205,7 @@ impl BackendKind {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
     use crate::windowing::types::WindowBounds;

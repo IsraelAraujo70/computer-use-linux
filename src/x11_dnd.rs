@@ -101,7 +101,7 @@ pub(crate) fn uri_list(paths: &[PathBuf]) -> String {
         .collect()
 }
 
-/// `XdndEnter` data: source, version in the high byte of l[1] with bit 0
+/// `XdndEnter` data: source, version in the high byte of `l[1]` with bit 0
 /// set when more than three types exist (then read from `XdndTypeList`),
 /// and the first three types.
 fn enter_data(source: Window, version: u32, types: &[Atom]) -> [u32; 5] {
@@ -136,7 +136,7 @@ fn leave_data(source: Window) -> [u32; 5] {
     [source, 0, 0, 0, 0]
 }
 
-/// Bit 0 of l[1] in `XdndStatus` and `XdndFinished`: the target accepts.
+/// Bit 0 of `l[1]` in `XdndStatus` and `XdndFinished`: the target accepts.
 fn accepts(data: &[u32; 5]) -> bool {
     data[1] & 1 == 1
 }

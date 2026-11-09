@@ -512,6 +512,8 @@ mod tests {
         (path, file)
     }
 
+    // Needs Linux: util-linux flock(1) / ETXTBSY on exec.
+    #[cfg(target_os = "linux")]
     #[test]
     fn blocking_spawn_waits_out_a_transient_text_file_busy() {
         let (path, writer) = busy_script("std");
@@ -548,6 +550,8 @@ mod tests {
         let _ = fs::remove_file(path);
     }
 
+    // Needs Linux: util-linux flock(1) / ETXTBSY on exec.
+    #[cfg(target_os = "linux")]
     #[test]
     fn persistent_text_file_busy_is_still_reported() {
         let (path, writer) = busy_script("persistent");

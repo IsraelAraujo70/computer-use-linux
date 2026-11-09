@@ -8,8 +8,8 @@ export interface GeneratedMcpToolDefinition {
 }
 
 export const GENERATED_SERVER_VERSION = "0.7.17";
-export const GENERATED_TOOL_CATALOG_HASH = "4269ca7de5870f6a409210f5f01fa654d29af95326edc7c2d58dd235e3cfffb9";
-export const GENERATED_SHELL_TOOL_CATALOG_HASH = "c24dfa687fee4b64d72f6ab1108884054e8dfeb8b8bde7c40ac57b727f756a46";
+export const GENERATED_TOOL_CATALOG_HASH = "4bf2b239f85b459d8756483c314ca0b7b0cccc117d42f82acd0d5f974fbf8886";
+export const GENERATED_SHELL_TOOL_CATALOG_HASH = "c1c057e644a5091c82090ce84056e9bb4a149669e2dfc029984227dc13dc0de7";
 export const GENERATED_MCP_TOOLS =
 [
   {
@@ -93,6 +93,82 @@ export const GENERATED_MCP_TOOLS =
       "type": "object"
     },
     "name": "activate_window"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "Open, switch to, or move/resize an app window. mode=launch opens an app by name (Safari, Firefox; a bundle id on macOS, a desktop entry or program on Linux); on macOS it opens in the background and becomes the agent's app. mode=switch makes the app's window the one actions go to (macOS: without bringing it to the front). mode=resize sets x/y and/or width/height of window_id, of name's window, or of the focused window.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "height": {
+          "default": null,
+          "description": "New height (resize).",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "launch, switch or resize.",
+          "type": "string"
+        },
+        "name": {
+          "default": null,
+          "description": "App name (Safari, Firefox); a bundle id on macOS or a desktop entry\non Linux. Needed by launch and switch.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "width": {
+          "default": null,
+          "description": "New width (resize).",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "window_id": {
+          "default": null,
+          "description": "Window to resize (list_windows); default: name's window, else the\nfocused window.",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "x": {
+          "default": null,
+          "description": "New left edge (resize), in screen pixels (points on macOS).",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "y": {
+          "default": null,
+          "description": "New top edge (resize).",
+          "format": "int32",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "type": "object"
+    },
+    "name": "app"
   },
   {
     "annotations": {
@@ -707,6 +783,45 @@ export const GENERATED_MCP_TOOLS =
   {
     "annotations": {
       "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "Show a desktop notification to the user (title, message, optional subtitle and sound), e.g. to say a long task finished or needs them.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "message": {
+          "default": "",
+          "type": "string"
+        },
+        "sound": {
+          "default": null,
+          "description": "Play the default sound (macOS).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "subtitle": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "notification"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
       "idempotentHint": true,
       "openWorldHint": true,
       "readOnlyHint": true
@@ -976,6 +1091,38 @@ export const GENERATED_MCP_TOOLS =
   {
     "annotations": {
       "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    },
+    "description": "Fetch a public web page (http/https) and return its readable text: title, headings, paragraphs, list items and links as [text](href). No browser, no cookies or logins; private, local and tailnet addresses are refused. Use get_app_state for pages that need the user's session.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "max_chars": {
+          "default": null,
+          "description": "Characters of text to return (default 20000).",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "url": {
+          "description": "http(s) URL of a public page.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "name": "scrape"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
       "idempotentHint": false,
       "openWorldHint": true,
       "readOnlyHint": false
@@ -993,6 +1140,14 @@ export const GENERATED_MCP_TOOLS =
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "properties": {
+        "annotate": {
+          "default": null,
+          "description": "Draw a box and the element id `[n]` over each actionable element of the\nlast get_app_state, to act by id on what the image shows.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "format": {
           "anyOf": [
             {
@@ -1390,6 +1545,30 @@ export const GENERATED_MCP_TOOLS =
       "type": "object"
     },
     "name": "type_text"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "Wait a number of seconds (0.1 to 60), e.g. for a page or app to finish loading. To wait for something specific, use wait_for.",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "seconds": {
+          "description": "Seconds to wait, 0.1 to 60.",
+          "format": "double",
+          "type": "number"
+        }
+      },
+      "required": [
+        "seconds"
+      ],
+      "type": "object"
+    },
+    "name": "wait"
   },
   {
     "annotations": {

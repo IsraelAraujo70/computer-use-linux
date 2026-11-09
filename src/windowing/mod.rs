@@ -4,16 +4,19 @@ pub mod target;
 pub mod types;
 
 #[allow(unused_imports)]
-pub use registry::{I3_BACKEND, WINDOW_PERMISSION_HINT, X11_BACKEND};
+pub use registry::WINDOW_PERMISSION_HINT;
+#[cfg(target_os = "linux")]
+#[allow(unused_imports)]
+pub use registry::{I3_BACKEND, X11_BACKEND};
 #[allow(unused_imports)]
 pub use target::{
     focus_window_target, focused_window, list_windows, resolve_window_target,
     window_permission_hint,
 };
 #[allow(unused_imports)]
-pub use types::{WindowBounds, WindowFocusResult, WindowInfo, WindowTarget};
+pub use types::{WindowBounds, WindowFocusResult, WindowGeometry, WindowInfo, WindowTarget};
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::backends::i3::{parse_i3_tree, parse_xprop_pid};
     use super::registry::list_note;

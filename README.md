@@ -45,6 +45,10 @@ Chromium and Electron apps need `--force-renderer-accessibility` for a full tree
 - `press_key`, `type_text`: xdotool keys and literal text, optionally after focusing a window or terminal (`tty`, `terminal_pid`, `terminal_command`, `terminal_cwd`). Results report the focused AT-SPI element and warn when it is not editable.
 - `perform_action`, `set_value`: invoke an AT-SPI action or set a value or editable text directly.
 - `activate_window`: focus a window, switching i3 workspace if needed.
+- `app`: open an app (`mode=launch`), make its window the one actions go to (`switch`), or move/resize a window (`resize`).
+- `wait`: plain pause (0.1 to 60 s); `notification`: show a desktop notification.
+- `scrape`: readable text of a public http(s) page, without a browser. Private, local and tailnet addresses are refused.
+- `screenshot` with `annotate: true` draws a box and the element id `[n]` over each actionable element of the last `get_app_state`.
 - `run_shell`: same-user `/bin/sh -c`, registered only with `COMPUTER_USE_LINUX_ENABLE_SHELL=1`. It is not a sandbox.
 
 Screenshots default to at most 1920 px per side and 2 MiB. Pass `max_width`, `max_height`, `max_bytes`, `scale`, `format: "jpeg"` or `quality` to change that. Results carry `coordinate_width`, `coordinate_height` and `scale` for mapping image pixels back to screen coordinates. For `click` or `scroll` with `relative: true`, measure from the target window's screenshot crop and divide preview pixels by `scale`.
@@ -147,6 +151,42 @@ computer-use-linux doctor | jq .readiness
 ```
 
 Ready means `ready: true` and an empty `blockers` array. Doctor connects to the X display but does not capture, so `screenshot_capture_status` stays `unverified` until `screenshot` or `get_app_state` runs. `can_ocr: false` only disables `ocr`.
+
+## macOS
+
+The same server, tools and outline run on macOS (tested on 26.5) behind a native layer: the AX accessibility tree (roles renamed to their AT-SPI names), CGEvent input and the window server.
+
+**Always in the background.** The agent works in the app it last read or acted on and never takes the user's pointer, keyboard or front app:
+- Keys go to that app's process (`CGEventPostToPid`), so they reach it while the user works in another app. Text goes in as Unicode with the ANSI key code, so it works on any keyboard layout.
+- Clicks use the element's accessibility action. Clicks by `x`/`y` act on the agent's app element under the point, even when another window covers it.
+- Scrolling moves the scroll bar. Drags are refused, because they need the real pointer.
+- `activate_window` and `app mode=switch` only select the agent's window; nothing comes to the front.
+- If an action makes some app take the front anyway (Chrome opening a window or a `<select>` popup), the user's app gets the front back within about 270 ms.
+- A purple agent cursor shows where the agent acts. It is drawn in a click-through overlay that screenshots leave out.
+- Screenshots cover every display at one pixel per point, with the agent's window drawn on top, so a window crop shows it even when it is covered.
+
+**Safety.** `get_app_state` notes dialogs of other apps floating over the screen. The agent can read password, Touch ID and permission prompts but cannot act on them.
+
+**Install.** TCC charges Accessibility and Screen Recording to the *responsible* process. Started from a terminal or an app, that is the terminal or the app. A launchd job is its own responsible process, so the server runs as a LaunchAgent behind a Unix socket:
+
+```bash
+cargo build --release
+SIGN_IDENTITY=<codesign identity> scripts/macos-launchagent.sh   # copies, signs, installs both LaunchAgents
+```
+
+Grant Accessibility and Screen Recording to `~/.local/bin/computer-use-mac` once. The grant survives rebuilds while the path, the bundle id and the signing certificate stay the same. macOS asks again about once a month whether the binary may keep capturing the screen.
+
+**Connect.** A local client runs `nc -U ~/.local/state/computer-use-mac/mcp.sock` as its MCP command. A remote agent uses SSH and opens no new port. Give it a dedicated key, restricted on the Mac in `~/.ssh/authorized_keys`:
+
+```
+command="/usr/bin/nc -U /Users/<you>/.local/state/computer-use-mac/mcp.sock",from="<agent host IP>",no-pty,no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 AAAA… computer-use-mac
+```
+
+The remote MCP command is then `ssh -i <key> -o IdentitiesOnly=yes -o BatchMode=yes -T <you>@<mac>`. That key reaches the computer-use socket and nothing else.
+
+**Test.** `scripts/macos_smoke.py` drives a test form in a background Safari and a background Calculator over the socket. It fails any step after which the browser became frontmost. Run Chrome (`--app "Google Chrome" --mac-idle`) only while nobody uses the Mac: opening its test window takes the front.
+
+**Not on macOS:** `drag`, `drop_files` (use the page's file input and the open panel), terminal targeting by tty.
 
 ## Environment variables
 

@@ -14,7 +14,7 @@
 use crate::command_runner;
 use crate::terminal::enrich_terminal_windows;
 use crate::windowing::registry::BackendProbe;
-use crate::windowing::types::{WindowBounds, WindowInfo};
+use crate::windowing::types::{WindowBounds, WindowGeometry, WindowInfo};
 use crate::x11_display::{
     is_native_x11_session as is_x11_session, with_x11_display, X11_QUERY_TIMEOUT,
 };
@@ -143,6 +143,29 @@ pub(crate) fn apply_client_origins(windows: &mut [WindowInfo], origins: &[Option
 pub async fn activate_window(window_id: u64) -> Result<()> {
     let id = window_id_arg(window_id);
     run_wmctrl(&["-i", "-a", id.as_str()], "activate window", window_id).await
+}
+
+/// Moves and/or resizes the window (`wmctrl -e`, -1 keeps a value).
+pub async fn resize_window(window_id: u64, geometry: WindowGeometry) -> Result<()> {
+    let id = window_id_arg(window_id);
+    let spec = wmctrl_geometry(geometry);
+    run_wmctrl(
+        &["-i", "-r", id.as_str(), "-e", spec.as_str()],
+        "resize window",
+        window_id,
+    )
+    .await
+}
+
+pub(crate) fn wmctrl_geometry(geometry: WindowGeometry) -> String {
+    let value = |v: Option<i64>| v.map_or("-1".to_string(), |v| v.to_string());
+    format!(
+        "0,{},{},{},{}",
+        value(geometry.x.map(i64::from)),
+        value(geometry.y.map(i64::from)),
+        value(geometry.width.map(i64::from)),
+        value(geometry.height.map(i64::from))
+    )
 }
 
 async fn run_wmctrl(args: &[&str], action: &str, window_id: u64) -> Result<()> {

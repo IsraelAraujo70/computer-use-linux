@@ -154,6 +154,100 @@ async fn capture_with_x11() -> Result<RawScreenshotCapture> {
     })
 }
 
+/// The desktop of every display through `screencapture -R`, from (0, 0) to
+/// the far display edge, at one pixel per point: pixels are the global
+/// point coordinates CGEvent input and AX bounds use, as on X11.
+#[cfg(target_os = "macos")]
+pub async fn capture_screenshot_raw() -> Result<RawScreenshotCapture> {
+    let (width, height) = crate::windowing::backends::mac::desktop_size();
+    if width == 0 || height == 0 {
+        bail!("no active display");
+    }
+    if !objc2_core_graphics::CGPreflightScreenCaptureAccess() {
+        bail!("Screen Recording permission missing for this binary (System Settings → Privacy & Security → Screen Recording)");
+    }
+    let path = std::env::temp_dir().join(format!(
+        "cul-shot-{}-{}.png",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_nanos())
+            .unwrap_or_default()
+    ));
+    let output = tokio::process::Command::new("/usr/sbin/screencapture")
+        .args(["-x", "-t", "png", &format!("-R0,0,{width},{height}")])
+        .arg(&path)
+        .output()
+        .await
+        .context("failed to run screencapture")?;
+    let bytes = std::fs::read(&path);
+    let _ = std::fs::remove_file(&path);
+    if !output.status.success() {
+        bail!(
+            "screencapture failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let bytes = bytes.context("screencapture wrote no image")?;
+    let agent_window = tokio::task::spawn_blocking(crate::windowing::backends::mac::agent_window)
+        .await
+        .ok()
+        .flatten();
+    let window_png = match &agent_window {
+        Some(window) => capture_window_png(window.id).await,
+        None => None,
+    };
+    let bytes = run_image_task(move || {
+        let mut desktop = image::load_from_memory(&bytes)
+            .context("screencapture PNG is invalid")?
+            .to_rgba8();
+        // A Retina-only capture comes back at 2x; keep pixels equal to points.
+        if desktop.dimensions() != (width, height) {
+            desktop = image::imageops::resize(&desktop, width, height, FilterType::Triangle);
+        }
+        // Background mode: the agent's window may sit behind the user's
+        // windows. Draw it on top, as the agent sees it, so window crops and
+        // clicks by screenshot pixel match what the agent acts on.
+        if let (Some(window), Some(png)) = (agent_window, window_png) {
+            if let Ok(shot) = image::load_from_memory(&png) {
+                let (x, y, w, h) = window.bounds;
+                let shot = image::imageops::resize(&shot.to_rgba8(), w, h, FilterType::Triangle);
+                image::imageops::overlay(&mut desktop, &shot, i64::from(x), i64::from(y));
+            }
+        }
+        let mut out = Vec::new();
+        image::DynamicImage::ImageRgba8(desktop)
+            .write_to(&mut Cursor::new(&mut out), image::ImageFormat::Png)
+            .context("failed to encode screenshot PNG")?;
+        Ok(out)
+    })
+    .await?;
+    Ok(RawScreenshotCapture {
+        mime_type: "image/png".to_string(),
+        bytes,
+        source: "screencapture".to_string(),
+        width,
+        height,
+    })
+}
+
+/// One window's own pixels (`screencapture -l`), even while covered by
+/// other windows; no shadow.
+#[cfg(target_os = "macos")]
+async fn capture_window_png(window_id: u32) -> Option<Vec<u8>> {
+    let path =
+        std::env::temp_dir().join(format!("cul-window-{}-{window_id}.png", std::process::id()));
+    let status = tokio::process::Command::new("/usr/sbin/screencapture")
+        .args(["-x", "-o", "-t", "png", &format!("-l{window_id}")])
+        .arg(&path)
+        .status()
+        .await
+        .ok()?;
+    let bytes = std::fs::read(&path).ok();
+    let _ = std::fs::remove_file(&path);
+    status.success().then_some(bytes).flatten()
+}
+
 #[cfg(target_os = "linux")]
 fn encode_rgb_png(width: u32, height: u32, rgb: Vec<u8>) -> Result<Vec<u8>> {
     let buffer = image::RgbImage::from_raw(width, height, rgb)
@@ -165,7 +259,6 @@ fn encode_rgb_png(width: u32, height: u32, rgb: Vec<u8>) -> Result<Vec<u8>> {
     Ok(out)
 }
 
-#[cfg(target_os = "linux")]
 pub async fn capture_screenshot() -> Result<ScreenshotCapture> {
     let _pipeline = screenshot_pipeline_permit().await?;
     let raw = capture_screenshot_raw().await?;

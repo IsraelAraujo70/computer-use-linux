@@ -104,3 +104,13 @@ impl WindowTarget {
                 .is_some_and(|value| !value.trim().is_empty())
     }
 }
+
+/// A window's new origin and/or size in screen pixels (points on macOS);
+/// `None` keeps the current value.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, JsonSchema)]
+pub struct WindowGeometry {
+    pub x: Option<i32>,
+    pub y: Option<i32>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}

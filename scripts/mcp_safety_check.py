@@ -36,6 +36,10 @@ EXPECTED_TOOLS = {
     "perform_action",
     "set_value",
     "fill_form",
+    "app",
+    "wait",
+    "notification",
+    "scrape",
 }
 SHELL_TOOL = "run_shell"
 
@@ -97,6 +101,8 @@ READ_ONLY_TOOLS = {
     "ocr",
     "list_windows",
     "focused_window",
+    "wait",
+    "scrape",
 }
 
 DESTRUCTIVE_MUTATING_TOOLS = {
@@ -115,7 +121,7 @@ NON_DESTRUCTIVE_MUTATING_TOOLS = EXPECTED_TOOLS - READ_ONLY_TOOLS - DESTRUCTIVE_
 
 IDEMPOTENT_TOOLS = READ_ONLY_TOOLS | {"activate_window"}
 
-OPEN_WORLD_TOOLS = (EXPECTED_TOOLS | {SHELL_TOOL}) - {"doctor"}
+OPEN_WORLD_TOOLS = (EXPECTED_TOOLS | {SHELL_TOOL}) - {"doctor", "wait"}
 
 
 class McpClient:

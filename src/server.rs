@@ -24,13 +24,15 @@ use rmcp::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+#[cfg(not(target_os = "macos"))]
+use std::process::Stdio;
 use std::{
     collections::BTreeMap,
     env,
     ffi::OsString,
     future::Future,
     path::{Path, PathBuf},
-    process::{Command, Output, Stdio},
+    process::{Command, Output},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -163,9 +165,33 @@ impl ComputerUseLinux {
             // Results are text for the agent to read; output schemas only
             // add kilobytes to every tools/list.
             route.attr.output_schema = None;
+            #[cfg(target_os = "macos")]
+            if let Some(description) = macos_tool_description(&route.attr.name) {
+                route.attr.description = Some(description.into());
+            }
         }
         router
     }
+}
+
+/// macOS wording for the tools whose Linux descriptions name X11, AT-SPI
+/// or Ctrl chords; behavior and parameters are the same.
+#[cfg(target_os = "macos")]
+fn macos_tool_description(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "doctor" => "Check macOS permissions (Accessibility, Screen Recording) for this binary, displays, the window server and optional tesseract. readiness.blockers names the fix for each failure.",
+        "list_apps" => "List running apps: name (bundle id) and pid, usable as app_name_or_bundle_identifier.",
+        "list_windows" => "List on-screen windows, frontmost first, with window_id (CGWindowID), title, app (wm_class), bundle id (app_id), pid, focus and bounds in screen points.",
+        "focused_window" => "Return the agent's window: the one activate_window selected, else the front window of the app the agent last read or acted on. macOS runs in the background, so this is not the user's focus.",
+        "activate_window" => "Select the window the agent works in. macOS runs in the background: nothing comes to the front and the user's pointer and keyboard stay theirs; keys then go to this window's app.",
+        "click" => "Click an element by element_index (or role/name/text), or x/y in screen points. Runs in the background without moving the pointer: elements use their accessibility action; x/y acts on the target app's element under the point (even if another window covers it). Reports what changed.",
+        "drag" => "Not available on macOS: background mode never takes the pointer, and a drag needs it.",
+        "perform_action" => "Invoke a named accessibility action of an element (click = AXPress, showContextMenu, increment, decrement, confirm, raise; default: its primary action). Reports what changed.",
+        "press_key" => "Press a key or chord, e.g. Enter, Escape, Tab, ArrowDown, Cmd+L, Cmd+Shift+T, Ctrl+C (Cmd/Super/Meta = Command, Alt/Option = Option; letters, digits, F1-F12, Home/End/PageUp/PageDown, Backspace, Delete, Space). Optional window target. Reports what changed.",
+        "type_text" => "Type text into the focused element of the agent's app, or first into element_index/role/name or a window target. Keys go to that app in the background, never to the user's frontmost app. Any Unicode text is typed as key events (no clipboard); newline presses Return (a new line in text areas and editors; inside the text of a single-line input it is refused). To replace a field's content use set_value. Reports what changed.",
+        "drop_files" => "Not supported on macOS: click the page's file input, then in the open panel press_key Cmd+Shift+G, type_text the path and press_key Return.",
+        _ => return None,
+    })
 }
 
 #[tool_router]
@@ -577,6 +603,8 @@ impl ComputerUseLinux {
             truncated_accessibility_tree_note(accessibility_tree_truncated).map(str::to_string),
         );
         notes.extend(shell_only_note.map(str::to_string));
+        #[cfg(target_os = "macos")]
+        notes.extend(crate::macos::ax_tree::floating_dialog_notes(tree_root_pid).await);
         notes.extend(
             diagnostics
                 .readiness
@@ -853,8 +881,27 @@ impl ComputerUseLinux {
 
         let raw_capture = capture_screenshot_raw().await;
         self.record_screenshot_result(raw_capture.is_ok());
-        let raw_capture = raw_capture.context("screenshot failed")?;
+        let mut raw_capture = raw_capture.context("screenshot failed")?;
         self.cache_desktop_size(raw_capture.width, raw_capture.height);
+        // Ids of the last get_app_state drawn on the raw pixels, which are
+        // the coordinate space element bounds use, before crop and resize.
+        let annotated = match params.annotate {
+            Some(true) => {
+                let elements = self
+                    .last_snapshot
+                    .lock()
+                    .map(|cached| crate::annotate::actionable(&cached.nodes))
+                    .unwrap_or_default();
+                let count = elements.len();
+                let bytes = std::mem::take(&mut raw_capture.bytes);
+                raw_capture.bytes = crate::screenshot_impl::run_image_task(move || {
+                    crate::annotate::annotate_png(&bytes, &elements)
+                })
+                .await?;
+                Some(count)
+            }
+            _ => None,
+        };
 
         // Warn when the target window extends past the root window: the crop
         // silently loses the off-screen region.
@@ -913,6 +960,13 @@ impl ComputerUseLinux {
             "cropped_to_window": cropped,
             "window_title": window_label,
         });
+        if let Some(count) = annotated {
+            caption["annotated_elements"] = serde_json::json!(count);
+            if count == 0 {
+                caption["annotate_note"] =
+                    serde_json::json!("no elements to label: call get_app_state first");
+            }
+        }
         if let Some(note) = off_screen_note {
             caption["window_off_screen"] = serde_json::json!(true);
             caption["off_screen_note"] = serde_json::json!(note);
@@ -1183,8 +1237,8 @@ impl ComputerUseLinux {
         let mut output = action_result("click", result.map(|output| vec![output]), received);
         if output.ok {
             output.message = match &label {
-                Some(label) => format!("clicked {label} at {x},{y} (xdotool)"),
-                None => format!("clicked {x},{y} (xdotool)"),
+                Some(label) => format!("clicked {label} at {x},{y} ({INPUT_BACKEND})"),
+                None => format!("clicked {x},{y} ({INPUT_BACKEND})"),
             };
         }
         Json(output)
@@ -1635,12 +1689,12 @@ impl ComputerUseLinux {
         if output.ok {
             output.message = match target_point {
                 Some((x, y)) => format!(
-                    "scrolled {} {} page(s) at {x},{y} (xdotool)",
+                    "scrolled {} {} page(s) at {x},{y} ({INPUT_BACKEND})",
                     params.direction(),
                     params.pages.unwrap_or(1.0)
                 ),
                 None => format!(
-                    "scrolled {} {} page(s) under the pointer (xdotool)",
+                    "scrolled {} {} page(s) under the pointer ({INPUT_BACKEND})",
                     params.direction(),
                     params.pages.unwrap_or(1.0)
                 ),
@@ -1945,7 +1999,7 @@ impl ComputerUseLinux {
         let _input_guard = input_guard;
         let mut output = action_result("press_key", result.map(|output| vec![output]), received);
         if output.ok {
-            output.message = format!("pressed {} (xdotool)", params.key.trim());
+            output.message = format!("pressed {} ({INPUT_BACKEND})", params.key.trim());
         }
         if output.ok && focus.is_some() {
             let notes = self.input_landing_notes(focus.as_ref(), false).await;
@@ -2191,6 +2245,110 @@ impl ComputerUseLinux {
     }
 
     #[tool(
+        name = "app",
+        description = "Open, switch to, or move/resize an app window. mode=launch opens an app by name (Safari, Firefox; a bundle id on macOS, a desktop entry or program on Linux); on macOS it opens in the background and becomes the agent's app. mode=switch makes the app's window the one actions go to (macOS: without bringing it to the front). mode=resize sets x/y and/or width/height of window_id, of name's window, or of the focused window.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn app(&self, Parameters(params): Parameters<AppParams>) -> Json<ActionOutput> {
+        let received = Some(serde_json::json!(params.clone()));
+        let result = self.app_action(&params).await;
+        Json(ActionOutput {
+            ok: result.is_ok(),
+            implemented: true,
+            action: format!("app {}", params.mode.trim()),
+            message: result.unwrap_or_else(|error| error),
+            received,
+        })
+    }
+
+    #[tool(
+        name = "wait",
+        description = "Wait a number of seconds (0.1 to 60), e.g. for a page or app to finish loading. To wait for something specific, use wait_for.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = false
+        )
+    )]
+    async fn wait(&self, Parameters(params): Parameters<WaitParams>) -> Json<ActionOutput> {
+        let seconds = if params.seconds.is_finite() {
+            params.seconds.clamp(0.1, 60.0)
+        } else {
+            1.0
+        };
+        sleep(Duration::from_secs_f64(seconds)).await;
+        Json(ActionOutput {
+            ok: true,
+            implemented: true,
+            action: "wait".to_string(),
+            message: format!("waited {seconds} s"),
+            received: None,
+        })
+    }
+
+    #[tool(
+        name = "notification",
+        description = "Show a desktop notification to the user (title, message, optional subtitle and sound), e.g. to say a long task finished or needs them.",
+        annotations(
+            read_only_hint = false,
+            destructive_hint = false,
+            idempotent_hint = false,
+            open_world_hint = true
+        )
+    )]
+    async fn notification(
+        &self,
+        Parameters(params): Parameters<NotificationParams>,
+    ) -> Json<ActionOutput> {
+        let result = crate::apps::notify(
+            &params.title,
+            &params.message,
+            params.subtitle.as_deref(),
+            params.sound.unwrap_or(false),
+        )
+        .await;
+        Json(ActionOutput {
+            ok: result.is_ok(),
+            implemented: true,
+            action: "notification".to_string(),
+            message: match result {
+                Ok(()) => "notification shown".to_string(),
+                Err(error) => format!("{error:#}"),
+            },
+            received: None,
+        })
+    }
+
+    #[tool(
+        name = "scrape",
+        description = "Fetch a public web page (http/https) and return its readable text: title, headings, paragraphs, list items and links as [text](href). No browser, no cookies or logins; private, local and tailnet addresses are refused. Use get_app_state for pages that need the user's session.",
+        annotations(
+            read_only_hint = true,
+            destructive_hint = false,
+            idempotent_hint = true,
+            open_world_hint = true
+        )
+    )]
+    async fn scrape(&self, Parameters(params): Parameters<ScrapeParams>) -> CallToolResult {
+        let max_chars = params
+            .max_chars
+            .unwrap_or(crate::scrape::DEFAULT_MAX_CHARS)
+            .clamp(500, 200_000);
+        match crate::scrape::scrape(&params.url, max_chars).await {
+            Ok(text) => CallToolResult::success(vec![ContentBlock::text(text)]),
+            Err(error) => {
+                CallToolResult::error(vec![ContentBlock::text(format!("error: {error:#}"))])
+            }
+        }
+    }
+
+    #[tool(
         name = "run_shell",
         description = "Execute one explicitly approved /bin/sh command with same-user host authority. This tool is absent unless the server operator starts computer-use-linux with COMPUTER_USE_LINUX_ENABLE_SHELL=1. It is not sandboxed: the command can read or modify files and use the network with the server user's permissions. The inherited environment is cleared to a small desktop/runtime allowlist; pass any additional variables explicitly. Execution time and output are bounded: returned streams are truncated to 512 KiB, while a stream exceeding the 8 MiB collection ceiling fails the call without returning partial output. An audit digest is written to server stderr.",
         annotations(
@@ -2352,8 +2510,8 @@ impl ComputerUseLinux {
             return (Json(output), None);
         }
         let mut note = None;
-        output.message = if crate::fields::typeable_ascii(&params.text) {
-            "Sent through xdotool (X11 XTEST).".to_string()
+        output.message = if typeable(&params.text) {
+            TYPED_NOTE.to_string()
         } else {
             format!("Paste sent through the X11 clipboard ({paste_chord}).")
         };
@@ -2750,6 +2908,165 @@ struct ActivateWindowOutput {
     received: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct AppParams {
+    /// launch, switch or resize.
+    mode: String,
+    /// App name (Safari, Firefox); a bundle id on macOS or a desktop entry
+    /// on Linux. Needed by launch and switch.
+    #[serde(default)]
+    name: Option<String>,
+    /// Window to resize (list_windows); default: name's window, else the
+    /// focused window.
+    #[serde(default)]
+    window_id: Option<u64>,
+    /// New left edge (resize), in screen pixels (points on macOS).
+    #[serde(default)]
+    x: Option<i32>,
+    /// New top edge (resize).
+    #[serde(default)]
+    y: Option<i32>,
+    /// New width (resize).
+    #[serde(default)]
+    width: Option<u32>,
+    /// New height (resize).
+    #[serde(default)]
+    height: Option<u32>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct WaitParams {
+    /// Seconds to wait, 0.1 to 60.
+    seconds: f64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct NotificationParams {
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    message: String,
+    #[serde(default)]
+    subtitle: Option<String>,
+    /// Play the default sound (macOS).
+    #[serde(default)]
+    sound: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+struct ScrapeParams {
+    /// http(s) URL of a public page.
+    url: String,
+    /// Characters of text to return (default 20000).
+    #[serde(default)]
+    max_chars: Option<usize>,
+}
+
+impl ComputerUseLinux {
+    /// The `app` tool's work; `Err` carries the message for the agent.
+    async fn app_action(&self, params: &AppParams) -> std::result::Result<String, String> {
+        let name = params
+            .name
+            .as_deref()
+            .map(str::trim)
+            .filter(|name| !name.is_empty());
+        let _guard = self.lock_input().await?;
+        match params.mode.trim().to_ascii_lowercase().as_str() {
+            "launch" => {
+                let name = name.ok_or("mode=launch needs name")?;
+                crate::apps::launch_app(name)
+                    .await
+                    .map_err(|error| format!("{error:#}"))
+            }
+            "switch" => {
+                let name = name.ok_or("mode=switch needs name")?;
+                let mut last_error = String::new();
+                for target in app_window_targets(name) {
+                    match focus_window_target(&target).await {
+                        Ok(focus) => {
+                            let window = focus
+                                .focused_window
+                                .as_ref()
+                                .unwrap_or(&focus.requested_window);
+                            return Ok(format!(
+                                "switched to {} window {} \"{}\" ({})",
+                                window.wm_class.as_deref().unwrap_or(name),
+                                window.window_id,
+                                window.title.as_deref().unwrap_or_default(),
+                                focus.note
+                            ));
+                        }
+                        Err(error) => last_error = format!("{error:#}"),
+                    }
+                }
+                Err(format!("no window of {name}: {last_error}"))
+            }
+            "resize" => {
+                let geometry = crate::windowing::WindowGeometry {
+                    x: params.x,
+                    y: params.y,
+                    width: params.width,
+                    height: params.height,
+                };
+                let moves = geometry.x.is_some() && geometry.y.is_some();
+                let sizes = geometry.width.is_some() && geometry.height.is_some();
+                if !moves && !sizes {
+                    return Err("mode=resize needs x and y, width and height, or both".to_string());
+                }
+                let windows = list_windows().await.map_err(|error| format!("{error:#}"))?;
+                let window = match (params.window_id, name) {
+                    (Some(id), _) => windows
+                        .iter()
+                        .find(|window| window.window_id == id)
+                        .cloned(),
+                    (None, Some(name)) => app_window_targets(name)
+                        .iter()
+                        .find_map(|target| resolve_window_target(&windows, target).ok().cloned()),
+                    (None, None) => windows.iter().find(|window| window.focused).cloned(),
+                }
+                .ok_or("no such window; check list_windows")?;
+                registry::resize_window(&window, geometry)
+                    .await
+                    .map_err(|error| format!("{error:#}"))?;
+                Ok(format!(
+                    "moved/resized window {} \"{}\"",
+                    window.window_id,
+                    window.title.as_deref().unwrap_or_default()
+                ))
+            }
+            other => Err(format!(
+                "unknown mode {other:?}: use launch, switch or resize"
+            )),
+        }
+    }
+}
+
+/// Window targets that may name an app: its class/app name, then its app
+/// id, then its title.
+fn app_window_targets(name: &str) -> Vec<WindowTarget> {
+    let by_pid = crate::apps::app_pid(name).map(|pid| WindowTarget {
+        pid: Some(pid),
+        ..WindowTarget::default()
+    });
+    by_pid
+        .into_iter()
+        .chain([
+            WindowTarget {
+                wm_class: Some(name.to_string()),
+                ..WindowTarget::default()
+            },
+            WindowTarget {
+                app_id: Some(name.to_string()),
+                ..WindowTarget::default()
+            },
+            WindowTarget {
+                title: Some(name.to_string()),
+                ..WindowTarget::default()
+            },
+        ])
+        .collect()
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 struct RunShellParams {
     /// Shell program text passed to `/bin/sh -c` without loading login profiles.
@@ -3079,6 +3396,10 @@ impl GetAppStateParams {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 struct ScreenshotParams {
+    /// Draw a box and the element id `[n]` over each actionable element of the
+    /// last get_app_state, to act by id on what the image shows.
+    #[serde(default)]
+    annotate: Option<bool>,
     #[serde(default)]
     window_id: Option<u64>,
     #[serde(default)]
@@ -4242,7 +4563,7 @@ impl ComputerUseLinux {
         notes
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "linux"))]
     fn cache_nodes(&self, nodes: &[AccessibilityNode]) {
         self.cache_snapshot(nodes, None);
     }
@@ -4264,7 +4585,7 @@ impl ComputerUseLinux {
         self.cache_observation(nodes, target_pid, scope);
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "linux"))]
     fn cache_snapshot(&self, nodes: &[AccessibilityNode], target_pid: Option<u32>) {
         self.cache_observation(nodes, target_pid, None);
     }
@@ -4839,7 +5160,7 @@ impl ComputerUseLinux {
         })
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, target_os = "linux"))]
     fn clear_cached_nodes(&self) {
         self.cache_snapshot(&[], None);
     }
@@ -5276,7 +5597,7 @@ impl ComputerUseLinux {
         if let Err(message) = self.focus_element(node, label).await {
             return FieldOutcome::failed(message);
         }
-        if let Err(message) = send_key_chord("ctrl+a").await {
+        if let Err(message) = send_key_chord(SELECT_ALL_CHORD).await {
             return FieldOutcome::failed(message);
         }
         let entered = if value.is_empty() {
@@ -6552,7 +6873,7 @@ async fn send_key_chord(chord: &str) -> Result<(), String> {
 /// inside a paste is inert in shells with bracketed paste. set_value
 /// enters values literally instead (`insert_text`).
 async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
-    if crate::fields::typeable_ascii(text) {
+    if typeable(text) {
         let delay_ms = xdotool_type_delay_ms();
         let args = xdotool_type_args_with_delay(text, delay_ms);
         return run_xdotool(&args, xdotool_type_timeout(text, delay_ms))
@@ -6581,10 +6902,27 @@ async fn enter_text(text: &str, paste_chord: &str) -> Result<(), String> {
 /// line breaks.
 async fn insert_text(value: &str) -> Result<(), String> {
     match literal_insertion(value) {
-        Insertion::Type => enter_text(value, "ctrl+v").await,
-        Insertion::Paste(text) => paste_text(&text, "ctrl+v", false).await,
+        Insertion::Type => enter_text(value, PASTE_CHORD).await,
+        Insertion::Paste(text) => paste_text(&text, PASTE_CHORD, false).await,
     }
 }
+
+/// Text the platform types key by key. XTEST drops non-ASCII on Xvfb, so
+/// X11 types printable ASCII only and pastes the rest; macOS types any text
+/// as Unicode key events and never needs the clipboard for it.
+fn typeable(text: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    return !text
+        .chars()
+        .any(|c| c.is_control() && !matches!(c, '\n' | '\r' | '\t'));
+    #[cfg(not(target_os = "macos"))]
+    return crate::fields::typeable_ascii(text);
+}
+
+#[cfg(target_os = "macos")]
+const TYPED_NOTE: &str = "Sent as macOS Unicode key events (CGEvent).";
+#[cfg(not(target_os = "macos"))]
+const TYPED_NOTE: &str = "Sent through xdotool (X11 XTEST).";
 
 /// How `insert_text` enters a value.
 #[derive(Debug, PartialEq, Eq)]
@@ -6596,7 +6934,7 @@ enum Insertion {
 }
 
 fn literal_insertion(value: &str) -> Insertion {
-    if crate::fields::typeable_ascii(value) && !value.contains(['\n', '\r']) {
+    if typeable(value) && !value.contains(['\n', '\r']) {
         Insertion::Type
     } else {
         Insertion::Paste(value.replace("\r\n", "\n").replace('\r', "\n"))
@@ -6655,8 +6993,31 @@ async fn paste_text(text: &str, paste_chord: &str, more: bool) -> Result<(), Str
     }
 }
 
+/// What sends synthetic input, as action results name it.
+#[cfg(not(target_os = "macos"))]
+const INPUT_BACKEND: &str = "xdotool";
+#[cfg(target_os = "macos")]
+const INPUT_BACKEND: &str = "CGEvent";
+
+/// Select-all and paste: Ctrl on X11, Command on macOS (where terminals
+/// paste with Command+V too).
+#[cfg(not(target_os = "macos"))]
+const SELECT_ALL_CHORD: &str = "ctrl+a";
+#[cfg(not(target_os = "macos"))]
+const PASTE_CHORD: &str = "ctrl+v";
+#[cfg(target_os = "macos")]
+const SELECT_ALL_CHORD: &str = "super+a";
+#[cfg(target_os = "macos")]
+const PASTE_CHORD: &str = "super+v";
+
+#[cfg(target_os = "macos")]
+fn paste_chord_for(_window: Option<&WindowInfo>) -> &'static str {
+    PASTE_CHORD
+}
+
 /// The paste chord for the focused window: terminals take Ctrl+Shift+V
 /// (xterm only Shift+Insert, which reads PRIMARY, also owned here).
+#[cfg(not(target_os = "macos"))]
 fn paste_chord_for(window: Option<&WindowInfo>) -> &'static str {
     let class = window
         .map(|window| {
@@ -7919,6 +8280,30 @@ async fn run_xdotool(
     run_xdotool_program(Path::new("xdotool"), args, command_timeout).await
 }
 
+/// macOS: the same xdotool command line, run as CGEvents in-process
+/// (`macos::input`), so every input path above works unchanged.
+#[cfg(target_os = "macos")]
+async fn run_xdotool_program(
+    _program: &Path,
+    args: &[String],
+    command_timeout: Duration,
+) -> std::result::Result<Output, String> {
+    use std::os::unix::process::ExitStatusExt;
+    let args = args.to_vec();
+    let run = tokio::task::spawn_blocking(move || crate::macos::input::run(&args));
+    match timeout(command_timeout, run).await {
+        Ok(Ok(Ok(()))) => Ok(Output {
+            status: std::process::ExitStatus::from_raw(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        }),
+        Ok(Ok(Err(error))) => Err(error),
+        Ok(Err(error)) => Err(format!("input task failed: {error}")),
+        Err(_) => Err(format!("input did not finish within {command_timeout:?}")),
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
 async fn run_xdotool_program(
     program: &Path,
     args: &[String],
@@ -8122,6 +8507,7 @@ fn normalize_key(key: &str) -> String {
     key.trim().to_ascii_lowercase().replace(['-', ' '], "")
 }
 
+#[cfg_attr(target_os = "macos", allow(dead_code))]
 fn command_output_error(command: &str, output: Output) -> String {
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -8184,7 +8570,7 @@ fn looks_like_desktop_app(name: &str, command: &str) -> bool {
     .any(|needle| haystack.contains(needle))
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
     use crate::atspi_tree::{AccessibilityAction, Bounds};
@@ -10973,7 +11359,7 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod field_entry_tests {
     use super::*;
 
@@ -11056,7 +11442,7 @@ mod field_entry_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod accessibility_tree_note_tests {
     use super::{truncated_accessibility_tree_note, unscoped_accessibility_tree_warning};
 
@@ -11099,7 +11485,7 @@ mod accessibility_tree_note_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod focus_probe_feedback_tests {
     use super::{focus_probe_feedback, FocusProbe, FocusedElementSummary};
 
@@ -11156,7 +11542,7 @@ mod focus_probe_feedback_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod node_target_scope_tests {
     use super::*;
 
