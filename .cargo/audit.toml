@@ -10,8 +10,10 @@ ignore = [
     # ships inside the atspi crates. It never parses data from the D-Bus bus,
     # the network or the user. (It used to come from wayland-scanner, removed
     # with the X11-only refactor.)
-    # Unignore when atspi releases on zbus 6 / zbus_xml >= 6 with quick-xml
-    # >= 0.41 (`cargo update -p atspi && cargo tree -i quick-xml`).
+    # Unignore once no affected quick-xml (< 0.41) remains in the tree, e.g.
+    # after an atspi/zbus_xml upgrade (`cargo update -p atspi && cargo tree
+    # -i quick-xml --target x86_64-unknown-linux-gnu`; on macOS the target
+    # flag is needed, the crates are Linux-only).
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
     # RUSTSEC-2026-0370 / RUSTSEC-2026-0371 / RUSTSEC-2026-0372: zvariant,
@@ -21,7 +23,8 @@ ignore = [
     # (atspi 0.30, atspi-common 0.14) still depends on zbus 5, so no upgrade
     # removes them yet.
     # Unignore when atspi releases on zbus >= 6 (`cargo search atspi`, then
-    # `cargo tree -i zvariant` should be empty after the upgrade).
+    # `cargo tree -i zvariant --target x86_64-unknown-linux-gnu` should be
+    # empty after the upgrade).
     "RUSTSEC-2026-0370",
     "RUSTSEC-2026-0371",
     "RUSTSEC-2026-0372",
